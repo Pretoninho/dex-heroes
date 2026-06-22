@@ -10,16 +10,17 @@ Un **Dex** est une machine à cash composée de :
 - un **graphe d'actifs** que tu connectes pour faire grossir le flux.
 
 Le cash **circule** depuis la source à travers les actifs connectés. Chaque actif
-connecté **ajoute du cash/sec** (+) au flux. Le graphe est **à branches** : on peut
-brancher plusieurs actifs en parallèle. Un actif ne se connecte que s'il est en aval
-d'un nœud déjà connecté.
+connecté **ajoute du cash/sec** (+) au flux. Le graphe est **tentaculaire** : la
+source est au centre et des **bras d'actifs rayonnent tout autour** (liens courbes
+animés quand le flux passe). Un actif ne se connecte que s'il est en aval d'un nœud
+déjà connecté.
 
 ```
-              💵 Source
-             /          \
-        🏦 Banque      📈 Bourse
-          |               |
-      🏠 Immobilier    🪙 Crypto
+        🏦──💳        📈──🪙
+            \         /
+     ⚡──🛢️ ── 💵 Source ── 🏠──🏗️
+            /         \
+        🦄──💼        🏭──🚢
 ```
 
 ## Jouer

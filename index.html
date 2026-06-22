@@ -103,7 +103,9 @@
   .graph {
     position: relative;
     width: 100%;
-    height: 440px;
+    aspect-ratio: 1 / 1;
+    max-height: 72vh;
+    margin: 6px auto 0;
   }
   .graph svg {
     position: absolute;
@@ -113,6 +115,7 @@
     pointer-events: none;
   }
   .link {
+    fill: none;
     stroke: #234534;
     stroke-width: 3;
     transition: stroke .3s;
@@ -128,11 +131,11 @@
   .node {
     position: absolute;
     transform: translate(-50%, -50%);
-    width: 116px;
+    width: 94px;
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
-    padding: 8px 6px 7px;
+    padding: 6px 4px 6px;
     text-align: center;
     cursor: pointer;
     user-select: none;
@@ -140,14 +143,24 @@
     touch-action: manipulation;
   }
   .node:active { transform: translate(-50%, -50%) scale(.97); }
-  .node .nemoji { font-size: 26px; line-height: 1; }
-  .node .nname { font-weight: 700; font-size: 13px; margin-top: 2px; }
-  .node .ninfo { font-size: 11px; margin-top: 3px; }
+  .node .nemoji { font-size: 23px; line-height: 1; }
+  .node .nname { font-weight: 700; font-size: 12px; margin-top: 2px; }
+  .node .ninfo { font-size: 10.5px; margin-top: 3px; }
   .node .ncost { color: var(--accent-2); }
   .node .nlevel { color: var(--accent); }
 
-  .node.source { border-color: var(--accent); cursor: default; }
+  .node.source {
+    border-color: var(--accent);
+    cursor: default;
+    background: radial-gradient(circle at 50% 35%, #2f7d54, #18342695);
+    box-shadow: 0 0 18px rgba(52,209,122,.5);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
   .node.source:active { transform: translate(-50%, -50%); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 14px rgba(52,209,122,.35); }
+    50%      { box-shadow: 0 0 24px rgba(52,209,122,.65); }
+  }
   .node.connected { border-color: var(--accent); box-shadow: 0 0 12px rgba(52,209,122,.35); }
   .node.connectable { border-color: var(--accent-2); }
   .node.locked { opacity: .4; cursor: not-allowed; filter: grayscale(.6); }
@@ -224,13 +237,36 @@
   // x/y : position en % dans le graphe | parent : nœud amont requis
   // baseCost : coût de connexion | rate : +$/sec ajoutés par niveau
   // growth : multiplicateur de coût à chaque amélioration
-  const NODES = [
-    { id: "source", name: "Source",     emoji: "💵", x: 50, y: 11, parent: null,     source: true },
-    { id: "banque", name: "Banque",     emoji: "🏦", x: 26, y: 42, parent: "source", baseCost: 50,    rate: 0.5, growth: 1.18 },
-    { id: "bourse", name: "Bourse",     emoji: "📈", x: 74, y: 42, parent: "source", baseCost: 250,   rate: 2,   growth: 1.18 },
-    { id: "immo",   name: "Immobilier", emoji: "🏠", x: 26, y: 80, parent: "banque", baseCost: 2000,  rate: 10,  growth: 1.18 },
-    { id: "crypto", name: "Crypto",     emoji: "🪙", x: 74, y: 80, parent: "bourse", baseCost: 15000, rate: 40,  growth: 1.18 },
+  // Graphe tentaculaire : la Source au centre nourrit des bras d'actifs qui
+  // rayonnent tout autour. Chaque bras part à un angle donné et enchaîne des
+  // modules (paliers). Ajouter un bras ou un module = éditer ARMS / RADII.
+  const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
+  const RADII = [24, 43];          // distance au centre, par palier
+  const GROWTH = 1.18;
+  const ARMS = [
+    { angle: 270, tiers: [ { name: "Banque",     emoji: "🏦", cost: 50,    rate: 0.5 }, { name: "Crédit",       emoji: "💳", cost: 1500,   rate: 9   } ] },
+    { angle: 330, tiers: [ { name: "Bourse",     emoji: "📈", cost: 120,   rate: 1   }, { name: "Crypto",       emoji: "🪙", cost: 4000,   rate: 18  } ] },
+    { angle: 30,  tiers: [ { name: "Immobilier", emoji: "🏠", cost: 300,   rate: 2   }, { name: "Promotion",    emoji: "🏗️", cost: 9000,   rate: 35  } ] },
+    { angle: 90,  tiers: [ { name: "Industrie",  emoji: "🏭", cost: 700,   rate: 3.5 }, { name: "Commerce",     emoji: "🚢", cost: 20000,  rate: 70  } ] },
+    { angle: 150, tiers: [ { name: "Startup",    emoji: "💼", cost: 1600,  rate: 6   }, { name: "Licorne",      emoji: "🦄", cost: 45000,  rate: 140 } ] },
+    { angle: 210, tiers: [ { name: "Énergie",    emoji: "🛢️", cost: 4000,  rate: 12  }, { name: "Renouvelable", emoji: "⚡", cost: 100000, rate: 280 } ] },
   ];
+
+  // Génère les nœuds positionnés en étoile autour de la source (centre 50,50).
+  const NODES = [ Object.assign({ x: 50, y: 50 }, SOURCE) ];
+  ARMS.forEach((arm, ai) => {
+    const rad = arm.angle * Math.PI / 180;
+    arm.tiers.forEach((t, ti) => {
+      NODES.push({
+        id: "a" + ai + "t" + ti,
+        name: t.name, emoji: t.emoji,
+        x: 50 + RADII[ti] * Math.cos(rad),
+        y: 50 + RADII[ti] * Math.sin(rad),
+        parent: ti === 0 ? "source" : "a" + ai + "t" + (ti - 1),
+        baseCost: t.cost, rate: t.rate, growth: GROWTH
+      });
+    });
+  });
   const NODE = Object.fromEntries(NODES.map(n => [n.id, n]));
   const ASSETS = NODES.filter(n => !n.source);
 
@@ -340,15 +376,19 @@
     const svg = document.getElementById("links");
     const graph = document.getElementById("graph");
     // Liens (parent -> nœud)
-    ASSETS.forEach(n => {
+    ASSETS.forEach((n, i) => {
       const p = NODE[n.parent];
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", p.x); line.setAttribute("y1", p.y);
-      line.setAttribute("x2", n.x); line.setAttribute("y2", n.y);
-      line.setAttribute("class", "link");
-      line.setAttribute("vector-effect", "non-scaling-stroke");
-      line.id = "link-" + n.id;
-      svg.appendChild(line);
+      const mx = (p.x + n.x) / 2, my = (p.y + n.y) / 2;
+      const dx = n.x - p.x, dy = n.y - p.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const bend = (i % 2 ? 1 : -1) * 5;           // courbure « tentacule »
+      const cx = mx - dy / len * bend, cy = my + dx / len * bend;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${p.x} ${p.y} Q ${cx} ${cy} ${n.x} ${n.y}`);
+      path.setAttribute("class", "link");
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      path.id = "link-" + n.id;
+      svg.appendChild(path);
     });
     // Nœuds
     NODES.forEach(n => {
