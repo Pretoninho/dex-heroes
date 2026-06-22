@@ -138,6 +138,7 @@
   @keyframes blink { 50% { opacity: .4; } }
 
   .node {
+    position: relative;
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
@@ -148,6 +149,19 @@
     transition: border-color .15s, transform .05s, opacity .2s;
     touch-action: manipulation;
   }
+  .node .dot { position: absolute; top: -4px; right: -4px; }
+
+  /* Point rouge « action disponible » */
+  .dot {
+    display: none;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #ff5d5d;
+    box-shadow: 0 0 6px #ff5d5d;
+    vertical-align: middle;
+    margin-left: 5px;
+  }
+  .dot.show { display: inline-block; }
   .row .node { flex: 1 1 0; min-width: 0; }
   .node:active { transform: scale(.97); }
   .node .nemoji { font-size: clamp(17px, 5.2vw, 24px); line-height: 1; }
@@ -175,6 +189,8 @@
   .node.locked { opacity: .5; filter: grayscale(.5); }
 
   /* Page module (détail) */
+  .mnav { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mnav-arrows { display: flex; gap: 8px; }
   .mhead { display: flex; align-items: center; gap: 14px; margin: 14px 0 16px; }
   .memoji { font-size: 46px; line-height: 1; }
   .mname { font-size: 22px; font-weight: 800; }
@@ -271,7 +287,13 @@
 
       <!-- Page d'un module -->
       <div id="moduleScreen" style="display:none">
-        <button class="btn" id="backBtn">← Retour</button>
+        <div class="mnav">
+          <button class="btn" id="backBtn">← Retour</button>
+          <div class="mnav-arrows">
+            <button class="btn" id="prevBtn">‹ Préc.<span class="dot" id="prevDot"></span></button>
+            <button class="btn" id="nextBtn">Suiv. ›<span class="dot" id="nextDot"></span></button>
+          </div>
+        </div>
         <div class="mhead">
           <div class="memoji" id="mpEmoji">🏦</div>
           <div>
@@ -362,6 +384,8 @@
     return total;
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
+  // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
+  function actionable(n) { return !n.source && isUnlocked(n) && state.cash >= costOf(n); }
 
   // --- Achat / gestion des Dex ------------------------------------------
   function nextDexIndex() { return state.dexes.length; }
@@ -490,6 +514,7 @@
         card.className = "node";
         card.id = "node-" + id;
         card.innerHTML =
+          `<span class="dot" id="dot-${id}"></span>` +
           `<div class="nemoji">${n.emoji}</div>` +
           `<div class="nname">${n.name}</div>` +
           `<div class="ninfo" id="info-${id}"></div>`;
@@ -522,6 +547,12 @@
     document.getElementById("overviewScreen").style.display = "block";
     render();
   }
+  function gotoSibling(delta) {
+    const idx = ASSETS.indexOf(NODE[currentModule]);
+    if (idx < 0) return;
+    const t = ASSETS[(idx + delta + ASSETS.length) % ASSETS.length];   // cyclique
+    openModule(t.id);
+  }
 
   // --- Rendu -------------------------------------------------------------
   function render() {
@@ -552,6 +583,7 @@
         : (!connected
             ? `<span class="ncost">$${fmt(costOf(n))}</span>`
             : `<span class="nlevel">niv.${levelOf(n)}</span>`);
+      document.getElementById("dot-" + n.id).classList.toggle("show", actionable(n));
       const link = document.getElementById("link-" + n.id);
       if (link) link.classList.toggle("active", connected);
     });
@@ -577,6 +609,13 @@
       btn.textContent = `Améliorer → niv.${lvl + 1} · $${fmt(cost)}  (+$${fmt(n.rate * rm)}/s)`;
       btn.className = "big-btn" + (state.cash >= cost ? " can" : "");
     }
+
+    // Points rouges sur les flèches Préc./Suiv. (module voisin actionnable)
+    const idx = ASSETS.indexOf(n);
+    const prevN = ASSETS[(idx - 1 + ASSETS.length) % ASSETS.length];
+    const nextN = ASSETS[(idx + 1) % ASSETS.length];
+    document.getElementById("prevDot").classList.toggle("show", actionable(prevN));
+    document.getElementById("nextDot").classList.toggle("show", actionable(nextN));
   }
 
   // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
@@ -620,6 +659,8 @@
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
   document.getElementById("backBtn").addEventListener("click", backToOverview);
+  document.getElementById("prevBtn").addEventListener("click", () => gotoSibling(-1));
+  document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   setInterval(loop, 100);
   setInterval(save, 15000);
