@@ -348,6 +348,8 @@
   });
   const NODE = Object.fromEntries(NODES.map(n => [n.id, n]));
   const ASSETS = NODES.filter(n => !n.source);
+  // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
+  const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
   // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
@@ -548,9 +550,9 @@
     render();
   }
   function gotoSibling(delta) {
-    const idx = ASSETS.indexOf(NODE[currentModule]);
+    const idx = NAV.indexOf(NODE[currentModule]);
     if (idx < 0) return;
-    const t = ASSETS[(idx + delta + ASSETS.length) % ASSETS.length];   // cyclique
+    const t = NAV[(idx + delta + NAV.length) % NAV.length];   // cyclique, ordre rareté→valeur
     openModule(t.id);
   }
 
@@ -610,10 +612,10 @@
       btn.className = "big-btn" + (state.cash >= cost ? " can" : "");
     }
 
-    // Points rouges sur les flèches Préc./Suiv. (module voisin actionnable)
-    const idx = ASSETS.indexOf(n);
-    const prevN = ASSETS[(idx - 1 + ASSETS.length) % ASSETS.length];
-    const nextN = ASSETS[(idx + 1) % ASSETS.length];
+    // Points rouges sur les flèches Préc./Suiv. (module voisin actionnable, ordre NAV)
+    const idx = NAV.indexOf(n);
+    const prevN = NAV[(idx - 1 + NAV.length) % NAV.length];
+    const nextN = NAV[(idx + 1) % NAV.length];
     document.getElementById("prevDot").classList.toggle("show", actionable(prevN));
     document.getElementById("nextDot").classList.toggle("show", actionable(nextN));
   }
