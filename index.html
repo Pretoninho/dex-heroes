@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cookie Idle — Mini Idle Game</title>
+<style>
+  :root {
+    --bg: #1a1426;
+    --panel: #261d38;
+    --panel-2: #2f2545;
+    --accent: #ffce4d;
+    --accent-2: #ff7ac6;
+    --text: #f3eefb;
+    --muted: #a99ec7;
+    --green: #5ee6a0;
+    --shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% -10%, #2c2140, var(--bg));
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: .5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 820px;
+  }
+  @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Clicker side */
+  .counter { text-align: center; }
+  .cookies {
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+  .per-sec { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .cookie-btn {
+    margin: 18px auto 6px;
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-size: 80px;
+    background: radial-gradient(circle at 35% 30%, #b07a3c, #6e4a22);
+    box-shadow: inset 0 -8px 16px rgba(0,0,0,.4), var(--shadow);
+    transition: transform .06s ease;
+    user-select: none;
+    display: block;
+  }
+  .cookie-btn:active { transform: scale(.93); }
+  .click-hint { color: var(--muted); font-size: 13px; }
+
+  /* Floating +N */
+  .float {
+    position: fixed;
+    pointer-events: none;
+    font-weight: 700;
+    color: var(--accent);
+    animation: floatUp .9s ease-out forwards;
+    z-index: 50;
+  }
+  @keyframes floatUp {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-50px); }
+  }
+
+  /* Shop */
+  h2 { margin: 0 0 12px; font-size: 18px; }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: border-color .15s, transform .05s;
+  }
+  .item:hover { border-color: var(--accent-2); }
+  .item:active { transform: scale(.99); }
+  .item.locked { opacity: .45; cursor: not-allowed; }
+  .item .emoji { font-size: 30px; width: 40px; text-align: center; }
+  .item .info { flex: 1; }
+  .item .name { font-weight: 700; }
+  .item .desc { font-size: 12px; color: var(--muted); }
+  .item .right { text-align: right; }
+  .item .cost { font-weight: 700; color: var(--accent); }
+  .item .owned { font-size: 12px; color: var(--green); }
+
+  .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
+  .btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid #3d3058;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn:hover { border-color: var(--accent-2); }
+  .btn.danger:hover { border-color: #ff6b6b; color: #ff8a8a; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel-2);
+    border: 1px solid #3d3058;
+    padding: 10px 18px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <h1>🍪 Cookie Idle</h1>
+  <p class="tagline">Clique, produis, automatise. Ta progression est sauvegardée et continue même fermé.</p>
+
+  <div class="layout">
+    <!-- Clicker -->
+    <div class="panel counter">
+      <div class="cookies" id="cookieCount">0</div>
+      <div class="per-sec" id="perSec">0 / sec</div>
+      <button class="cookie-btn" id="cookieBtn" aria-label="Fabriquer un cookie">🍪</button>
+      <div class="click-hint">+<span id="clickPower">1</span> par clic</div>
+      <div class="controls">
+        <button class="btn" id="saveBtn">💾 Sauver</button>
+        <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
+      </div>
+    </div>
+
+    <!-- Shop -->
+    <div class="panel">
+      <h2>🏪 Boutique</h2>
+      <div id="shop"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  // --- Définition des générateurs --------------------------------------
+  // baseCost: coût du 1er exemplaire | rate: cookies/sec par exemplaire
+  // growth: multiplicateur de coût à chaque achat (1.15 = standard idle)
+  const GENERATORS = [
+    { id: "cursor",  name: "Curseur",     emoji: "👆", baseCost: 15,    rate: 0.1,  growth: 1.15 },
+    { id: "grandma", name: "Grand-mère",  emoji: "👵", baseCost: 100,   rate: 1,    growth: 1.15 },
+    { id: "farm",    name: "Ferme",       emoji: "🌾", baseCost: 1100,  rate: 8,    growth: 1.15 },
+    { id: "factory", name: "Usine",       emoji: "🏭", baseCost: 12000, rate: 47,   growth: 1.15 },
+    { id: "mine",    name: "Mine",        emoji: "⛏️", baseCost: 130000,rate: 260,  growth: 1.15 },
+    { id: "temple",  name: "Temple",      emoji: "🏛️", baseCost: 1.4e6, rate: 1400, growth: 1.15 },
+  ];
+
+  const SAVE_KEY = "cookieIdleSave";
+
+  // --- État --------------------------------------------------------------
+  let state = {
+    cookies: 0,
+    clickPower: 1,
+    owned: {},          // { generatorId: quantité }
+    lastSeen: Date.now()
+  };
+
+  // --- Chargement / sauvegarde ------------------------------------------
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      state = Object.assign(state, saved);
+      state.owned = saved.owned || {};
+      // Progression hors-ligne
+      const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
+      if (elapsed > 1) {
+        const gained = perSecond() * elapsed;
+        if (gained > 0) {
+          state.cookies += gained;
+          setTimeout(() => toast(`Bon retour ! +${fmt(gained)} 🍪 hors-ligne`), 400);
+        }
+      }
+    } catch (e) { console.warn("Sauvegarde illisible", e); }
+  }
+
+  function save() {
+    state.lastSeen = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  }
+
+  // --- Calculs -----------------------------------------------------------
+  function costOf(gen) {
+    const n = state.owned[gen.id] || 0;
+    return Math.ceil(gen.baseCost * Math.pow(gen.growth, n));
+  }
+  function perSecond() {
+    return GENERATORS.reduce((sum, g) => sum + (state.owned[g.id] || 0) * g.rate, 0);
+  }
+
+  // --- Formatage des grands nombres -------------------------------------
+  const UNITS = ["", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp"];
+  function fmt(n) {
+    if (n < 1000) return Math.floor(n).toString();
+    let tier = Math.floor(Math.log10(n) / 3);
+    tier = Math.min(tier, UNITS.length - 1);
+    const scaled = n / Math.pow(1000, tier);
+    return scaled.toFixed(2) + UNITS[tier];
+  }
+
+  // --- Actions -----------------------------------------------------------
+  function click(e) {
+    state.cookies += state.clickPower;
+    spawnFloat(e, "+" + state.clickPower);
+    render();
+  }
+
+  function buy(gen) {
+    const cost = costOf(gen);
+    if (state.cookies < cost) { toast("Pas assez de cookies !"); return; }
+    state.cookies -= cost;
+    state.owned[gen.id] = (state.owned[gen.id] || 0) + 1;
+    render();
+    save();
+  }
+
+  function reset() {
+    if (!confirm("Réinitialiser toute ta progression ?")) return;
+    localStorage.removeItem(SAVE_KEY);
+    state = { cookies: 0, clickPower: 1, owned: {}, lastSeen: Date.now() };
+    buildShop();
+    render();
+    toast("Partie réinitialisée");
+  }
+
+  // --- Effets visuels ----------------------------------------------------
+  function spawnFloat(e, txt) {
+    const el = document.createElement("div");
+    el.className = "float";
+    el.textContent = txt;
+    el.style.left = (e.clientX - 10) + "px";
+    el.style.top = (e.clientY - 20) + "px";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  // --- Rendu -------------------------------------------------------------
+  function buildShop() {
+    const shop = document.getElementById("shop");
+    shop.innerHTML = "";
+    GENERATORS.forEach(gen => {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.id = "item-" + gen.id;
+      div.innerHTML = `
+        <div class="emoji">${gen.emoji}</div>
+        <div class="info">
+          <div class="name">${gen.name}</div>
+          <div class="desc">+${gen.rate}/sec chacun</div>
+        </div>
+        <div class="right">
+          <div class="cost" id="cost-${gen.id}"></div>
+          <div class="owned" id="owned-${gen.id}"></div>
+        </div>`;
+      div.addEventListener("click", () => buy(gen));
+      shop.appendChild(div);
+    });
+  }
+
+  function render() {
+    document.getElementById("cookieCount").textContent = fmt(state.cookies);
+    document.getElementById("perSec").textContent = fmt(perSecond()) + " / sec";
+    document.getElementById("clickPower").textContent = state.clickPower;
+    GENERATORS.forEach(gen => {
+      const cost = costOf(gen);
+      const item = document.getElementById("item-" + gen.id);
+      document.getElementById("cost-" + gen.id).textContent = fmt(cost) + " 🍪";
+      document.getElementById("owned-" + gen.id).textContent = (state.owned[gen.id] || 0) + " possédé(s)";
+      item.classList.toggle("locked", state.cookies < cost);
+    });
+  }
+
+  // --- Boucle de jeu -----------------------------------------------------
+  let lastTick = Date.now();
+  function loop() {
+    const now = Date.now();
+    const dt = (now - lastTick) / 1000;
+    lastTick = now;
+    state.cookies += perSecond() * dt;
+    render();
+  }
+
+  // --- Démarrage ---------------------------------------------------------
+  load();
+  buildShop();
+  render();
+  document.getElementById("cookieBtn").addEventListener("click", click);
+  document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
+  document.getElementById("resetBtn").addEventListener("click", reset);
+  setInterval(loop, 100);     // boucle de production (10x/sec)
+  setInterval(save, 15000);   // sauvegarde auto toutes les 15s
+  window.addEventListener("beforeunload", save);
+})();
+</script>
+</body>
+</html>
