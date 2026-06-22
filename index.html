@@ -116,71 +116,89 @@
   .tab.buy { border-style: dashed; border-color: #3d3058; color: var(--muted); }
   .tab.buy.affordable { border-style: solid; border-color: var(--accent-2); color: var(--accent-2); }
 
-  .graph {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    max-height: 78vh;
-    margin: 6px auto 0;
-    container-type: size;   /* active les unités cqmin pour les nœuds */
+  /* Vue d'ensemble : Source + lignes (bras) fléchées */
+  .srcrow { display: flex; justify-content: center; margin: 4px 0 12px; }
+  .branches {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-left: 2px solid #234534;
+    margin-left: 14px;
+    padding-left: 10px;
   }
-  .graph svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+  .row { display: flex; align-items: stretch; gap: 3px; }
+  .conn {
+    flex: 0 0 auto;
+    align-self: center;
+    color: #2c4b3a;
+    font-size: 15px;
+    transition: color .3s;
   }
-  .link {
-    fill: none;
-    stroke: #234534;
-    stroke-width: 3;
-    transition: stroke .3s;
-  }
-  .link.active {
-    stroke: var(--accent);
-    filter: drop-shadow(0 0 3px var(--accent));
-    stroke-dasharray: 6 6;
-    animation: flow 1s linear infinite;
-  }
-  @keyframes flow { to { stroke-dashoffset: -12; } }
+  .conn.active { color: var(--accent); text-shadow: 0 0 6px var(--accent); animation: blink 1.1s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .4; } }
 
   .node {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    width: clamp(54px, 18cqmin, 92px);
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
-    padding: clamp(2px, 0.9cqmin, 5px) clamp(2px, 1cqmin, 5px);
+    padding: 6px 4px;
     text-align: center;
     cursor: pointer;
     user-select: none;
     transition: border-color .15s, transform .05s, opacity .2s;
     touch-action: manipulation;
   }
-  .node:active { transform: translate(-50%, -50%) scale(.97); }
-  .node .nemoji { font-size: clamp(14px, 4.6cqmin, 21px); line-height: 1; }
-  .node .nname { font-weight: 700; font-size: clamp(8px, 2.8cqmin, 11.5px); margin-top: 1px; }
-  .node .ninfo { font-size: clamp(7px, 2.4cqmin, 10px); margin-top: 2px; line-height: 1.15; }
+  .row .node { flex: 1 1 0; min-width: 0; }
+  .node:active { transform: scale(.97); }
+  .node .nemoji { font-size: clamp(17px, 5.2vw, 24px); line-height: 1; }
+  .node .nname { font-weight: 700; font-size: clamp(9.5px, 2.7vw, 12px); margin-top: 2px; overflow-wrap: anywhere; }
+  .node .ninfo { font-size: clamp(8.5px, 2.4vw, 11px); margin-top: 3px; line-height: 1.2; }
   .node .ncost { color: var(--accent-2); }
   .node .nlevel { color: var(--accent); }
 
   .node.source {
+    flex: 0 0 auto;
+    min-width: 130px;
     border-color: var(--accent);
     cursor: default;
     background: radial-gradient(circle at 50% 35%, #2f7d54, #18342695);
     box-shadow: 0 0 18px rgba(52,209,122,.5);
     animation: pulse 2.4s ease-in-out infinite;
   }
-  .node.source:active { transform: translate(-50%, -50%); }
+  .node.source:active { transform: none; }
   @keyframes pulse {
     0%, 100% { box-shadow: 0 0 14px rgba(52,209,122,.35); }
     50%      { box-shadow: 0 0 24px rgba(52,209,122,.65); }
   }
-  .node.connected { border-color: var(--accent); box-shadow: 0 0 12px rgba(52,209,122,.35); }
+  .node.connected { border-color: var(--accent); box-shadow: 0 0 10px rgba(52,209,122,.3); }
   .node.connectable { border-color: var(--accent-2); }
-  .node.locked { opacity: .4; cursor: not-allowed; filter: grayscale(.6); }
+  .node.locked { opacity: .5; filter: grayscale(.5); }
+
+  /* Page module (détail) */
+  .mhead { display: flex; align-items: center; gap: 14px; margin: 14px 0 16px; }
+  .memoji { font-size: 46px; line-height: 1; }
+  .mname { font-size: 22px; font-weight: 800; }
+  .mrarity {
+    display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 700;
+    padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor;
+  }
+  .mrarity.r0 { color: var(--muted); }
+  .mrarity.r1 { color: #7ab8ff; }
+  .mrarity.r2 { color: var(--accent-2); }
+  .mstats { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .mstats b { color: var(--text); }
+  .mstats .mdex { color: var(--accent); }
+  .big-btn {
+    width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700;
+    background: var(--panel-2); color: var(--text); border: 2px solid #2a4d3a;
+    cursor: pointer; touch-action: manipulation; transition: border-color .15s, opacity .15s;
+  }
+  .big-btn.can { border-color: var(--accent-2); color: var(--accent-2); }
+  .big-btn.locked { border-color: #3d3058; color: var(--muted); cursor: not-allowed; }
+  .hero-slot {
+    margin-top: 14px; padding: 18px; border-radius: 12px; text-align: center;
+    border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
+  }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
   .btn {
@@ -236,11 +254,38 @@
 
     <!-- Graphe de cash flow -->
     <div class="panel">
-      <h2>🔗 Cash Flow</h2>
-      <p class="hint">Clique un actif débloqué pour le <b>connecter</b>, reclique pour l'<b>améliorer</b>.</p>
-      <div class="tabs" id="dexTabs"></div>
-      <div class="graph" id="graph">
-        <svg id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <!-- Vue d'ensemble -->
+      <div id="overviewScreen">
+        <h2>🔗 Cash Flow</h2>
+        <p class="hint">Tape un module pour ouvrir sa page (connecter / améliorer).</p>
+        <div class="tabs" id="dexTabs"></div>
+        <div class="srcrow">
+          <div class="node source" id="node-source">
+            <div class="nemoji">💵</div>
+            <div class="nname">Source</div>
+            <div class="ninfo" id="info-source"></div>
+          </div>
+        </div>
+        <div class="branches" id="branches"></div>
+      </div>
+
+      <!-- Page d'un module -->
+      <div id="moduleScreen" style="display:none">
+        <button class="btn" id="backBtn">← Retour</button>
+        <div class="mhead">
+          <div class="memoji" id="mpEmoji">🏦</div>
+          <div>
+            <div class="mname" id="mpName">Module</div>
+            <div class="mrarity" id="mpRarity">Commun</div>
+          </div>
+        </div>
+        <div class="mstats">
+          <div>Niveau : <b id="mpLevel">0</b></div>
+          <div>Production : <b id="mpProd">+$0/s</b></div>
+          <div class="mdex" id="mpDex">Dex 1</div>
+        </div>
+        <button class="big-btn" id="mpAction">Connecter</button>
+        <div class="hero-slot" id="mpHero">🦸 Slot héros — bientôt (gacha)</div>
       </div>
     </div>
   </div>
@@ -251,35 +296,29 @@
 (() => {
   "use strict";
 
-  // --- Graphe d'actifs ---------------------------------------------------
-  // x/y : position en % dans le graphe | parent : nœud amont requis
-  // baseCost : coût de connexion | rate : +$/sec ajoutés par niveau
-  // growth : multiplicateur de coût à chaque amélioration
-  // Graphe tentaculaire : la Source au centre nourrit des bras d'actifs qui
-  // rayonnent tout autour. Chaque bras part à un angle donné et enchaîne des
-  // modules (paliers). Ajouter un bras ou un module = éditer ARMS / RADII.
+  // --- Graphe « cash flow » ---------------------------------------------
+  // La Source alimente des bras. Chaque bras s'affiche en ligne et enchaîne
+  // 3 paliers : Commun, Rare, Épique. Le palier d'un module = la rareté de son
+  // héros (étape gacha). parent = module amont requis pour se connecter.
+  // baseCost : coût de connexion | rate : +$/sec par niveau | growth : ×coût.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const RADII = [24, 47];          // distance au centre, par palier
   const GROWTH = 1.18;
+  const RARITY = ["Commun", "Rare", "Épique"];   // index = palier (tier)
   const ARMS = [
-    { angle: 270, tiers: [ { name: "Banque",     emoji: "🏦", cost: 50,    rate: 0.5 }, { name: "Crédit",       emoji: "💳", cost: 1500,   rate: 9   } ] },
-    { angle: 330, tiers: [ { name: "Bourse",     emoji: "📈", cost: 120,   rate: 1   }, { name: "Crypto",       emoji: "🪙", cost: 4000,   rate: 18  } ] },
-    { angle: 30,  tiers: [ { name: "Immobilier", emoji: "🏠", cost: 300,   rate: 2   }, { name: "Promotion",    emoji: "🏗️", cost: 9000,   rate: 35  } ] },
-    { angle: 90,  tiers: [ { name: "Industrie",  emoji: "🏭", cost: 700,   rate: 3.5 }, { name: "Commerce",     emoji: "🚢", cost: 20000,  rate: 70  } ] },
-    { angle: 150, tiers: [ { name: "Startup",    emoji: "💼", cost: 1600,  rate: 6   }, { name: "Licorne",      emoji: "🦄", cost: 45000,  rate: 140 } ] },
-    { angle: 210, tiers: [ { name: "Énergie",    emoji: "🛢️", cost: 4000,  rate: 12  }, { name: "Renouvelable", emoji: "⚡", cost: 100000, rate: 280 } ] },
+    { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:1500,   rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:30000,   rate:120  } ] },
+    { tiers: [ { name:"Bourse",     emoji:"📈", cost:120,  rate:1   }, { name:"Crypto",      emoji:"🪙", cost:4000,   rate:18  }, { name:"Hedge Fund",  emoji:"🐋", cost:80000,   rate:220  } ] },
+    { tiers: [ { name:"Immobilier", emoji:"🏠", cost:300,  rate:2   }, { name:"Promotion",   emoji:"🏗️", cost:9000,   rate:35  }, { name:"Gratte-ciel", emoji:"🌆", cost:180000,  rate:420  } ] },
+    { tiers: [ { name:"Industrie",  emoji:"🏭", cost:700,  rate:3.5 }, { name:"Commerce",    emoji:"🚢", cost:20000,  rate:70  }, { name:"Aérospatial", emoji:"🛰️", cost:400000,  rate:850  } ] },
+    { tiers: [ { name:"Startup",    emoji:"💼", cost:1600, rate:6   }, { name:"Licorne",     emoji:"🦄", cost:45000,  rate:140 }, { name:"Conglomérat", emoji:"🌍", cost:900000,  rate:1700 } ] },
+    { tiers: [ { name:"Énergie",    emoji:"🛢️", cost:4000, rate:12  }, { name:"Renouvelable",emoji:"⚡", cost:100000, rate:280 }, { name:"Fusion",      emoji:"☢️", cost:2000000, rate:3500 } ] },
   ];
 
-  // Génère les nœuds positionnés en étoile autour de la source (centre 50,50).
-  const NODES = [ Object.assign({ x: 50, y: 50 }, SOURCE) ];
+  const NODES = [ Object.assign({}, SOURCE) ];
   ARMS.forEach((arm, ai) => {
-    const rad = arm.angle * Math.PI / 180;
     arm.tiers.forEach((t, ti) => {
       NODES.push({
         id: "a" + ai + "t" + ti,
-        name: t.name, emoji: t.emoji,
-        x: 50 + RADII[ti] * Math.cos(rad),
-        y: 50 + RADII[ti] * Math.sin(rad),
+        name: t.name, emoji: t.emoji, arm: ai, tier: ti,
         parent: ti === 0 ? "source" : "a" + ai + "t" + (ti - 1),
         baseCost: t.cost, rate: t.rate, growth: GROWTH
       });
@@ -432,40 +471,56 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
   }
 
-  // --- Construction du graphe (une fois) --------------------------------
-  function buildGraph() {
-    const svg = document.getElementById("links");
-    const graph = document.getElementById("graph");
-    // Liens (parent -> nœud)
-    ASSETS.forEach((n, i) => {
-      const p = NODE[n.parent];
-      const mx = (p.x + n.x) / 2, my = (p.y + n.y) / 2;
-      const dx = n.x - p.x, dy = n.y - p.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const bend = (i % 2 ? 1 : -1) * 5;           // courbure « tentacule »
-      const cx = mx - dy / len * bend, cy = my + dx / len * bend;
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", `M ${p.x} ${p.y} Q ${cx} ${cy} ${n.x} ${n.y}`);
-      path.setAttribute("class", "link");
-      path.setAttribute("vector-effect", "non-scaling-stroke");
-      path.id = "link-" + n.id;
-      svg.appendChild(path);
-    });
-    // Nœuds
-    NODES.forEach(n => {
-      const div = document.createElement("div");
-      div.className = "node";
-      div.id = "node-" + n.id;
-      div.style.left = n.x + "%";
-      div.style.top = n.y + "%";
-      div.innerHTML = `
-        <div class="nemoji">${n.emoji}</div>
-        <div class="nname">${n.name}</div>
-        <div class="ninfo" id="info-${n.id}"></div>`;
-      if (!n.source) div.addEventListener("click", () => interact(n));
-      graph.appendChild(div);
+  // --- Vue d'ensemble : construite une fois -----------------------------
+  function buildOverview() {
+    const branches = document.getElementById("branches");
+    branches.innerHTML = "";
+    ARMS.forEach((arm, ai) => {
+      const row = document.createElement("div");
+      row.className = "row";
+      arm.tiers.forEach((t, ti) => {
+        const id = "a" + ai + "t" + ti;
+        const n = NODE[id];
+        const conn = document.createElement("div");
+        conn.className = "conn";
+        conn.id = "link-" + id;
+        conn.textContent = "▸";
+        row.appendChild(conn);
+        const card = document.createElement("div");
+        card.className = "node";
+        card.id = "node-" + id;
+        card.innerHTML =
+          `<div class="nemoji">${n.emoji}</div>` +
+          `<div class="nname">${n.name}</div>` +
+          `<div class="ninfo" id="info-${id}"></div>`;
+        card.addEventListener("click", () => openModule(id));
+        row.appendChild(card);
+      });
+      branches.appendChild(row);
     });
     document.getElementById("connTotal").textContent = ASSETS.length;
+  }
+
+  // --- Navigation entre écrans ------------------------------------------
+  let currentModule = null;   // id du module ouvert, ou null (vue d'ensemble)
+  function openModule(id) {
+    currentModule = id;
+    const n = NODE[id];
+    document.getElementById("mpEmoji").textContent = n.emoji;
+    document.getElementById("mpName").textContent = n.name;
+    const rar = document.getElementById("mpRarity");
+    rar.textContent = RARITY[n.tier];
+    rar.className = "mrarity r" + n.tier;
+    document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
+    document.getElementById("overviewScreen").style.display = "none";
+    document.getElementById("moduleScreen").style.display = "block";
+    render();
+  }
+  function backToOverview() {
+    currentModule = null;
+    document.getElementById("moduleScreen").style.display = "none";
+    document.getElementById("overviewScreen").style.display = "block";
+    render();
   }
 
   // --- Rendu -------------------------------------------------------------
@@ -474,41 +529,54 @@
     document.getElementById("perSec").textContent = "$" + fmt(perSecond()) + " / sec";
     document.getElementById("clickPower").textContent = state.clickPower;
     document.getElementById("connCount").textContent = connectedCount();
-
-    NODES.forEach(n => {
-      const div = document.getElementById("node-" + n.id);
-      const info = document.getElementById("info-" + n.id);
-      if (n.source) {
-        div.className = "node source";
-        info.innerHTML = `<span class="nlevel">+$${state.clickPower}/clic</span>`;
-        return;
-      }
-      const connected = isConnected(n);
-      const unlocked = isUnlocked(n);
-      const cost = costOf(n);
-
-      div.classList.toggle("connected", connected);
-      div.classList.toggle("connectable", unlocked && !connected);
-      div.classList.toggle("locked", !unlocked);
-      div.classList.remove("source");
-
-      if (!unlocked) {
-        info.innerHTML = `🔒 verrouillé`;
-      } else if (!connected) {
-        info.innerHTML = `<span class="ncost">Connecter $${fmt(cost)}</span>`;
-      } else {
-        const rm = DEX_DEFS[state.currentDex].rateMult;
-        info.innerHTML =
-          `<span class="nlevel">niv.${levelOf(n)} · +$${fmt(levelOf(n) * n.rate * rm)}/s</span><br>` +
-          `<span class="ncost">↑ $${fmt(cost)}</span>`;
-      }
-
-      const link = document.getElementById("link-" + n.id);
-      link.classList.toggle("active", connected);
-    });
+    document.getElementById("info-source").innerHTML = `<span class="nlevel">+$${state.clickPower}/clic</span>`;
 
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
+
+    if (currentModule) renderModulePage();
+    else renderOverview();
+  }
+
+  function renderOverview() {
+    ASSETS.forEach(n => {
+      const card = document.getElementById("node-" + n.id);
+      const info = document.getElementById("info-" + n.id);
+      const connected = isConnected(n);
+      const unlocked = isUnlocked(n);
+      card.classList.toggle("connected", connected);
+      card.classList.toggle("connectable", unlocked && !connected);
+      card.classList.toggle("locked", !unlocked);
+      info.innerHTML = !unlocked
+        ? `🔒`
+        : (!connected
+            ? `<span class="ncost">$${fmt(costOf(n))}</span>`
+            : `<span class="nlevel">niv.${levelOf(n)}</span>`);
+      const link = document.getElementById("link-" + n.id);
+      if (link) link.classList.toggle("active", connected);
+    });
+  }
+
+  function renderModulePage() {
+    const n = NODE[currentModule];
+    const rm = DEX_DEFS[state.currentDex].rateMult;
+    const lvl = levelOf(n);
+    const connected = isConnected(n);
+    const unlocked = isUnlocked(n);
+    const cost = costOf(n);
+    document.getElementById("mpLevel").textContent = lvl;
+    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm) + "/s";
+    const btn = document.getElementById("mpAction");
+    if (!unlocked) {
+      btn.textContent = "🔒 Connecte d'abord " + NODE[n.parent].name;
+      btn.className = "big-btn locked";
+    } else if (!connected) {
+      btn.textContent = `Connecter · $${fmt(cost)}`;
+      btn.className = "big-btn" + (state.cash >= cost ? " can" : "");
+    } else {
+      btn.textContent = `Améliorer → niv.${lvl + 1} · $${fmt(cost)}  (+$${fmt(n.rate * rm)}/s)`;
+      btn.className = "big-btn" + (state.cash >= cost ? " can" : "");
+    }
   }
 
   // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
@@ -545,12 +613,14 @@
 
   // --- Démarrage ---------------------------------------------------------
   load();
-  buildGraph();
+  buildOverview();
   renderTabs();
   render();
   document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
+  document.getElementById("backBtn").addEventListener("click", backToOverview);
+  document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);

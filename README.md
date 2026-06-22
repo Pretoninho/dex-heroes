@@ -10,17 +10,25 @@ Un **Dex** est une machine à cash composée de :
 - un **graphe d'actifs** que tu connectes pour faire grossir le flux.
 
 Le cash **circule** depuis la source à travers les actifs connectés. Chaque actif
-connecté **ajoute du cash/sec** (+) au flux. Le graphe est **tentaculaire** : la
-source est au centre et des **bras d'actifs rayonnent tout autour** (liens courbes
-animés quand le flux passe). Un actif ne se connecte que s'il est en aval d'un nœud
-déjà connecté.
+connecté **ajoute du cash/sec** (+) au flux. Un actif ne se connecte que s'il est en
+aval d'un module déjà connecté.
+
+L'affichage est en **maître-détail** :
+- **Vue d'ensemble** : la Source en haut, puis chaque **bras** sur une ligne, lu de
+  gauche à droite sur **3 paliers** (Commun ▸ Rare ▸ Épique).
+- **Page module** : taper un module ouvre sa page dédiée (niveau, production,
+  connecter / améliorer, et bientôt un **slot héros**).
 
 ```
-        🏦──💳        📈──🪙
-            \         /
-     ⚡──🛢️ ── 💵 Source ── 🏠──🏗️
-            /         \
-        🦄──💼        🏭──🚢
+                 💵 Source
+   │
+   ├─ 🏦 ▸ 💳 ▸ 🏛️
+   ├─ 📈 ▸ 🪙 ▸ 🐋
+   ├─ 🏠 ▸ 🏗️ ▸ 🌆
+   ├─ 🏭 ▸ 🚢 ▸ 🛰️
+   ├─ 💼 ▸ 🦄 ▸ 🌍
+   └─ 🛢️ ▸ ⚡ ▸ ☢️
+      Commun  Rare  Épique
 ```
 
 ## Jouer
@@ -49,9 +57,21 @@ réutilise le même graphe avec des chiffres à l'échelle (coûts ×50, prod ×
 Le déblocage passe par `canBuyDex()` — pour l'instant uniquement le cash ; à terme,
 il exigera aussi d'avoir tous les héros.
 
+## Héros (en construction)
+
+Chaque module aura un **slot héros**. Un héros est **lié à un module** et multiplie
+sa production. Conception validée :
+- **Acquisition** : gacha. Boucle *cash → gemmes → tirages*.
+- **Rareté = palier du module** : tier 0 = Commun, tier 1 = Rare, tier 2 = Épique.
+- **Fusion** : les doublons se fusionnent pour monter le héros en niveau.
+- **Portée** : un slot par module **et par Dex**.
+
+Construction **étape par étape** : 1) structure 3 paliers + pages module *(fait)* ·
+2) gacha + roster + placement · 3) fusion.
+
 ## À venir (roadmap)
 
-- 🦸 **Héros** obtenus via **gacha**, donnant des bonus (×cash, +clic…).
+- 🦸 Système de héros (gacha / fusion / slots) — voir ci-dessus.
 - 🔒 Déblocage du Dex suivant conditionné aux **héros** (en plus du cash).
 - 🏆 Succès / objectifs, améliorations de clic.
 
