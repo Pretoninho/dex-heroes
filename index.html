@@ -3,24 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cookie Idle — Mini Idle Game</title>
+<title>Dex Heroes — Idle Finance</title>
 <style>
   :root {
-    --bg: #1a1426;
-    --panel: #261d38;
-    --panel-2: #2f2545;
-    --accent: #ffce4d;
-    --accent-2: #ff7ac6;
-    --text: #f3eefb;
-    --muted: #a99ec7;
-    --green: #5ee6a0;
-    --shadow: 0 6px 20px rgba(0,0,0,.35);
+    --bg: #0d1f17;
+    --panel: #12281d;
+    --panel-2: #18342695;
+    --accent: #34d17a;     /* vert dollar */
+    --accent-2: #ffd24d;   /* or */
+    --text: #eafff4;
+    --muted: #8fb7a3;
+    --shadow: 0 6px 20px rgba(0,0,0,.4);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at 50% -10%, #2c2140, var(--bg));
+    background: radial-gradient(circle at 50% -10%, #16382a, var(--bg));
     color: var(--text);
     min-height: 100vh;
     display: flex;
@@ -37,7 +36,7 @@
     background-clip: text;
     color: transparent;
   }
-  .tagline { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .tagline { color: var(--muted); margin: 0 0 20px; font-size: 14px; text-align: center; }
 
   .layout {
     display: grid;
@@ -53,11 +52,12 @@
     border-radius: 16px;
     padding: 20px;
     box-shadow: var(--shadow);
+    border: 1px solid #1d3d2c;
   }
 
   /* Clicker side */
   .counter { text-align: center; }
-  .cookies {
+  .cash {
     font-size: 38px;
     font-weight: 800;
     color: var(--accent);
@@ -65,21 +65,23 @@
   }
   .per-sec { color: var(--muted); font-size: 14px; margin-top: 4px; }
 
-  .cookie-btn {
+  .bill-btn {
     margin: 18px auto 6px;
-    width: 170px;
-    height: 170px;
-    border-radius: 50%;
-    border: none;
+    width: 180px;
+    height: 120px;
+    border-radius: 14px;
+    border: 2px solid #2e7d52;
     cursor: pointer;
-    font-size: 80px;
-    background: radial-gradient(circle at 35% 30%, #b07a3c, #6e4a22);
-    box-shadow: inset 0 -8px 16px rgba(0,0,0,.4), var(--shadow);
+    font-size: 64px;
+    background: linear-gradient(160deg, #2f7d54, #1c5238);
+    box-shadow: inset 0 -6px 14px rgba(0,0,0,.4), var(--shadow);
     transition: transform .06s ease;
     user-select: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .cookie-btn:active { transform: scale(.93); }
+  .bill-btn:active { transform: scale(.94) rotate(-1deg); }
   .click-hint { color: var(--muted); font-size: 13px; }
 
   /* Floating +N */
@@ -87,7 +89,7 @@
     position: fixed;
     pointer-events: none;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-2);
     animation: floatUp .9s ease-out forwards;
     z-index: 50;
   }
@@ -96,9 +98,30 @@
     to   { opacity: 0; transform: translateY(-50px); }
   }
 
-  /* Shop */
+  /* Dex progress */
+  .dex-progress {
+    margin: 14px 0 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .bar {
+    height: 8px;
+    background: #0d2419;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%;
+    transition: width .3s;
+  }
+
+  /* Dex / heroes */
   h2 { margin: 0 0 12px; font-size: 18px; }
-  .item {
+  .hero {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -110,28 +133,28 @@
     border: 1px solid transparent;
     transition: border-color .15s, transform .05s;
   }
-  .item:hover { border-color: var(--accent-2); }
-  .item:active { transform: scale(.99); }
-  .item.locked { opacity: .45; cursor: not-allowed; }
-  .item .emoji { font-size: 30px; width: 40px; text-align: center; }
-  .item .info { flex: 1; }
-  .item .name { font-weight: 700; }
-  .item .desc { font-size: 12px; color: var(--muted); }
-  .item .right { text-align: right; }
-  .item .cost { font-weight: 700; color: var(--accent); }
-  .item .owned { font-size: 12px; color: var(--green); }
+  .hero:hover { border-color: var(--accent); }
+  .hero:active { transform: scale(.99); }
+  .hero.locked { opacity: .5; cursor: not-allowed; }
+  .hero .emoji { font-size: 30px; width: 40px; text-align: center; }
+  .hero .info { flex: 1; }
+  .hero .name { font-weight: 700; }
+  .hero .desc { font-size: 12px; color: var(--muted); }
+  .hero .right { text-align: right; }
+  .hero .cost { font-weight: 700; color: var(--accent-2); }
+  .hero .owned { font-size: 12px; color: var(--accent); }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
   .btn {
     background: var(--panel-2);
     color: var(--text);
-    border: 1px solid #3d3058;
+    border: 1px solid #2a4d3a;
     border-radius: 8px;
     padding: 8px 14px;
     cursor: pointer;
     font-size: 13px;
   }
-  .btn:hover { border-color: var(--accent-2); }
+  .btn:hover { border-color: var(--accent); }
   .btn.danger:hover { border-color: #ff6b6b; color: #ff8a8a; }
 
   .toast {
@@ -140,38 +163,45 @@
     left: 50%;
     transform: translateX(-50%);
     background: var(--panel-2);
-    border: 1px solid #3d3058;
+    border: 1px solid #2a4d3a;
     padding: 10px 18px;
     border-radius: 10px;
     box-shadow: var(--shadow);
     opacity: 0;
     transition: opacity .3s;
     pointer-events: none;
+    backdrop-filter: blur(4px);
   }
   .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-  <h1>🍪 Cookie Idle</h1>
-  <p class="tagline">Clique, produis, automatise. Ta progression est sauvegardée et continue même fermé.</p>
+  <h1>💵 Dex Heroes</h1>
+  <p class="tagline">Clique sur le billet, recrute des Héros et fais progresser ton Dex.<br>Ils génèrent du cash même quand tu n'es pas là.</p>
 
   <div class="layout">
     <!-- Clicker -->
     <div class="panel counter">
-      <div class="cookies" id="cookieCount">0</div>
-      <div class="per-sec" id="perSec">0 / sec</div>
-      <button class="cookie-btn" id="cookieBtn" aria-label="Fabriquer un cookie">🍪</button>
-      <div class="click-hint">+<span id="clickPower">1</span> par clic</div>
+      <div class="cash" id="cashCount">$0</div>
+      <div class="per-sec" id="perSec">$0 / sec</div>
+      <button class="bill-btn" id="billBtn" aria-label="Gagner du cash">💵</button>
+      <div class="click-hint">+$<span id="clickPower">1</span> par clic</div>
+
+      <div class="dex-progress">
+        Dex : <span id="dexCount">0</span>/<span id="dexTotal">0</span> Héros recrutés
+        <div class="bar"><span id="dexBar"></span></div>
+      </div>
+
       <div class="controls">
         <button class="btn" id="saveBtn">💾 Sauver</button>
         <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
       </div>
     </div>
 
-    <!-- Shop -->
+    <!-- Dex -->
     <div class="panel">
-      <h2>🏪 Boutique</h2>
-      <div id="shop"></div>
+      <h2>📒 Ton Dex</h2>
+      <div id="dex"></div>
     </div>
   </div>
 
@@ -181,25 +211,23 @@
 (() => {
   "use strict";
 
-  // --- Définition des générateurs --------------------------------------
-  // baseCost: coût du 1er exemplaire | rate: cookies/sec par exemplaire
-  // growth: multiplicateur de coût à chaque achat (1.15 = standard idle)
-  const GENERATORS = [
-    { id: "cursor",  name: "Curseur",     emoji: "👆", baseCost: 15,    rate: 0.1,  growth: 1.15 },
-    { id: "grandma", name: "Grand-mère",  emoji: "👵", baseCost: 100,   rate: 1,    growth: 1.15 },
-    { id: "farm",    name: "Ferme",       emoji: "🌾", baseCost: 1100,  rate: 8,    growth: 1.15 },
-    { id: "factory", name: "Usine",       emoji: "🏭", baseCost: 12000, rate: 47,   growth: 1.15 },
-    { id: "mine",    name: "Mine",        emoji: "⛏️", baseCost: 130000,rate: 260,  growth: 1.15 },
-    { id: "temple",  name: "Temple",      emoji: "🏛️", baseCost: 1.4e6, rate: 1400, growth: 1.15 },
+  // --- Définition des Héros (générateurs) -------------------------------
+  // baseCost: coût du 1er exemplaire | rate: $/sec par exemplaire
+  // growth: multiplicateur de coût à chaque recrutement (1.15 = standard idle)
+  // On commence avec 3 Héros — facile d'en ajouter d'autres ici.
+  const HEROES = [
+    { id: "trader",   name: "Le Trader",       emoji: "🧑‍💼", desc: "Scalpe le marché",        baseCost: 15,   rate: 0.1, growth: 1.15 },
+    { id: "banquier", name: "Le Banquier",     emoji: "🏦",   desc: "Prête à intérêt",         baseCost: 100,  rate: 1,   growth: 1.15 },
+    { id: "investo",  name: "L'Investisseur",  emoji: "📈",   desc: "Encaisse les dividendes", baseCost: 1100, rate: 8,   growth: 1.15 },
   ];
 
-  const SAVE_KEY = "cookieIdleSave";
+  const SAVE_KEY = "dexHeroesSave";
 
   // --- État --------------------------------------------------------------
   let state = {
-    cookies: 0,
+    cash: 0,
     clickPower: 1,
-    owned: {},          // { generatorId: quantité }
+    owned: {},          // { heroId: quantité }
     lastSeen: Date.now()
   };
 
@@ -216,8 +244,8 @@
       if (elapsed > 1) {
         const gained = perSecond() * elapsed;
         if (gained > 0) {
-          state.cookies += gained;
-          setTimeout(() => toast(`Bon retour ! +${fmt(gained)} 🍪 hors-ligne`), 400);
+          state.cash += gained;
+          setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} gagnés hors-ligne`), 400);
         }
       }
     } catch (e) { console.warn("Sauvegarde illisible", e); }
@@ -229,18 +257,21 @@
   }
 
   // --- Calculs -----------------------------------------------------------
-  function costOf(gen) {
-    const n = state.owned[gen.id] || 0;
-    return Math.ceil(gen.baseCost * Math.pow(gen.growth, n));
+  function costOf(hero) {
+    const n = state.owned[hero.id] || 0;
+    return Math.ceil(hero.baseCost * Math.pow(hero.growth, n));
   }
   function perSecond() {
-    return GENERATORS.reduce((sum, g) => sum + (state.owned[g.id] || 0) * g.rate, 0);
+    return HEROES.reduce((sum, h) => sum + (state.owned[h.id] || 0) * h.rate, 0);
+  }
+  function dexUnlocked() {
+    return HEROES.filter(h => (state.owned[h.id] || 0) > 0).length;
   }
 
   // --- Formatage des grands nombres -------------------------------------
   const UNITS = ["", "k", "M", "B", "T", "Qa", "Qi", "Sx", "Sp"];
   function fmt(n) {
-    if (n < 1000) return Math.floor(n).toString();
+    if (n < 1000) return (Math.floor(n * 100) / 100).toString();
     let tier = Math.floor(Math.log10(n) / 3);
     tier = Math.min(tier, UNITS.length - 1);
     const scaled = n / Math.pow(1000, tier);
@@ -249,16 +280,18 @@
 
   // --- Actions -----------------------------------------------------------
   function click(e) {
-    state.cookies += state.clickPower;
-    spawnFloat(e, "+" + state.clickPower);
+    state.cash += state.clickPower;
+    spawnFloat(e, "+$" + state.clickPower);
     render();
   }
 
-  function buy(gen) {
-    const cost = costOf(gen);
-    if (state.cookies < cost) { toast("Pas assez de cookies !"); return; }
-    state.cookies -= cost;
-    state.owned[gen.id] = (state.owned[gen.id] || 0) + 1;
+  function recruit(hero) {
+    const cost = costOf(hero);
+    if (state.cash < cost) { toast("Pas assez de cash !"); return; }
+    const isNew = !(state.owned[hero.id] > 0);
+    state.cash -= cost;
+    state.owned[hero.id] = (state.owned[hero.id] || 0) + 1;
+    if (isNew) toast(`${hero.emoji} ${hero.name} rejoint ton Dex !`);
     render();
     save();
   }
@@ -266,8 +299,8 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cookies: 0, clickPower: 1, owned: {}, lastSeen: Date.now() };
-    buildShop();
+    state = { cash: 0, clickPower: 1, owned: {}, lastSeen: Date.now() };
+    buildDex();
     render();
     toast("Partie réinitialisée");
   }
@@ -293,38 +326,45 @@
   }
 
   // --- Rendu -------------------------------------------------------------
-  function buildShop() {
-    const shop = document.getElementById("shop");
-    shop.innerHTML = "";
-    GENERATORS.forEach(gen => {
+  function buildDex() {
+    const dex = document.getElementById("dex");
+    dex.innerHTML = "";
+    HEROES.forEach(hero => {
       const div = document.createElement("div");
-      div.className = "item";
-      div.id = "item-" + gen.id;
+      div.className = "hero";
+      div.id = "hero-" + hero.id;
       div.innerHTML = `
-        <div class="emoji">${gen.emoji}</div>
+        <div class="emoji">${hero.emoji}</div>
         <div class="info">
-          <div class="name">${gen.name}</div>
-          <div class="desc">+${gen.rate}/sec chacun</div>
+          <div class="name">${hero.name}</div>
+          <div class="desc">${hero.desc} · +$${hero.rate}/sec</div>
         </div>
         <div class="right">
-          <div class="cost" id="cost-${gen.id}"></div>
-          <div class="owned" id="owned-${gen.id}"></div>
+          <div class="cost" id="cost-${hero.id}"></div>
+          <div class="owned" id="owned-${hero.id}"></div>
         </div>`;
-      div.addEventListener("click", () => buy(gen));
-      shop.appendChild(div);
+      div.addEventListener("click", () => recruit(hero));
+      dex.appendChild(div);
     });
+    document.getElementById("dexTotal").textContent = HEROES.length;
   }
 
   function render() {
-    document.getElementById("cookieCount").textContent = fmt(state.cookies);
-    document.getElementById("perSec").textContent = fmt(perSecond()) + " / sec";
+    document.getElementById("cashCount").textContent = "$" + fmt(state.cash);
+    document.getElementById("perSec").textContent = "$" + fmt(perSecond()) + " / sec";
     document.getElementById("clickPower").textContent = state.clickPower;
-    GENERATORS.forEach(gen => {
-      const cost = costOf(gen);
-      const item = document.getElementById("item-" + gen.id);
-      document.getElementById("cost-" + gen.id).textContent = fmt(cost) + " 🍪";
-      document.getElementById("owned-" + gen.id).textContent = (state.owned[gen.id] || 0) + " possédé(s)";
-      item.classList.toggle("locked", state.cookies < cost);
+
+    const unlocked = dexUnlocked();
+    document.getElementById("dexCount").textContent = unlocked;
+    document.getElementById("dexBar").style.width = (unlocked / HEROES.length * 100) + "%";
+
+    HEROES.forEach(hero => {
+      const cost = costOf(hero);
+      const el = document.getElementById("hero-" + hero.id);
+      document.getElementById("cost-" + hero.id).textContent = "$" + fmt(cost);
+      const n = state.owned[hero.id] || 0;
+      document.getElementById("owned-" + hero.id).textContent = n > 0 ? "Niv. " + n : "";
+      el.classList.toggle("locked", state.cash < cost);
     });
   }
 
@@ -334,15 +374,15 @@
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
-    state.cookies += perSecond() * dt;
+    state.cash += perSecond() * dt;
     render();
   }
 
   // --- Démarrage ---------------------------------------------------------
   load();
-  buildShop();
+  buildDex();
   render();
-  document.getElementById("cookieBtn").addEventListener("click", click);
+  document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
   setInterval(loop, 100);     // boucle de production (10x/sec)

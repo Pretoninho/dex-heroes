@@ -1,37 +1,44 @@
-# 🍪 Cookie Idle
+# 💵 Dex Heroes
 
-Un petit *idle game* (jeu de type clicker) en **HTML / CSS / JavaScript pur**, sans aucune dépendance.
+Un *idle game* sur le thème de la **finance**, en **HTML / CSS / JavaScript pur**, sans aucune dépendance.
+
+> **Dex Heroes = un « Dex » (une collection) qui produit de l'argent.**
+> Tu cliques sur le billet pour faire du cash, tu recrutes des **Héros** et tu fais progresser ton Dex petit à petit.
 
 ## Jouer
 
-Ouvre simplement `index.html` dans ton navigateur. C'est tout.
+- **En ligne** : via GitHub Pages → `https://pretoninho.github.io/dex-heroes/` (voir activation ci-dessous).
+- **En local** : ouvre simplement `index.html` dans ton navigateur.
 
 ## Fonctionnalités
 
-- **Clic manuel** : clique sur le cookie pour en produire.
-- **Générateurs automatiques** : curseur, grand-mère, ferme, usine, mine, temple… chacun produit des cookies en continu.
-- **Coûts progressifs** : chaque achat augmente le prix de l'objet (×1.15, le standard du genre).
-- **Sauvegarde automatique** dans le navigateur (`localStorage`), toutes les 15 s et à la fermeture.
-- **Progression hors-ligne** : tu gagnes des cookies même quand le jeu est fermé.
-- **Formatage des grands nombres** (k, M, B, T…).
+- **Clic manuel** sur le billet 💵 → +$ à chaque clic.
+- **Héros (générateurs)** : chaque Héros recruté produit du cash en continu. V1 = 3 Héros :
+  - 🧑‍💼 **Le Trader** (+$0.1/s)
+  - 🏦 **Le Banquier** (+$1/s)
+  - 📈 **L'Investisseur** (+$8/s)
+- **Le Dex se remplit** : une barre de progression montre les Héros recrutés (X/N).
+- **Coûts progressifs** : chaque recrutement augmente le prix du Héros (×1.15).
+- **Sauvegarde automatique** (`localStorage`), toutes les 15 s et à la fermeture.
+- **Progression hors-ligne** : tu gagnes du cash même jeu fermé.
+
+## À venir (idées)
+
+- 💰 Montée en niveau dédiée des Héros.
+- ✨ **Investir dans un 2ᵉ Dex** (mécanique de *prestige* avec bonus permanent).
+- 🏆 Succès / objectifs, améliorations de clic, sons.
 
 ## Structure du code
 
-Tout tient dans `index.html` :
+Tout tient dans `index.html`. La liste `HEROES` en haut du script définit les Héros
+(coût, production, croissance du prix) — il suffit d'ajouter/modifier une ligne pour
+changer le contenu du jeu.
 
-| Partie | Rôle |
-| --- | --- |
-| `GENERATORS` | Définition des générateurs (coût, production, croissance du prix). |
-| `state` | État du jeu (cookies, objets possédés, dernière visite). |
-| `load` / `save` | Sauvegarde et progression hors-ligne via `localStorage`. |
-| `costOf` / `perSecond` | Calculs économiques. |
-| `loop` | Boucle de jeu (10 ticks/sec) qui ajoute la production. |
-| `render` / `buildShop` | Affichage et mise à jour de l'interface. |
+## Déploiement GitHub Pages
 
-## Idées d'évolution
+Le dépôt contient un workflow (`.github/workflows/pages.yml`) qui publie le site
+automatiquement à chaque push.
 
-- Améliorations de la puissance de clic.
-- Système de *prestige* (reset avec bonus permanent).
-- Succès / objectifs.
-- Sons et animations supplémentaires.
-- Adapter le thème aux « héros » (cf. nom du dépôt `dex-heroes`).
+**Activation (une seule fois)** : dans GitHub → **Settings → Pages → Build and
+deployment → Source : GitHub Actions**. Le site sera ensuite disponible à l'URL
+indiquée par l'action de déploiement.
