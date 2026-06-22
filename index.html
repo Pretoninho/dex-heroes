@@ -100,6 +100,22 @@
   h2 { margin: 0 0 4px; font-size: 18px; }
   .panel .hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
 
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .tab {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid #2a4d3a;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color .15s, color .15s;
+  }
+  .tab.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 8px rgba(52,209,122,.3); }
+  .tab.buy { border-style: dashed; border-color: #3d3058; color: var(--muted); }
+  .tab.buy.affordable { border-style: solid; border-color: var(--accent-2); color: var(--accent-2); }
+
   .graph {
     position: relative;
     width: 100%;
@@ -222,6 +238,7 @@
     <div class="panel">
       <h2>🔗 Cash Flow</h2>
       <p class="hint">Clique un actif débloqué pour le <b>connecter</b>, reclique pour l'<b>améliorer</b>.</p>
+      <div class="tabs" id="dexTabs"></div>
       <div class="graph" id="graph">
         <svg id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
       </div>
@@ -271,23 +288,58 @@
   const NODE = Object.fromEntries(NODES.map(n => [n.id, n]));
   const ASSETS = NODES.filter(n => !n.source);
 
+  // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
+  // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
+  // par canBuyDex() (plus tard : exiger aussi tous les héros).
+  const DEX_DEFS = [
+    { name: "Dex 1", costMult: 1,  rateMult: 1,  buyCost: 0 },
+    { name: "Dex 2", costMult: 50, rateMult: 25, buyCost: 250000 },
+  ];
+
   const SAVE_KEY = "dexHeroesSave";
 
   // --- État --------------------------------------------------------------
   let state = {
     cash: 0,
     clickPower: 1,
-    levels: {},          // { nodeId: niveau } (0 = non connecté)
+    dexes: [ { levels: {} } ],   // un objet par Dex possédé : { levels: {nodeId: niveau} }
+    currentDex: 0,               // Dex affiché
     lastSeen: Date.now()
   };
 
   // --- Helpers de graphe -------------------------------------------------
-  function levelOf(node) { return state.levels[node.id] || 0; }
-  function isConnected(node) { return node.source || levelOf(node) > 0; }
-  function isUnlocked(node) { return node.source || isConnected(NODE[node.parent]); }
-  function costOf(node) { return Math.ceil(node.baseCost * Math.pow(node.growth, levelOf(node))); }
-  function perSecond() { return ASSETS.reduce((s, n) => s + levelOf(n) * n.rate, 0); }
-  function connectedCount() { return ASSETS.filter(isConnected).length; }
+  function dex(di) { return state.dexes[di]; }
+  function levelOf(node, di = state.currentDex) { return dex(di).levels[node.id] || 0; }
+  function isConnected(node, di = state.currentDex) { return node.source || levelOf(node, di) > 0; }
+  function isUnlocked(node, di = state.currentDex) { return node.source || isConnected(NODE[node.parent], di); }
+  function costOf(node, di = state.currentDex) {
+    return Math.ceil(node.baseCost * DEX_DEFS[di].costMult * Math.pow(node.growth, levelOf(node, di)));
+  }
+  function perSecond() {
+    let total = 0;
+    state.dexes.forEach((d, di) => {
+      ASSETS.forEach(n => { total += (d.levels[n.id] || 0) * n.rate * DEX_DEFS[di].rateMult; });
+    });
+    return total;
+  }
+  function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
+
+  // --- Achat / gestion des Dex ------------------------------------------
+  function nextDexIndex() { return state.dexes.length; }
+  function canBuyDex() { return nextDexIndex() < DEX_DEFS.length; } // TODO: + tous les héros
+  function buyDex() {
+    if (!canBuyDex()) return;
+    const i = nextDexIndex();
+    const cost = DEX_DEFS[i].buyCost;
+    if (state.cash < cost) { toast("Pas assez de cash pour un nouveau Dex !"); return; }
+    state.cash -= cost;
+    state.dexes.push({ levels: {} });
+    state.currentDex = i;
+    renderTabs();
+    render();
+    save();
+    toast(`🧩 ${DEX_DEFS[i].name} acheté ! Construis son cash flow.`);
+  }
 
   // --- Chargement / sauvegarde ------------------------------------------
   function load() {
@@ -296,7 +348,13 @@
       if (!raw) return;
       const saved = JSON.parse(raw);
       state = Object.assign(state, saved);
-      state.levels = saved.levels || {};
+      // Normalisation / migration ancien format (levels global) -> dexes[]
+      if (Array.isArray(saved.dexes) && saved.dexes.length) state.dexes = saved.dexes;
+      else if (saved.levels) state.dexes = [ { levels: saved.levels } ];
+      else state.dexes = [ { levels: {} } ];
+      state.dexes.forEach(d => { d.levels = d.levels || {}; });
+      delete state.levels;
+      if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
       const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
       if (elapsed > 1) {
         const gained = perSecond() * elapsed;
@@ -335,12 +393,13 @@
     }
     const cost = costOf(node);
     if (state.cash < cost) { toast("Pas assez de cash !"); return; }
-    const firstTime = levelOf(node) === 0;
+    const levels = dex(state.currentDex).levels;
+    const firstTime = (levels[node.id] || 0) === 0;
     state.cash -= cost;
-    state.levels[node.id] = levelOf(node) + 1;
+    levels[node.id] = (levels[node.id] || 0) + 1;
     toast(firstTime
-      ? `${node.emoji} ${node.name} connecté ! +$${node.rate}/s`
-      : `${node.emoji} ${node.name} amélioré → niv. ${state.levels[node.id]}`);
+      ? `${node.emoji} ${node.name} connecté ! +$${fmt(node.rate * DEX_DEFS[state.currentDex].rateMult)}/s`
+      : `${node.emoji} ${node.name} amélioré → niv. ${levels[node.id]}`);
     render();
     save();
   }
@@ -348,7 +407,8 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, levels: {}, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, dexes: [ { levels: {} } ], currentDex: 0, lastSeen: Date.now() };
+    renderTabs();
     render();
     toast("Partie réinitialisée");
   }
@@ -437,14 +497,41 @@
       } else if (!connected) {
         info.innerHTML = `<span class="ncost">Connecter $${fmt(cost)}</span>`;
       } else {
+        const rm = DEX_DEFS[state.currentDex].rateMult;
         info.innerHTML =
-          `<span class="nlevel">niv.${levelOf(n)} · +$${fmt(levelOf(n) * n.rate)}/s</span><br>` +
+          `<span class="nlevel">niv.${levelOf(n)} · +$${fmt(levelOf(n) * n.rate * rm)}/s</span><br>` +
           `<span class="ncost">↑ $${fmt(cost)}</span>`;
       }
 
       const link = document.getElementById("link-" + n.id);
       link.classList.toggle("active", connected);
     });
+
+    const bd = document.getElementById("buyDexBtn");
+    if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
+  }
+
+  // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
+  function renderTabs() {
+    const wrap = document.getElementById("dexTabs");
+    wrap.innerHTML = "";
+    state.dexes.forEach((d, i) => {
+      const b = document.createElement("button");
+      b.className = "tab" + (i === state.currentDex ? " active" : "");
+      b.textContent = DEX_DEFS[i].name;
+      b.addEventListener("click", () => { state.currentDex = i; renderTabs(); render(); });
+      wrap.appendChild(b);
+    });
+    if (canBuyDex()) {
+      const i = nextDexIndex();
+      const b = document.createElement("button");
+      b.id = "buyDexBtn";
+      b.className = "tab buy";
+      b.dataset.cost = DEX_DEFS[i].buyCost;
+      b.innerHTML = `＋ ${DEX_DEFS[i].name} · $${fmt(DEX_DEFS[i].buyCost)}`;
+      b.addEventListener("click", buyDex);
+      wrap.appendChild(b);
+    }
   }
 
   // --- Boucle ------------------------------------------------------------
@@ -459,6 +546,7 @@
   // --- Démarrage ---------------------------------------------------------
   load();
   buildGraph();
+  renderTabs();
   render();
   document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });

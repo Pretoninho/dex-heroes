@@ -37,10 +37,22 @@ déjà connecté.
 - **Sauvegarde auto** (`localStorage`) + **progression hors-ligne**.
 - **Double-tap zoom désactivé** sur mobile (`touch-action: manipulation`).
 
+## Dex multiples
+
+Un **Dex** est une machine à cash complète (source + graphe). On peut en **acheter
+plusieurs** : un sélecteur d'onglets (`Dex 1`, `Dex 2`, `＋ Acheter`) en haut du
+panneau permet d'en construire un nouveau. Chaque Dex possède sa **propre
+progression** de graphe et tous **cumulent** leur production dans le même cash.
+
+Les Dex sont définis par `DEX_DEFS` (`costMult`, `rateMult`, `buyCost`). Le Dex 2
+réutilise le même graphe avec des chiffres à l'échelle (coûts ×50, prod ×25).
+Le déblocage passe par `canBuyDex()` — pour l'instant uniquement le cash ; à terme,
+il exigera aussi d'avoir tous les héros.
+
 ## À venir (roadmap)
 
 - 🦸 **Héros** obtenus via **gacha**, donnant des bonus (×cash, +clic…).
-- 🧩 **Dex multiples** : acheter un 2ᵉ Dex (nouvelle machine à cash + sa boutique).
+- 🔒 Déblocage du Dex suivant conditionné aux **héros** (en plus du cash).
 - 🏆 Succès / objectifs, améliorations de clic.
 
 ## Structure du code
