@@ -132,7 +132,7 @@
   .node {
     position: absolute;
     transform: translate(-50%, -50%);
-    width: clamp(56px, 20cqmin, 96px);
+    width: clamp(54px, 18cqmin, 92px);
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
@@ -242,7 +242,7 @@
   // rayonnent tout autour. Chaque bras part à un angle donné et enchaîne des
   // modules (paliers). Ajouter un bras ou un module = éditer ARMS / RADII.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const RADII = [26, 46];          // distance au centre, par palier
+  const RADII = [24, 47];          // distance au centre, par palier
   const GROWTH = 1.18;
   const ARMS = [
     { angle: 270, tiers: [ { name: "Banque",     emoji: "🏦", cost: 50,    rate: 0.5 }, { name: "Crédit",       emoji: "💳", cost: 1500,   rate: 9   } ] },
