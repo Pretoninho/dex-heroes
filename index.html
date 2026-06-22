@@ -104,8 +104,9 @@
     position: relative;
     width: 100%;
     aspect-ratio: 1 / 1;
-    max-height: 72vh;
+    max-height: 78vh;
     margin: 6px auto 0;
+    container-type: size;   /* active les unités cqmin pour les nœuds */
   }
   .graph svg {
     position: absolute;
@@ -131,11 +132,11 @@
   .node {
     position: absolute;
     transform: translate(-50%, -50%);
-    width: 94px;
+    width: clamp(56px, 20cqmin, 96px);
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
-    padding: 6px 4px 6px;
+    padding: clamp(3px, 1.2cqmin, 6px) clamp(2px, 1cqmin, 5px);
     text-align: center;
     cursor: pointer;
     user-select: none;
@@ -143,9 +144,9 @@
     touch-action: manipulation;
   }
   .node:active { transform: translate(-50%, -50%) scale(.97); }
-  .node .nemoji { font-size: 23px; line-height: 1; }
-  .node .nname { font-weight: 700; font-size: 12px; margin-top: 2px; }
-  .node .ninfo { font-size: 10.5px; margin-top: 3px; }
+  .node .nemoji { font-size: clamp(15px, 5.2cqmin, 23px); line-height: 1; }
+  .node .nname { font-weight: 700; font-size: clamp(8.5px, 3cqmin, 12px); margin-top: 2px; }
+  .node .ninfo { font-size: clamp(7.5px, 2.6cqmin, 10.5px); margin-top: 3px; line-height: 1.25; }
   .node .ncost { color: var(--accent-2); }
   .node .nlevel { color: var(--accent); }
 
@@ -241,7 +242,7 @@
   // rayonnent tout autour. Chaque bras part à un angle donné et enchaîne des
   // modules (paliers). Ajouter un bras ou un module = éditer ARMS / RADII.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const RADII = [24, 43];          // distance au centre, par palier
+  const RADII = [26, 44];          // distance au centre, par palier
   const GROWTH = 1.18;
   const ARMS = [
     { angle: 270, tiers: [ { name: "Banque",     emoji: "🏦", cost: 50,    rate: 0.5 }, { name: "Crédit",       emoji: "💳", cost: 1500,   rate: 9   } ] },
