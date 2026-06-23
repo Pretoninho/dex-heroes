@@ -39,9 +39,15 @@ client. C'est acceptable pour du *save*. Pour le **classement** (Phase B) puis l
 **marché de gemmes** (Phase C), les opérations sensibles devront être **validées
 côté serveur** (Edge Functions + transactions). Voir `docs/heroes.md` / le GDD.
 
+## Classement (Phase B)
+Une fois Supabase configuré, le bouton **🏆 Classement** (dans la modale ☁️, une
+fois connecté) liste le **top 20** par **production/sec**. Tu peux choisir un
+**pseudo** (champ dédié). Le score est poussé en même temps que la sauvegarde.
+> ⚠️ Le score vient du client → **falsifiable**. Validation serveur (Edge
+> Function) à prévoir avant un vrai classement compétitif.
+
 ## Roadmap backend
-- **Phase A — comptes + cloud save** *(ce scaffold)*.
-- **Phase B — classement** (table `scores`, déjà esquissée en commentaire dans
-  `schema.sql`).
+- **Phase A — comptes + cloud save** *(fait : scaffold)*.
+- **Phase B — classement** *(fait : scaffold, table `scores` + UI)*.
 - **Phase C — marché in-game** (gemmes ↔ cash, **zéro argent réel**), transactions
   autoritatives serveur.

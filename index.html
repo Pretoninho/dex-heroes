@@ -1321,6 +1321,7 @@
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)
   window.DEX = {
     getState: () => state,
+    getScore: () => Math.round(perSecond()),   // métrique du classement : production /s
     applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); }
   };
   if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
