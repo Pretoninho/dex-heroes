@@ -35,9 +35,43 @@
 - Nouveaux **acteurs/NPC** : une ligne dans `economy_actors` + une `policy` (jsonb) décrivant leur comportement.
 - **Contrats** = des faits qui, quand leurs **termes** sont remplis (au tick), émettent des `tx` → tout réutilise le primitif.
 
+## Décisions verrouillées (juin 2026)
+
+| Choix | Décision |
+|---|---|
+| **Numéraire** | Cash (unité de compte) — prix d'une gemme = ratio cash/gemme. |
+| **v1 : paire d'échange** | Gemmes ↔ Cash seulement. Le ledger accepte d'autres ressources ; on les exerce plus tard. |
+| **Modèle NPC** | **Market-maker d'abord** (stabilise le prix, se teste isolé), **réactif ensuite** (crée l'ondulation que le régime lira). |
+| **Ordre des contrats** | **Exécution instantanée avant terme/échéance** → ordre à cours limité avant ventes récurrentes / prêts / intérêts. |
+| **Tick `pg_cron`** | À la minute. Le projet se met en pause après 7 j d'inactivité (free tier) ; acceptable (pas de joueurs = pas besoin que l'économie respire). |
+| **Free tier Supabase** | **Tient** sans refactoring. Trois garde-fous : (1) un tick ne poste que des ordres (pas d'écritures ledger) ; seuls les trades exécutés écrivent ; (2) solde = projection en cache (perf invariante) ; (3) compaction prévue au schéma (non implémentée, juste réservée — on la grave dès L1). À 3 joueurs + 1 MM, quelques entrées/min au pire. |
+
+## Trois tests de cohérence (à passer à chaque tick, surtout NPC)
+
+Vérifiables automatiquement ; gardent le système sain :
+
+1. **Conservation** : après un batch de ticks NPC, `Σ deltas == 0 par ressource` (hors SYSTÈME). Sinon annuler le tick.
+2. **Bornes** : aucun solde < 0 (sauf SYSTÈME), prix > 0, volume sain. Un NPC qui refuse est traité comme un joueur en manque de solde → `post_tx` le refuse.
+3. **Sanité du prix** : l'index ne peut ±X % par tick (coupe-circuit). Si un NPC mal réglé veut ×10 le cours, on le borne.
+
 ## Principe de travail
 - **Incrémental** : une couche à la fois, livrée + **testée** (cohérence, conservation, sécurité) avant la suivante.
-- **NPC testés en priorité** : on vérifie qu'ils ne **créent/détruisent** rien hors SYSTÈME et que les prix qu'ils produisent restent sains.
+- **NPC testés en priorité** : vérifier qu'ils ne créent/détruisent rien hors SYSTÈME et que les prix restent sains.
+- **Exécution avant terme** : toujours câbler le cas instantané (ordre à cours limité) avant l'échéance (contrat récurrent). C'est une règle générale : l'instantané dépend que de l'état présent ; l'échéance demande un tick fiable.
 
 ## Cohabitation avec l'existant
 Le marché actuel (`wallets`/`listings`) **continue de tourner** pendant qu'on bâtit le ledger en parallèle. On **migrera** le marché sur le ledger en L2, puis on retirera l'ancien `wallets`. Rien n'est cassé entre-temps.
+
+## Détail des couches (ordre exact d'implémentation)
+
+**L1** : Schéma `economy_ledger` + `economy_balances` (cache) + `economy_actors` ; fonction `economy_post_tx` ; 3 tests (conservation/bornes/sanité).
+
+**L2** : Migration des trades joueur↔joueur vers `post_tx` ; table `economy_trades` (faits) ; calcul de l'**index de prix** = moyenne pondérée des N derniers trades.
+
+**L3** : Tick `pg_cron` ; NPC market-maker seul (une policy : spread, depth, ref) ; test isolation : cours stable, conservation = 0.
+
+**L3b** : NPC réactif (regarde index N ticks, tendance → achète/vend) ; cours commence à onduler.
+
+**L4** : Régime = f(dérivée de l'index) → 🐂 BULL / 🐻 BEAR / 💥 CRASH / 🦀 CRABE / 🚀 HYPE. Affinité héros (famille G) appliquée au score.
+
+**L5** : Contrats. Ordre 1 = ordre à cours limité (l'exécution dès que prix la croise) ; ordre 2+ = DCA / prêt / intérêt (s'exécute au tick).
