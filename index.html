@@ -519,8 +519,6 @@
   // Héros : 1 par module (même id), rareté = palier du module (0/1/2).
   const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
   const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
-  const HERO_MULT = [1.25, 1.6, 2.0];   // multiplicateur de prod par rareté (Commun/Rare/Épique)
-
   // Données d'affichage des fiches (chargées depuis heroes.data.js)
   const HDATA = (typeof HERO_DATA !== "undefined") ? HERO_DATA : [];
   const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
@@ -570,11 +568,15 @@
     return { hero: h, tier, isNew };
   }
   function pull(times) {
-    const cost = PULL_COST * times;
+    const free = globalHeroFx().freePull;
+    let paid = 0;
+    for (let i = 0; i < times; i++) if (Math.random() >= free) paid++;   // tirages gratuits éventuels
+    const cost = PULL_COST * paid;
     if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
     state.gems -= cost;
     const results = [];
     for (let i = 0; i < times; i++) results.push(pullOnce());
+    if (paid < times) setTimeout(() => toast(`🎟️ ${times - paid} tirage(s) gratuit(s) !`), 300);
     renderPullResults(results);
     render();
     save();
@@ -583,7 +585,7 @@
   // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
   // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
   const GEM_BASE = 1, GEM_T = 0.05;
-  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T)); }
+  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T * globalHeroFx().gemPriceMult)); }
   function buyGems(qty) {
     const cost = qty * gemPrice();
     if (state.cash < cost) { toast("Pas assez de cash pour des gemmes !"); return; }
@@ -600,14 +602,62 @@
   function isConnected(node, di = state.currentDex) { return node.source || levelOf(node, di) > 0; }
   function isUnlocked(node, di = state.currentDex) { return node.source || isConnected(NODE[node.parent], di); }
   function costOf(node, di = state.currentDex) {
-    return Math.ceil(node.baseCost * DEX_DEFS[di].costMult * Math.pow(node.growth, levelOf(node, di)));
+    let c = node.baseCost * DEX_DEFS[di].costMult * Math.pow(node.growth, levelOf(node, di));
+    // Réduction de coût par héros déployés (même bras ou global)
+    const d = state.dexes[di];
+    let reduce = 0;
+    if (d && d.placed) ASSETS.forEach(src => {
+      if (!d.placed[src.id]) return;
+      const h = HDATA_BY_ID[src.id]; if (!h) return;
+      const e = h.passive.effect || {};
+      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += e.value;
+    });
+    return Math.ceil(c * (1 - Math.min(reduce, 0.8)));
+  }
+  // --- Effets des héros déployés (passifs) ------------------------------
+  // Effets GLOBAUX agrégés sur tous les Dex (clic, auto-clic, gemmes, hors-ligne…)
+  function globalHeroFx() {
+    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, freePull: 0 };
+    state.dexes.forEach(d => {
+      ASSETS.forEach(n => {
+        if (!(d.placed && d.placed[n.id])) return;
+        const h = HDATA_BY_ID[n.id]; if (!h) return;
+        const e = h.passive.effect || {};
+        switch (e.type) {
+          case "clickMult":      fx.clickMult *= e.value; break;
+          case "autoClick":      fx.autoClick += e.value; break;
+          case "gemGen":         fx.gemPerSec += e.value; break;
+          case "gemPriceReduce": fx.gemPriceMult *= (1 - e.value); break;
+          case "offlineMult":
+          case "offlineCap":     fx.offlineMult *= e.value; break;   // offlineCap simplifié
+          case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - e.value); break;
+        }
+      });
+    });
+    return fx;
+  }
+  // Multiplicateur de PRODUCTION d'un module n dans le Dex d (héros de prod déployés)
+  function moduleMult(n, d) {
+    let m = 1;
+    ASSETS.forEach(src => {
+      if (!(d.placed && d.placed[src.id])) return;
+      const h = HDATA_BY_ID[src.id]; if (!h) return;
+      const e = h.passive.effect || {};
+      if (e.type === "mult" && e.scope === "module" && src.id === n.id) m *= e.value;
+      else if (e.type === "mult" && e.scope === "arm" && src.arm === n.arm) m *= e.value;
+      else if (e.type === "rarityMult" && n.tier === e.rarity) m *= e.value;
+      else if (e.type === "downstreamMult" && src.arm === n.arm && n.tier > src.tier) m *= e.value;
+      else if (e.type === "globalMult") m *= e.value;
+      else if (e.type === "synergyMult") m *= e.value;   // placeholder (synergies à l'étape 2)
+    });
+    return m;
   }
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
       ASSETS.forEach(n => {
-        const mult = (d.placed && d.placed[n.id]) ? HERO_MULT[n.tier] : 1;
-        total += (d.levels[n.id] || 0) * n.rate * DEX_DEFS[di].rateMult * mult;
+        const lvl = d.levels[n.id] || 0;
+        if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
     return total;
@@ -616,15 +666,14 @@
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
   function actionable(n) { return !n.source && isUnlocked(n) && state.cash >= costOf(n); }
 
-  // --- Héros déployés (multiplicateur par module et par Dex) ------------
   function ownsHero(id) { return (state.heroes[id] || 0) > 0; }
   function isDeployed(node, di = state.currentDex) { return !!(dex(di).placed && dex(di).placed[node.id]); }
-  function heroMult(node, di = state.currentDex) { return isDeployed(node, di) ? HERO_MULT[node.tier] : 1; }
   function toggleDeploy(node) {
     if (!ownsHero(node.id)) { toast("Héros non obtenu — invoque-le au gacha"); return; }
     const placed = dex(state.currentDex).placed;
     placed[node.id] = !placed[node.id];
-    toast(placed[node.id] ? `🦸 ${node.name} déployé ×${HERO_MULT[node.tier]}` : "Héros retiré");
+    const h = HDATA_BY_ID[node.id];
+    toast(placed[node.id] ? `🦸 ${h ? h.name : node.name} déployé` : "Héros retiré");
     render();
     save();
   }
@@ -665,7 +714,7 @@
       if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
       const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
       if (elapsed > 1) {
-        const gained = perSecond() * elapsed;
+        const gained = perSecond() * elapsed * globalHeroFx().offlineMult;
         if (gained > 0) {
           state.cash += gained;
           setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} gagnés hors-ligne`), 400);
@@ -688,8 +737,9 @@
 
   // --- Actions -----------------------------------------------------------
   function click(e) {
-    state.cash += state.clickPower;
-    spawnFloat(e, "+$" + state.clickPower);
+    const gain = state.clickPower * globalHeroFx().clickMult;
+    state.cash += gain;
+    spawnFloat(e, "+$" + fmt(gain));
     render();
   }
 
@@ -892,7 +942,7 @@
     document.getElementById("clickPower").textContent = state.clickPower;
     document.getElementById("connCount").textContent = connectedCount();
 
-    document.getElementById("gemCount").textContent = state.gems || 0;
+    document.getElementById("gemCount").textContent = Math.floor(state.gems || 0);
     const gp = gemPrice();
     document.getElementById("gemPrice100").textContent = "$" + fmt(gp * 100);
     document.getElementById("gemPrice1000").textContent = "$" + fmt(gp * 1000);
@@ -937,7 +987,7 @@
     const unlocked = isUnlocked(n);
     const cost = costOf(n);
     document.getElementById("mpLevel").textContent = lvl;
-    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm * heroMult(n)) + "/s";
+    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm * moduleMult(n, dex(state.currentDex))) + "/s";
     const btn = document.getElementById("mpAction");
     if (!unlocked) {
       btn.textContent = "🔒 Connecte d'abord " + NODE[n.parent].name;
@@ -962,24 +1012,26 @@
     const deployed = isDeployed(n);
     const info = document.getElementById("mpHeroInfo");
     const hbtn = document.getElementById("mpHeroBtn");
+    const hd = HDATA_BY_ID[n.id];
+    const hname = hd ? hd.name : n.name;
+    const eff = hd ? hd.passive.text : "";
     if (!owns) {
-      info.innerHTML = `🦸 Héros « ${n.name} » non obtenu — invoque-le au gacha`;
+      info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque-le au gacha`;
       hbtn.style.display = "none";
     } else {
       const copies = state.heroes[n.id] || 0;
-      const mult = `<span class="hmult t${n.tier}">×${HERO_MULT[n.tier]}</span>`;
       info.innerHTML = deployed
-        ? `🦸 <b>${n.name}</b> déployé · ${mult} <span style="color:var(--muted)">(${RARITY[n.tier]}, possédé ×${copies})</span>`
-        : `🦸 Héros « ${n.name} » disponible · bonus ${mult} <span style="color:var(--muted)">(possédé ×${copies})</span>`;
+        ? `🦸 <b>${hname}</b> déployé · <span style="color:var(--accent)">${eff}</span> <span style="color:var(--muted)">(×${copies})</span>`
+        : `🦸 <b>${hname}</b> disponible · <span style="color:var(--muted)">${eff} (×${copies})</span>`;
       hbtn.style.display = "inline-block";
-      hbtn.textContent = deployed ? "Retirer le héros" : `Déployer (×${HERO_MULT[n.tier]})`;
+      hbtn.textContent = deployed ? "Retirer le héros" : "Déployer";
       hbtn.className = "btn" + (deployed ? "" : " can");
     }
   }
 
   // --- Rendu du gacha ----------------------------------------------------
   function renderGacha() {
-    document.getElementById("gachaGems").textContent = state.gems || 0;
+    document.getElementById("gachaGems").textContent = Math.floor(state.gems || 0);
     document.getElementById("pityCount").textContent = state.pity || 0;
     document.getElementById("pull1").classList.toggle("can", (state.gems || 0) >= PULL_COST);
     document.getElementById("pull10").classList.toggle("can", (state.gems || 0) >= PULL_COST * 10);
@@ -1043,8 +1095,11 @@
   let lastTick = Date.now();
   function loop() {
     const now = Date.now();
-    state.cash += perSecond() * (now - lastTick) / 1000;
+    const dt = (now - lastTick) / 1000;
     lastTick = now;
+    const fx = globalHeroFx();
+    state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
+    if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     render();
   }
 

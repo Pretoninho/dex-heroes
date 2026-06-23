@@ -140,7 +140,7 @@ Détail chiffré : à définir à l'étape « Fusion ».
 
 ## 7. Ordre de construction proposé
 
-1. **Passifs** (familles A–D) : un effet par héros, déployable. *(socle)*
+1. **Passifs** (familles A–D) : un effet par héros, déployable. *(socle)* — **fait**
 2. **Synergies** (F) : sets de bras / rareté / thème.
 3. **Signatures** (E) : capacités actives à cooldown, déclenchées depuis une **barre
    d'abilities globale**.
