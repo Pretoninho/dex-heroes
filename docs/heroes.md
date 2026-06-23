@@ -30,7 +30,9 @@ Chaque héros est décrit par les champs suivants :
 - **B — Clic** : +puissance de clic, auto-clic, ou clic = +N s de production.
 - **C — Économie / gacha** : −coût d'amélioration, génère des gemmes, −prix des gemmes, bonus de drop / pity.
 - **D — Idle / hors-ligne** : ×gains hors-ligne, +plafond idle.
-- **E — Signature active** : pouvoir déclenchable à cooldown.
+- **E — Signature active** : pouvoir déclenchable à cooldown, **déclenché depuis une
+  barre d'abilities globale** (liste les signatures des héros déployés, prêtes ou en
+  recharge). Cooldown temps réel et persistant.
 - **F — Synergies de collection** : bonus quand plusieurs héros sont déployés ensemble.
 - **G — Conditionnel / régime** : la valeur du héros dépend du contexte (le pilier).
 
@@ -140,6 +142,7 @@ Détail chiffré : à définir à l'étape « Fusion ».
 
 1. **Passifs** (familles A–D) : un effet par héros, déployable. *(socle)*
 2. **Synergies** (F) : sets de bras / rareté / thème.
-3. **Signatures** (E) : capacités actives à cooldown.
+3. **Signatures** (E) : capacités actives à cooldown, déclenchées depuis une **barre
+   d'abilities globale**.
 4. **Fusion** : doublons → niveaux.
 5. **Régimes** (G) : couche avancée (rétention long terme).
