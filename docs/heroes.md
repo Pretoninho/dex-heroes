@@ -56,44 +56,44 @@ Légende familles entre [crochets]. Valeurs = propositions à équilibrer.
 ### Bras Banque 🏦 — *intérêts & trésorerie*
 | Module | Héros | Rar. | Passif | Signature (active) |
 |---|---|---|---|---|
-| 🏦 Banque | **Mme Caution** | C | [A] ×1.25 prod du module | *Intérêts* : encaisse 60 s de prod du module |
-| 💳 Crédit | **Le Courtier** | R | [C] −15 % coût d'amélioration du **bras** | *Levier* : ×2 prod du bras pendant 20 s |
-| 🏛️ Trésorerie | **Le Trésorier** | E | [C/D] génère des 💎 passivement | *Planche à billets* : gros coup de cash |
+| 🏦 Banque | **Jasper Norgan** | C | [A] ×1.25 prod du module | *Intérêts* : encaisse 60 s de prod du module |
+| 💳 Crédit | **Jamie Damone** | R | [C] −15 % coût d'amélioration du **bras** | *Levier* : ×2 prod du bras pendant 20 s |
+| 🏛️ Trésorerie | **Mayer Roschild** | E | [C/D] génère des 💎 passivement | *Planche à billets* : gros coup de cash |
 
 ### Bras Bourse 📈 — *spéculation*
 | Module | Héros | Rar. | Passif | Signature |
 |---|---|---|---|---|
-| 📈 Bourse | **Le Floor Trader** | C | [A] ×1.25 prod du module | *Volume* : ×3 prod du module 15 s |
-| 🪙 Crypto | **Le Degen** | R | [B] auto-clic (3 clics/s) | *FOMO* : pluie de clics auto 20 s |
-| 🐋 Hedge Fund | **La Baleine** | E | [A] ×prod de **tous les Rares** déployés | *Pump* : ×5 prod globale 10 s |
+| 📈 Bourse | **Warden Buffott** | C | [A] ×1.25 prod du module | *Volume* : ×3 prod du module 15 s |
+| 🪙 Crypto | **Satoshi Nakomito** | R | [B] auto-clic (3 clics/s) | *FOMO* : pluie de clics auto 20 s |
+| 🐋 Hedge Fund | **Georg Solros** | E | [A] ×prod de **tous les Rares** déployés | *Pump* : ×5 prod globale 10 s |
 
 ### Bras Immobilier 🏠 — *rente & idle*
 | Module | Héros | Rar. | Passif | Signature |
 |---|---|---|---|---|
-| 🏠 Immobilier | **Le Bailleur** | C | [D] ×1.5 gains hors-ligne | *Loyers* : encaisse une avance de loyer |
-| 🏗️ Promotion | **Le Promoteur** | R | [A] ×prod de tout le **bras** | *Chantier* : ×2 prod du bras 25 s |
-| 🌆 Gratte-ciel | **Le Magnat** | E | [A] +% prod **globale** du Dex | *Empire* : ×4 prod globale 12 s |
+| 🏠 Immobilier | **Sam Zello** | C | [D] ×1.5 gains hors-ligne | *Loyers* : encaisse une avance de loyer |
+| 🏗️ Promotion | **Stephen Rolss** | R | [A] ×prod de tout le **bras** | *Chantier* : ×2 prod du bras 25 s |
+| 🌆 Gratte-ciel | **Donald Trumb** | E | [A] +% prod **globale** du Dex | *Empire* : ×4 prod globale 12 s |
 
 ### Bras Industrie 🏭 — *production lourde*
 | Module | Héros | Rar. | Passif | Signature |
 |---|---|---|---|---|
-| 🏭 Industrie | **Le Contremaître** | C | [A] ×1.25 prod du module | *Cadence* : ×3 prod du module 15 s |
-| 🚢 Commerce | **L'Armateur** | R | [A] booste les modules **en aval** (flux) | *Convoi* : ×2 prod en aval 25 s |
-| 🛰️ Aérospatial | **L'Ingénieure** | E | [C] −prix des gemmes | *Lancement* : prochain tirage gratuit |
+| 🏭 Industrie | **Henry Frod** | C | [A] ×1.25 prod du module | *Cadence* : ×3 prod du module 15 s |
+| 🚢 Commerce | **Aristote Onissas** | R | [A] booste les modules **en aval** (flux) | *Convoi* : ×2 prod en aval 25 s |
+| 🛰️ Aérospatial | **Richard Brunson** | E | [C] −prix des gemmes | *Lancement* : prochain tirage gratuit |
 
 ### Bras Startup 💼 — *clic & croissance*
 | Module | Héros | Rar. | Passif | Signature |
 |---|---|---|---|---|
-| 💼 Startup | **Le Founder** | C | [B] +100 % puissance de clic | *Pitch* : clics ×10 pendant 15 s |
-| 🦄 Licorne | **La VC** | R | [C] +chance de tirage gratuit au gacha | *Levée* : +20 % drop pendant 5 tirages |
-| 🌍 Conglomérat | **Le PDG** | E | [F] ×prod par **synergie active** | *Fusion-acquisition* : active toutes les synergies 15 s |
+| 💼 Startup | **Steve Jorbs** | C | [B] +100 % puissance de clic | *Pitch* : clics ×10 pendant 15 s |
+| 🦄 Licorne | **Pieter Thielo** | R | [C] +chance de tirage gratuit au gacha | *Levée* : +20 % drop pendant 5 tirages |
+| 🌍 Conglomérat | **Geoff Bezus** | E | [F] ×prod par **synergie active** | *Fusion-acquisition* : active toutes les synergies 15 s |
 
 ### Bras Énergie 🛢️ — *puissance brute*
 | Module | Héros | Rar. | Passif | Signature |
 |---|---|---|---|---|
-| 🛢️ Énergie | **Le Foreur** | C | [D] +plafond de production hors-ligne | *Gisement* : double le stock idle |
-| ⚡ Renouvelable | **L'Écolo-tech** | R | [A] ×prod des modules de **même rareté** | *Réseau* : ×2 prod des Rares 20 s |
-| ☢️ Fusion | **Le Physicien** | E | [A] ×prod **globale** (le plus fort) | *Réaction en chaîne* : ×8 prod 8 s |
+| 🛢️ Énergie | **John Lockefeller** | C | [D] +plafond de production hors-ligne | *Gisement* : double le stock idle |
+| ⚡ Renouvelable | **Elron Tusk** | R | [A] ×prod des modules de **même rareté** | *Réseau* : ×2 prod des Rares 20 s |
+| ☢️ Fusion | **Bill Gatts** | E | [A] ×prod **globale** (le plus fort) | *Réaction en chaîne* : ×8 prod 8 s |
 
 -----
 
