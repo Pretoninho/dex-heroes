@@ -449,6 +449,7 @@
         <div class="hero-slot">
           <div id="mpHeroInfo">🦸 Slot héros</div>
           <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
+          <button class="btn" id="mpFuseBtn" style="display:none; margin-top:8px">Fusionner</button>
         </div>
       </div>
 
@@ -579,7 +580,8 @@
     cash: 0,
     clickPower: 1,
     gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
-    heroes: {},                  // { heroId(=moduleId): nombre de copies possédées }
+    heroes: {},                  // { heroId(=moduleId): copies en inventaire (1 base + doublons) }
+    lvl: {},                     // { heroId: niveau de fusion (>=1 si possédé) }
     pity: 0,                     // compteur de tirages depuis le dernier Épique
     buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
     cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
@@ -599,6 +601,7 @@
     const h = pool[Math.floor(Math.random() * pool.length)];
     const isNew = !(state.heroes[h.id] > 0);
     state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
+    if (isNew) state.lvl[h.id] = 1;
     return { hero: h, tier, isNew };
   }
   function pull(times) {
@@ -653,7 +656,7 @@
       if (!d.placed[src.id]) return;
       const h = HDATA_BY_ID[src.id]; if (!h) return;
       const e = h.passive.effect || {};
-      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += e.value;
+      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += scaleVal("costReduce", e.value, heroLvl(src.id));
     });
     return Math.ceil(c * (1 - Math.min(reduce, 0.8)));
   }
@@ -665,15 +668,15 @@
       ASSETS.forEach(n => {
         if (!(d.placed && d.placed[n.id])) return;
         const h = HDATA_BY_ID[n.id]; if (!h) return;
-        const e = h.passive.effect || {};
+        const e = h.passive.effect || {}, lvl = heroLvl(n.id);
         switch (e.type) {
-          case "clickMult":      fx.clickMult *= e.value; break;
-          case "autoClick":      fx.autoClick += e.value; break;
-          case "gemGen":         fx.gemPerSec += e.value; break;
-          case "gemPriceReduce": fx.gemPriceMult *= (1 - e.value); break;
+          case "clickMult":      fx.clickMult *= scaleVal("clickMult", e.value, lvl); break;
+          case "autoClick":      fx.autoClick += scaleVal("autoClick", e.value, lvl); break;
+          case "gemGen":         fx.gemPerSec += scaleVal("gemGen", e.value, lvl); break;
+          case "gemPriceReduce": fx.gemPriceMult *= (1 - Math.min(0.9, scaleVal("gemPriceReduce", e.value, lvl))); break;
           case "offlineMult":
-          case "offlineCap":     fx.offlineMult *= e.value; break;   // offlineCap simplifié
-          case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - e.value); break;
+          case "offlineCap":     fx.offlineMult *= scaleVal("offlineMult", e.value, lvl); break;
+          case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - Math.min(0.9, scaleVal("freePullChance", e.value, lvl))); break;
         }
       });
     });
@@ -698,13 +701,13 @@
     ASSETS.forEach(src => {
       if (!(d.placed && d.placed[src.id])) return;
       const h = HDATA_BY_ID[src.id]; if (!h) return;
-      const e = h.passive.effect || {};
-      if (e.type === "mult" && e.scope === "module" && src.id === n.id) m *= e.value;
-      else if (e.type === "mult" && e.scope === "arm" && src.arm === n.arm) m *= e.value;
-      else if (e.type === "rarityMult" && n.tier === e.rarity) m *= e.value;
-      else if (e.type === "downstreamMult" && src.arm === n.arm && n.tier > src.tier) m *= e.value;
-      else if (e.type === "globalMult") m *= e.value;
-      else if (e.type === "synergyMult") m *= Math.pow(e.value, syns.length);   // Geoff : ×prod par synergie active
+      const e = h.passive.effect || {}, lvl = heroLvl(src.id);
+      if (e.type === "mult" && e.scope === "module" && src.id === n.id) m *= scaleVal("mult", e.value, lvl);
+      else if (e.type === "mult" && e.scope === "arm" && src.arm === n.arm) m *= scaleVal("mult", e.value, lvl);
+      else if (e.type === "rarityMult" && n.tier === e.rarity) m *= scaleVal("rarityMult", e.value, lvl);
+      else if (e.type === "downstreamMult" && src.arm === n.arm && n.tier > src.tier) m *= scaleVal("downstreamMult", e.value, lvl);
+      else if (e.type === "globalMult") m *= scaleVal("globalMult", e.value, lvl);
+      else if (e.type === "synergyMult") m *= Math.pow(scaleVal("synergyMult", e.value, lvl), syns.length);   // Geoff
     });
     syns.forEach(s => { if (s.members.indexOf(n.id) !== -1) m *= (s.mult || 1); });
     // Buffs de signature actifs (production) dans ce Dex
@@ -735,6 +738,29 @@
 
   function ownsHero(id) { return (state.heroes[id] || 0) > 0; }
   function isDeployed(node, di = state.currentDex) { return !!(dex(di).placed && dex(di).placed[node.id]); }
+
+  // --- Fusion (niveaux) -------------------------------------------------
+  function heroLvl(id) { return state.lvl[id] || (state.heroes[id] > 0 ? 1 : 0); }
+  function dupesOf(id) { return Math.max(0, (state.heroes[id] || 0) - 1); }
+  function fuseCost(level) { return level + 1; }                 // 1→2 = 2 doublons, 2→3 = 3…
+  function maxLvl(id) { const r = (HDATA_BY_ID[id] || {}).rarity; return (HMETA.rarities[r] || {}).fusionMax || 5; }
+  function fuse(id) {
+    const lvl = heroLvl(id), cost = fuseCost(lvl);
+    if (lvl >= maxLvl(id)) { toast("Niveau max atteint"); return; }
+    if (dupesOf(id) < cost) { toast(`Il faut ${cost} doublons`); return; }
+    state.heroes[id] -= cost;
+    state.lvl[id] = lvl + 1;
+    toast(`⬆️ ${HDATA_BY_ID[id].name} → Niv.${lvl + 1}`);
+    render();
+    save();
+  }
+  // Mise à l'échelle d'un effet selon le niveau (+20 % du bonus par niveau)
+  const MULT_TYPES = { mult: 1, rarityMult: 1, globalMult: 1, downstreamMult: 1, offlineMult: 1, offlineCap: 1, clickMult: 1, synergyMult: 1 };
+  function lvlFactor(level) { return 1 + 0.20 * ((level || 1) - 1); }
+  function scaleVal(type, value, level) {
+    const f = lvlFactor(level);
+    return MULT_TYPES[type] ? 1 + (value - 1) * f : value * f;
+  }
   function toggleDeploy(node) {
     if (!ownsHero(node.id)) { toast("Héros non obtenu — invoque-le au gacha"); return; }
     const placed = dex(state.currentDex).placed;
@@ -753,18 +779,19 @@
     if (!isDeployed(node)) return;
     const h = HDATA_BY_ID[node.id]; if (!h || !h.signature || !h.signature.effect) return;
     if (!sigReady(node.id)) { toast(`⏳ ${h.signature.name} : ${sigRemain(node.id)} s`); return; }
-    const e = h.signature.effect, until = Date.now() + (e.duration || 0) * 1000;
+    const e = h.signature.effect, until = Date.now() + (e.duration || 0) * 1000, f = lvlFactor(heroLvl(node.id));
     if (e.kind === "prod") {
-      state.buffs.push({ kind: "prod", value: e.value, scope: e.scope, moduleId: node.id, arm: node.arm, tier: node.tier, rarity: e.rarity, dexIndex: state.currentDex, until });
-      toast(`✨ ${h.signature.name} : ×${e.value} (${e.duration}s)`);
+      const v = 1 + (e.value - 1) * f;
+      state.buffs.push({ kind: "prod", value: v, scope: e.scope, moduleId: node.id, arm: node.arm, tier: node.tier, rarity: e.rarity, dexIndex: state.currentDex, until });
+      toast(`✨ ${h.signature.name} : ×${v.toFixed(2)} (${e.duration}s)`);
     } else if (e.kind === "auto") {
-      state.buffs.push({ kind: "auto", value: e.value, until });
+      state.buffs.push({ kind: "auto", value: e.value * f, until });
       toast(`✨ ${h.signature.name} (${e.duration}s)`);
     } else if (e.kind === "click") {
-      state.buffs.push({ kind: "click", value: e.value, until });
-      toast(`✨ ${h.signature.name} : clics ×${e.value} (${e.duration}s)`);
+      state.buffs.push({ kind: "click", value: e.value * f, until });
+      toast(`✨ ${h.signature.name} : clics ×${(e.value * f).toFixed(0)} (${e.duration}s)`);
     } else if (e.kind === "cash") {
-      const gain = e.seconds * perSecond();
+      const gain = e.seconds * f * perSecond();
       state.cash += gain;
       toast(`💰 ${h.signature.name} : +$${fmt(gain)}`);
     } else if (e.kind === "freePull") {
@@ -812,6 +839,8 @@
       if (typeof state.gems !== "number") state.gems = 0;
       if (typeof state.pity !== "number") state.pity = 0;
       if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
+      if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
+      Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
       if (!Array.isArray(state.buffs)) state.buffs = [];
       state.buffs = state.buffs.filter(b => b && b.until > Date.now());   // buffs temporaires expirés
       if (!state.cd || typeof state.cd !== "object") state.cd = {};
@@ -870,7 +899,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, buffs: [], cd: {}, dropBoost: null, freePullNext: false, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, lvl: {}, pity: 0, buffs: [], cd: {}, dropBoost: null, freePullNext: false, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -1020,7 +1049,7 @@
       const cell = document.getElementById("hg-" + h.id);
       if (cell) {
         cell.classList.toggle("owned", copies > 0);
-        document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "×" + copies : "";
+        document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "Niv." + heroLvl(h.id) : "";
       }
     });
     document.getElementById("heroesOwned").textContent = owned;
@@ -1029,7 +1058,7 @@
       const node = NODE[ficheId];
       const deployed = node && isDeployed(node);
       document.getElementById("ficheStatus").innerHTML = copies > 0
-        ? `Possédé ×${copies}${deployed ? " · 🦸 déployé sur ce Dex" : ""}`
+        ? `Possédé · Niv.${heroLvl(ficheId)} · ${dupesOf(ficheId)} doublon(s)${deployed ? " · 🦸 déployé" : ""}`
         : `Non obtenu — invoque-le au gacha 🎲`;
     }
   }
@@ -1151,20 +1180,24 @@
     const deployed = isDeployed(n);
     const info = document.getElementById("mpHeroInfo");
     const hbtn = document.getElementById("mpHeroBtn");
+    const fbtn = document.getElementById("mpFuseBtn");
     const hd = HDATA_BY_ID[n.id];
     const hname = hd ? hd.name : n.name;
     const eff = hd ? hd.passive.text : "";
     if (!owns) {
       info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque-le au gacha`;
-      hbtn.style.display = "none";
+      hbtn.style.display = "none"; fbtn.style.display = "none";
     } else {
-      const copies = state.heroes[n.id] || 0;
-      info.innerHTML = deployed
-        ? `🦸 <b>${hname}</b> déployé · <span style="color:var(--accent)">${eff}</span> <span style="color:var(--muted)">(×${copies})</span>`
-        : `🦸 <b>${hname}</b> disponible · <span style="color:var(--muted)">${eff} (×${copies})</span>`;
+      const lvl = heroLvl(n.id), dup = dupesOf(n.id), max = maxLvl(n.id), cost = fuseCost(lvl);
+      info.innerHTML =
+        `🦸 <b>${hname}</b> · Niv.${lvl}${deployed ? ' · <span style="color:var(--accent)">déployé</span>' : ''}<br>` +
+        `<span style="color:var(--muted)">${eff} · ${dup} doublon${dup > 1 ? "s" : ""}</span>`;
       hbtn.style.display = "inline-block";
       hbtn.textContent = deployed ? "Retirer le héros" : "Déployer";
       hbtn.className = "btn" + (deployed ? "" : " can");
+      fbtn.style.display = "inline-block";
+      if (lvl >= max) { fbtn.textContent = `Niveau max (${max})`; fbtn.className = "btn"; fbtn.disabled = true; }
+      else { fbtn.disabled = false; fbtn.textContent = `Fusionner → Niv.${lvl + 1} (${cost} doublons)`; fbtn.className = "btn" + (dup >= cost ? " can" : ""); }
     }
   }
 
@@ -1203,7 +1236,7 @@
     HEROES.forEach(h => {
       const copies = state.heroes[h.id] || 0;
       document.getElementById("col-" + h.id).classList.toggle("owned", copies > 0);
-      document.getElementById("copies-" + h.id).textContent = copies > 0 ? "×" + copies : "—";
+      document.getElementById("copies-" + h.id).textContent = copies > 0 ? "Niv." + heroLvl(h.id) : "—";
     });
   }
 
@@ -1272,6 +1305,7 @@
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
+  document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);

@@ -149,5 +149,6 @@ Détail chiffré : à définir à l'étape « Fusion ».
 3. **Signatures** (E) : capacités actives à cooldown, déclenchées depuis une **barre
    d'abilities globale**. — **fait** (boosts de prod temporaires, cash instantané,
    auto-clic, clic, tirage gratuit, boost de drop ; cooldown persistant).
-4. **Fusion** : doublons → niveaux.
+4. **Fusion** : doublons → niveaux. — **fait** (niv L→L+1 = L+1 doublons ; cap par
+   rareté 5/4/3 ; chaque niveau +20 % du bonus du passif et de la signature).
 5. **Régimes** (G) : couche avancée (rétention long terme).
