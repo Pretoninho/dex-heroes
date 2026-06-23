@@ -131,15 +131,13 @@
         '<input id="cName" placeholder="pseudo (classement)" maxlength="20" value="' + esc(getName()) + '">' +
         '<div class="row"><button class="primary" id="cSync">Synchroniser</button>' +
         '<button id="cBoard">🏆 Classement</button></div>' +
-        '<div class="row"><button id="cMarket">🏦 Marché</button>' +
-        '<button id="cOut">Déconnexion</button></div>' +
+        '<div class="row"><button id="cOut">Déconnexion</button></div>' +
         '<div class="cloud-msg" id="cMsg"></div>' +
         '<div class="cloud-board" id="cBoardList"></div>' +
         '<button class="cloud-close" id="cClose">Fermer</button>';
       msgEl = card.querySelector("#cMsg");
       card.querySelector("#cName").onchange = function () { setName(this.value); say("Pseudo enregistré."); };
       card.querySelector("#cSync").onclick = function () { lastPush = 0; Cloud.push(bridge.getState()); say("Sauvegardé ✔"); };
-      card.querySelector("#cMarket").onclick = function () { document.getElementById("cloudOv").classList.remove("show"); openMarket(); };
       card.querySelector("#cOut").onclick = function () { sb.auth.signOut().then(function () { say("Déconnecté."); }); };
       card.querySelector("#cBoard").onclick = function () {
         say("Chargement du classement…");
@@ -250,6 +248,20 @@
     ov.addEventListener("click", function (e) { if (e.target === ov) ov.classList.remove("show"); });
     mkMsg = ov.querySelector("#mkMsg");
     ov.querySelector("#mkClose").onclick = function () { ov.classList.remove("show"); };
+
+    // Onglet 🏦 Marché dans le menu du haut (à côté de ☁️)
+    var tabs = document.querySelector(".navtabs");
+    if (tabs) {
+      var mtab = document.createElement("button");
+      mtab.className = "cloudtab"; mtab.id = "marketTab"; mtab.textContent = "🏦";
+      mtab.title = "Marché des gemmes";
+      mtab.addEventListener("click", function () {
+        if (user) { openMarket(); }
+        else { document.getElementById("cloudOv").classList.add("show"); renderUI(); say("Connecte-toi pour accéder au marché."); }
+      });
+      var cloudTab = document.getElementById("cloudTab");
+      if (cloudTab) tabs.insertBefore(mtab, cloudTab); else tabs.appendChild(mtab);
+    }
     ov.querySelector("#mkDep").onclick = function () {
       var g = mkNum("mkDg"), c = mkNum("mkDc"), s = bridge.getState();
       if (g > (s.gems || 0) || c > (s.cash || 0)) { mkSay("Pas assez dans le jeu."); return; }
