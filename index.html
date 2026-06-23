@@ -145,7 +145,6 @@
   .tab.buy.affordable { border-style: solid; border-color: var(--accent-2); color: var(--accent-2); }
 
   /* Vue d'ensemble : Source + lignes (bras) fléchées */
-  .srcrow { display: flex; justify-content: center; margin: 4px 0 12px; }
   .branches {
     display: flex;
     flex-direction: column;
@@ -397,13 +396,6 @@
         <h2>🔗 Cash Flow</h2>
         <p class="hint">Tape un module pour ouvrir sa page (connecter / améliorer).</p>
         <div class="tabs" id="dexTabs"></div>
-        <div class="srcrow">
-          <div class="node source" id="node-source">
-            <div class="nemoji">💵</div>
-            <div class="nname">Source</div>
-            <div class="ninfo" id="info-source"></div>
-          </div>
-        </div>
         <div class="branches" id="branches"></div>
       </div>
 
@@ -900,7 +892,6 @@
     document.getElementById("perSec").textContent = "$" + fmt(perSecond()) + " / sec";
     document.getElementById("clickPower").textContent = state.clickPower;
     document.getElementById("connCount").textContent = connectedCount();
-    document.getElementById("info-source").innerHTML = `<span class="nlevel">+$${state.clickPower}/clic</span>`;
 
     document.getElementById("gemCount").textContent = state.gems || 0;
     const gp = gemPrice();
