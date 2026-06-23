@@ -157,7 +157,7 @@ begin
   -- On accepte une tx où SYSTÈME contribue positivement (production) ou négativement (puits)
   -- mais toute autre combinaison doit sommer à zéro
   for v_key in
-    select distinct resource_id from public.economy_resources
+    select distinct id from public.economy_resources
   loop
     declare
       v_non_system_sum numeric := 0;
