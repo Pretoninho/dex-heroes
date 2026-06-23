@@ -216,6 +216,41 @@
     border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
   }
 
+  /* Gacha */
+  .droprates { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .droprates .r0 { color: var(--muted); }
+  .droprates .r1 { color: #7ab8ff; }
+  .droprates .r2 { color: var(--accent-2); }
+  .pitybar { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .pitybar b { color: var(--text); }
+  .pullbtns { display: flex; gap: 8px; }
+  .pullbtns .big-btn { flex: 1; }
+  .pullresult { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .pull-card {
+    width: 84px; border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 2px solid #2a4d3a; background: var(--panel-2);
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } }
+  .pull-card .pemoji { font-size: 26px; line-height: 1; }
+  .pull-card .pname { font-size: 11px; font-weight: 700; margin-top: 2px; }
+  .pull-card .ptag { font-size: 10px; margin-top: 2px; color: var(--muted); }
+  .pull-card.r1 { border-color: #7ab8ff; }
+  .pull-card.r2 { border-color: var(--accent-2); box-shadow: 0 0 12px rgba(255,210,77,.35); }
+
+  .collection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .col-cell {
+    border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 1px solid #2a4d3a; background: var(--panel-2); opacity: .4;
+    transition: opacity .2s, border-color .2s;
+  }
+  .col-cell.owned { opacity: 1; }
+  .col-cell.owned.r1 { border-color: #7ab8ff; }
+  .col-cell.owned.r2 { border-color: var(--accent-2); }
+  .col-cell .cemoji { font-size: 22px; line-height: 1; }
+  .col-cell .cname { font-size: 10px; margin-top: 2px; }
+  .col-cell .ccopies { font-size: 11px; color: var(--accent); margin-top: 2px; }
+
   .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
   .btn {
     background: var(--panel-2);
@@ -273,10 +308,11 @@
       <div class="gems">
         <div class="gembal">💎 <b id="gemCount">0</b> gemmes</div>
         <div class="gembuy">
-          <button class="btn" id="buyGem1">Acheter 💎 · <span id="gemPrice1">$50</span></button>
-          <button class="btn" id="buyGem10">×10 · <span id="gemPrice10">$500</span></button>
+          <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
+          <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
         </div>
-        <div class="gemhint">Prix indexé sur ta production. Servira au gacha (héros).</div>
+        <button class="btn" id="openGachaBtn" style="margin-top:8px; width:100%">🎲 Invoquer des héros</button>
+        <div class="gemhint">Prix des gemmes indexé sur ta production.</div>
       </div>
 
       <div class="controls">
@@ -326,6 +362,24 @@
         <button class="big-btn" id="mpAction">Connecter</button>
         <div class="hero-slot" id="mpHero">🦸 Slot héros — bientôt (gacha)</div>
       </div>
+
+      <!-- Écran Gacha -->
+      <div id="gachaScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="gachaBackBtn">← Retour</button>
+          <div class="gembal">💎 <b id="gachaGems">0</b></div>
+        </div>
+        <h2>🎲 Gacha — Invocation</h2>
+        <div class="droprates">Taux : <span class="r0">Commun 79%</span> · <span class="r1">Rare 18%</span> · <span class="r2">Épique 3%</span></div>
+        <div class="pitybar">Pity : <b id="pityCount">0</b>/80 — Épique garanti au 80ᵉ tirage</div>
+        <div class="pullbtns">
+          <button class="big-btn" id="pull1">Tirer ×1 · 200💎</button>
+          <button class="big-btn" id="pull10">Tirer ×10 · 2000💎</button>
+        </div>
+        <div class="pullresult" id="pullResult"></div>
+        <h2 style="margin-top:18px">📒 Collection des héros</h2>
+        <div class="collection" id="collection"></div>
+      </div>
     </div>
   </div>
 
@@ -368,6 +422,20 @@
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
+  // Héros : 1 par module (même id), rareté = palier du module (0/1/2).
+  const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
+  const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
+
+  // Gacha (réglages issus du GDD Desk Heroes)
+  const PULL_COST = 200;            // gemmes par tirage
+  const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
+  function epicProb(counter) {      // proba d'Épique au prochain tirage (soft pity 74, dur 80)
+    const c = counter + 1;
+    if (c >= 80) return 1.0;
+    if (c >= 74) return Math.min(1, 0.03 + (c - 74) * 0.04);
+    return 0.03;
+  }
+
   // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
   // par canBuyDex() (plus tard : exiger aussi tous les héros).
@@ -383,13 +451,38 @@
     cash: 0,
     clickPower: 1,
     gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
+    heroes: {},                  // { heroId(=moduleId): nombre de copies possédées }
+    pity: 0,                     // compteur de tirages depuis le dernier Épique
     dexes: [ { levels: {} } ],   // un objet par Dex possédé : { levels: {nodeId: niveau} }
     currentDex: 0,               // Dex affiché
     lastSeen: Date.now()
   };
 
-  // Prix d'une gemme = indexé sur la production (max avec un plancher de départ).
-  const GEM_BASE = 50, GEM_T = 10;
+  // --- Gacha : tirage avec pity -----------------------------------------
+  function pullOnce() {
+    let tier;
+    if (Math.random() < epicProb(state.pity)) { tier = 2; state.pity = 0; }
+    else { state.pity++; tier = (Math.random() * (DROP[0] + DROP[1]) < DROP[0]) ? 0 : 1; }
+    const pool = HEROES_BY_TIER[tier];
+    const h = pool[Math.floor(Math.random() * pool.length)];
+    const isNew = !(state.heroes[h.id] > 0);
+    state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
+    return { hero: h, tier, isNew };
+  }
+  function pull(times) {
+    const cost = PULL_COST * times;
+    if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
+    state.gems -= cost;
+    const results = [];
+    for (let i = 0; i < times; i++) results.push(pullOnce());
+    renderPullResults(results);
+    render();
+    save();
+  }
+
+  // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
+  // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
+  const GEM_BASE = 1, GEM_T = 0.05;
   function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T)); }
   function buyGems(qty) {
     const cost = qty * gemPrice();
@@ -451,6 +544,8 @@
       state.dexes.forEach(d => { d.levels = d.levels || {}; });
       delete state.levels;
       if (typeof state.gems !== "number") state.gems = 0;
+      if (typeof state.pity !== "number") state.pity = 0;
+      if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
       if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
       const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
       if (elapsed > 1) {
@@ -504,7 +599,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, gems: 0, dexes: [ { levels: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, dexes: [ { levels: {} } ], currentDex: 0, lastSeen: Date.now() };
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -561,7 +656,14 @@
   }
 
   // --- Navigation entre écrans ------------------------------------------
-  let currentModule = null;   // id du module ouvert, ou null (vue d'ensemble)
+  let screen = "overview";    // "overview" | "module" | "gacha"
+  let currentModule = null;   // id du module ouvert
+  function showScreen(name) {
+    screen = name;
+    document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
+    document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
+    document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
+  }
   function openModule(id) {
     currentModule = id;
     const n = NODE[id];
@@ -571,16 +673,11 @@
     rar.textContent = RARITY[n.tier];
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
-    document.getElementById("overviewScreen").style.display = "none";
-    document.getElementById("moduleScreen").style.display = "block";
+    showScreen("module");
     render();
   }
-  function backToOverview() {
-    currentModule = null;
-    document.getElementById("moduleScreen").style.display = "none";
-    document.getElementById("overviewScreen").style.display = "block";
-    render();
-  }
+  function backToOverview() { currentModule = null; showScreen("overview"); render(); }
+  function openGacha() { document.getElementById("pullResult").innerHTML = ""; showScreen("gacha"); render(); }
   function gotoSibling(delta) {
     const idx = NAV.indexOf(NODE[currentModule]);
     if (idx < 0) return;
@@ -598,15 +695,16 @@
 
     document.getElementById("gemCount").textContent = state.gems || 0;
     const gp = gemPrice();
-    document.getElementById("gemPrice1").textContent = "$" + fmt(gp);
-    document.getElementById("gemPrice10").textContent = "$" + fmt(gp * 10);
-    document.getElementById("buyGem1").classList.toggle("can", state.cash >= gp);
-    document.getElementById("buyGem10").classList.toggle("can", state.cash >= gp * 10);
+    document.getElementById("gemPrice100").textContent = "$" + fmt(gp * 100);
+    document.getElementById("gemPrice1000").textContent = "$" + fmt(gp * 1000);
+    document.getElementById("buyGem100").classList.toggle("can", state.cash >= gp * 100);
+    document.getElementById("buyGem1000").classList.toggle("can", state.cash >= gp * 1000);
 
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
 
-    if (currentModule) renderModulePage();
+    if (screen === "module") renderModulePage();
+    else if (screen === "gacha") renderGacha();
     else renderOverview();
   }
 
@@ -657,6 +755,50 @@
     const nextN = NAV[(idx + 1) % NAV.length];
     document.getElementById("prevDot").classList.toggle("show", actionable(prevN));
     document.getElementById("nextDot").classList.toggle("show", actionable(nextN));
+
+    // Slot héros (placement à l'étape 3) — indique la possession
+    const copies = state.heroes[n.id] || 0;
+    document.getElementById("mpHero").textContent = copies > 0
+      ? `🦸 ${n.name} (héros) possédé ×${copies} — placement à venir`
+      : `🦸 Héros « ${n.name} » non obtenu — invoque-le au gacha`;
+  }
+
+  // --- Rendu du gacha ----------------------------------------------------
+  function renderGacha() {
+    document.getElementById("gachaGems").textContent = state.gems || 0;
+    document.getElementById("pityCount").textContent = state.pity || 0;
+    document.getElementById("pull1").classList.toggle("can", (state.gems || 0) >= PULL_COST);
+    document.getElementById("pull10").classList.toggle("can", (state.gems || 0) >= PULL_COST * 10);
+    renderCollection();
+  }
+  function renderPullResults(results) {
+    document.getElementById("pullResult").innerHTML = results.map(r =>
+      `<div class="pull-card r${r.tier}">
+        <div class="pemoji">${r.hero.emoji}</div>
+        <div class="pname">${r.hero.name}</div>
+        <div class="ptag">${RARITY[r.tier]}${r.isNew ? " · NEW" : ""}</div>
+      </div>`).join("");
+  }
+  function buildCollection() {
+    const c = document.getElementById("collection");
+    c.innerHTML = "";
+    HEROES.forEach(h => {
+      const cell = document.createElement("div");
+      cell.className = "col-cell r" + h.tier;
+      cell.id = "col-" + h.id;
+      cell.innerHTML =
+        `<div class="cemoji">${h.emoji}</div>` +
+        `<div class="cname">${h.name}</div>` +
+        `<div class="ccopies" id="copies-${h.id}">—</div>`;
+      c.appendChild(cell);
+    });
+  }
+  function renderCollection() {
+    HEROES.forEach(h => {
+      const copies = state.heroes[h.id] || 0;
+      document.getElementById("col-" + h.id).classList.toggle("owned", copies > 0);
+      document.getElementById("copies-" + h.id).textContent = copies > 0 ? "×" + copies : "—";
+    });
   }
 
   // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
@@ -694,13 +836,18 @@
   // --- Démarrage ---------------------------------------------------------
   load();
   buildOverview();
+  buildCollection();
   renderTabs();
   render();
   document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
-  document.getElementById("buyGem1").addEventListener("click", () => buyGems(1));
-  document.getElementById("buyGem10").addEventListener("click", () => buyGems(10));
+  document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
+  document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
+  document.getElementById("openGachaBtn").addEventListener("click", openGacha);
+  document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("pull1").addEventListener("click", () => pull(1));
+  document.getElementById("pull10").addEventListener("click", () => pull(10));
   document.getElementById("backBtn").addEventListener("click", backToOverview);
   document.getElementById("prevBtn").addEventListener("click", () => gotoSibling(-1));
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
