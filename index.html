@@ -39,6 +39,34 @@
   }
   .tagline { color: var(--muted); margin: 0 0 20px; font-size: 14px; text-align: center; }
 
+  /* Menu / bandeau de navigation (sticky, adapté mobile) */
+  .topnav {
+    position: sticky; top: 0; z-index: 100;
+    width: 100%; max-width: 900px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; margin-bottom: 18px;
+    background: rgba(13, 31, 23, .92); backdrop-filter: blur(8px);
+    border: 1px solid #1d3d2c; border-top: none; border-radius: 0 0 14px 14px;
+  }
+  .brand {
+    font-weight: 800; font-size: 18px; white-space: nowrap;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .navtabs { display: flex; gap: 6px; }
+  .navtab {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel-2); color: var(--text); border: 1px solid #2a4d3a;
+    border-radius: 999px; padding: 7px 14px; font-size: 14px; cursor: pointer;
+    touch-action: manipulation; transition: border-color .15s, color .15s;
+  }
+  .navtab.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 8px rgba(52,209,122,.3); }
+  @media (max-width: 560px) {
+    .brand { font-size: 15px; }
+    .navtab span { display: none; }          /* mobile : icônes seules */
+    .navtab { padding: 8px 12px; font-size: 18px; }
+  }
+
   .layout {
     display: grid;
     grid-template-columns: 1fr 1.4fr;
@@ -117,7 +145,6 @@
   .tab.buy.affordable { border-style: solid; border-color: var(--accent-2); color: var(--accent-2); }
 
   /* Vue d'ensemble : Source + lignes (bras) fléchées */
-  .srcrow { display: flex; justify-content: center; margin: 4px 0 12px; }
   .branches {
     display: flex;
     flex-direction: column;
@@ -150,6 +177,12 @@
     touch-action: manipulation;
   }
   .node .dot { position: absolute; top: -4px; right: -4px; }
+  .node .hbadge { position: absolute; top: -7px; left: -5px; font-size: 13px; display: none; }
+  .node .hbadge.show { display: block; }
+  .hmult { font-weight: 700; }
+  .hmult.t0 { color: var(--muted); }
+  .hmult.t1 { color: #7ab8ff; }
+  .hmult.t2 { color: var(--accent-2); }
 
   /* Point rouge « action disponible » */
   .dot {
@@ -216,6 +249,71 @@
     border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
   }
 
+  /* Gacha */
+  .droprates { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .droprates .r0 { color: var(--muted); }
+  .droprates .r1 { color: #7ab8ff; }
+  .droprates .r2 { color: var(--accent-2); }
+  .pitybar { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .pitybar b { color: var(--text); }
+  .pullbtns { display: flex; gap: 8px; }
+  .pullbtns .big-btn { flex: 1; }
+  .pullresult { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .pull-card {
+    width: 84px; border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 2px solid #2a4d3a; background: var(--panel-2);
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } }
+  .pull-card .pemoji { font-size: 26px; line-height: 1; }
+  .pull-card .pname { font-size: 11px; font-weight: 700; margin-top: 2px; }
+  .pull-card .ptag { font-size: 10px; margin-top: 2px; color: var(--muted); }
+  .pull-card.r1 { border-color: #7ab8ff; }
+  .pull-card.r2 { border-color: var(--accent-2); box-shadow: 0 0 12px rgba(255,210,77,.35); }
+
+  .collection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .col-cell {
+    border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 1px solid #2a4d3a; background: var(--panel-2); opacity: .4;
+    transition: opacity .2s, border-color .2s; cursor: pointer;
+  }
+  .col-cell.owned { opacity: 1; }
+  .col-cell.owned.r1 { border-color: #7ab8ff; }
+  .col-cell.owned.r2 { border-color: var(--accent-2); }
+  .col-cell .cemoji { font-size: 22px; line-height: 1; }
+  .col-cell .cname { font-size: 10px; margin-top: 2px; }
+  .col-cell .ccopies { font-size: 11px; color: var(--accent); margin-top: 2px; }
+
+  /* Codex des héros : grille + fiche */
+  .herogrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .hcell {
+    position: relative; border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 1px solid #2a4d3a; background: var(--panel-2); cursor: pointer;
+    opacity: .45; filter: grayscale(.5); transition: opacity .2s, filter .2s, border-color .2s;
+  }
+  .hcell.owned { opacity: 1; filter: none; }
+  .hcell.owned.r1 { border-color: #7ab8ff; }
+  .hcell.owned.r2 { border-color: var(--accent-2); }
+  .hcell .hcemoji { font-size: 24px; line-height: 1; }
+  .hcell .hcname { font-size: 10px; margin-top: 2px; }
+  .hcell .hcstar { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .hcell .hccopies {
+    position: absolute; top: -6px; right: -4px; font-size: 10px; font-weight: 700;
+    background: #2f7d54; color: #fff; border-radius: 8px; padding: 0 5px; display: none;
+  }
+  .hcell.owned .hccopies { display: block; }
+
+  .fiche-head { display: flex; align-items: center; gap: 14px; margin: 14px 0; }
+  .fiche-emoji { font-size: 48px; line-height: 1; }
+  .fiche-name { font-size: 22px; font-weight: 800; }
+  .fiche-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .fiche-row { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid #1d3d2c; padding: 8px 0; font-size: 14px; }
+  .fiche-k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .fiche-block { border-top: 1px solid #1d3d2c; padding: 10px 0; font-size: 14px; }
+  .fiche-block .fiche-k { margin-bottom: 4px; }
+  .fiche-fam { color: var(--accent); font-weight: 700; }
+  .fiche-status { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); font-size: 14px; }
+
   .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
   .btn {
     background: var(--panel-2);
@@ -229,6 +327,13 @@
   }
   .btn:hover { border-color: var(--accent); }
   .btn.danger:hover { border-color: #ff6b6b; color: #ff8a8a; }
+  .btn.can { border-color: var(--accent-2); color: var(--accent-2); }
+
+  .gems { margin-top: 16px; }
+  .gembal { font-size: 15px; margin-bottom: 8px; }
+  .gembal b { color: var(--accent-2); }
+  .gembuy { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .gemhint { color: var(--muted); font-size: 11px; margin-top: 8px; }
 
   .toast {
     position: fixed;
@@ -251,8 +356,14 @@
 </style>
 </head>
 <body>
-  <h1>💵 Dex Heroes</h1>
-  <p class="tagline">Construis ton <b>cash flow</b> : connecte des actifs à la source pour faire grossir le flux de cash.</p>
+  <nav class="topnav">
+    <div class="brand">💵 Dex Heroes</div>
+    <div class="navtabs">
+      <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
+      <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
+      <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
+    </div>
+  </nav>
 
   <div class="layout">
     <!-- Source / clic -->
@@ -262,6 +373,16 @@
       <button class="bill-btn" id="billBtn" aria-label="Gagner du cash">💵</button>
       <div class="click-hint">+$<span id="clickPower">1</span> par clic</div>
       <div class="stat">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
+
+      <div class="gems">
+        <div class="gembal">💎 <b id="gemCount">0</b> gemmes</div>
+        <div class="gembuy">
+          <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
+          <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
+        </div>
+        <div class="gemhint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
+      </div>
+
       <div class="controls">
         <button class="btn" id="saveBtn">💾 Sauver</button>
         <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
@@ -275,13 +396,6 @@
         <h2>🔗 Cash Flow</h2>
         <p class="hint">Tape un module pour ouvrir sa page (connecter / améliorer).</p>
         <div class="tabs" id="dexTabs"></div>
-        <div class="srcrow">
-          <div class="node source" id="node-source">
-            <div class="nemoji">💵</div>
-            <div class="nname">Source</div>
-            <div class="ninfo" id="info-source"></div>
-          </div>
-        </div>
         <div class="branches" id="branches"></div>
       </div>
 
@@ -307,13 +421,64 @@
           <div class="mdex" id="mpDex">Dex 1</div>
         </div>
         <button class="big-btn" id="mpAction">Connecter</button>
-        <div class="hero-slot" id="mpHero">🦸 Slot héros — bientôt (gacha)</div>
+        <div class="hero-slot">
+          <div id="mpHeroInfo">🦸 Slot héros</div>
+          <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
+        </div>
+      </div>
+
+      <!-- Écran Gacha -->
+      <div id="gachaScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="gachaBackBtn">← Retour</button>
+          <div class="gembal">💎 <b id="gachaGems">0</b></div>
+        </div>
+        <h2>🎲 Gacha — Invocation</h2>
+        <div class="droprates">Taux : <span class="r0">Commun 79%</span> · <span class="r1">Rare 18%</span> · <span class="r2">Épique 3%</span></div>
+        <div class="pitybar">Pity : <b id="pityCount">0</b>/80 — Épique garanti au 80ᵉ tirage</div>
+        <div class="pullbtns">
+          <button class="big-btn" id="pull1">Tirer ×1 · 200💎</button>
+          <button class="big-btn" id="pull10">Tirer ×10 · 2000💎</button>
+        </div>
+        <div class="pullresult" id="pullResult"></div>
+        <h2 style="margin-top:18px">📒 Collection des héros</h2>
+        <div class="collection" id="collection"></div>
+      </div>
+
+      <!-- Écran Codex (fiches des héros) -->
+      <div id="heroesScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="heroesBackBtn">← Retour</button>
+          <div>🦸 <b id="heroesOwned">0</b>/18</div>
+        </div>
+        <div id="heroList">
+          <h2>📖 Codex des Héros</h2>
+          <div class="herogrid" id="heroGrid"></div>
+        </div>
+        <div id="heroFiche" style="display:none">
+          <button class="btn" id="ficheBackBtn">← Liste</button>
+          <div class="fiche-head">
+            <div class="fiche-emoji" id="ficheEmoji">🦸</div>
+            <div>
+              <div class="fiche-name" id="ficheName">—</div>
+              <div class="fiche-sub"><span id="ficheRarity"></span> · <span id="ficheClass"></span></div>
+            </div>
+          </div>
+          <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
+          <div class="fiche-row"><span class="fiche-k">Régime</span><span id="ficheRegime"></span></div>
+          <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
+          <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
+          <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
+          <div class="fiche-status" id="ficheStatus"></div>
+          <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
+<script src="heroes.data.js"></script>
 <script>
 (() => {
   "use strict";
@@ -351,6 +516,24 @@
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
+  // Héros : 1 par module (même id), rareté = palier du module (0/1/2).
+  const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
+  const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
+  // Données d'affichage des fiches (chargées depuis heroes.data.js)
+  const HDATA = (typeof HERO_DATA !== "undefined") ? HERO_DATA : [];
+  const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
+  const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
+
+  // Gacha (réglages issus du GDD Desk Heroes)
+  const PULL_COST = 200;            // gemmes par tirage
+  const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
+  function epicProb(counter) {      // proba d'Épique au prochain tirage (soft pity 74, dur 80)
+    const c = counter + 1;
+    if (c >= 80) return 1.0;
+    if (c >= 74) return Math.min(1, 0.03 + (c - 74) * 0.04);
+    return 0.03;
+  }
+
   // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
   // par canBuyDex() (plus tard : exiger aussi tous les héros).
@@ -365,10 +548,53 @@
   let state = {
     cash: 0,
     clickPower: 1,
-    dexes: [ { levels: {} } ],   // un objet par Dex possédé : { levels: {nodeId: niveau} }
+    gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
+    heroes: {},                  // { heroId(=moduleId): nombre de copies possédées }
+    pity: 0,                     // compteur de tirages depuis le dernier Épique
+    dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
     currentDex: 0,               // Dex affiché
     lastSeen: Date.now()
   };
+
+  // --- Gacha : tirage avec pity -----------------------------------------
+  function pullOnce() {
+    let tier;
+    if (Math.random() < epicProb(state.pity)) { tier = 2; state.pity = 0; }
+    else { state.pity++; tier = (Math.random() * (DROP[0] + DROP[1]) < DROP[0]) ? 0 : 1; }
+    const pool = HEROES_BY_TIER[tier];
+    const h = pool[Math.floor(Math.random() * pool.length)];
+    const isNew = !(state.heroes[h.id] > 0);
+    state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
+    return { hero: h, tier, isNew };
+  }
+  function pull(times) {
+    const free = globalHeroFx().freePull;
+    let paid = 0;
+    for (let i = 0; i < times; i++) if (Math.random() >= free) paid++;   // tirages gratuits éventuels
+    const cost = PULL_COST * paid;
+    if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
+    state.gems -= cost;
+    const results = [];
+    for (let i = 0; i < times; i++) results.push(pullOnce());
+    if (paid < times) setTimeout(() => toast(`🎟️ ${times - paid} tirage(s) gratuit(s) !`), 300);
+    renderPullResults(results);
+    render();
+    save();
+  }
+
+  // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
+  // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
+  const GEM_BASE = 1, GEM_T = 0.05;
+  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T * globalHeroFx().gemPriceMult)); }
+  function buyGems(qty) {
+    const cost = qty * gemPrice();
+    if (state.cash < cost) { toast("Pas assez de cash pour des gemmes !"); return; }
+    state.cash -= cost;
+    state.gems = (state.gems || 0) + qty;
+    render();
+    save();
+    toast(`💎 +${qty} gemme${qty > 1 ? "s" : ""}`);
+  }
 
   // --- Helpers de graphe -------------------------------------------------
   function dex(di) { return state.dexes[di]; }
@@ -376,18 +602,81 @@
   function isConnected(node, di = state.currentDex) { return node.source || levelOf(node, di) > 0; }
   function isUnlocked(node, di = state.currentDex) { return node.source || isConnected(NODE[node.parent], di); }
   function costOf(node, di = state.currentDex) {
-    return Math.ceil(node.baseCost * DEX_DEFS[di].costMult * Math.pow(node.growth, levelOf(node, di)));
+    let c = node.baseCost * DEX_DEFS[di].costMult * Math.pow(node.growth, levelOf(node, di));
+    // Réduction de coût par héros déployés (même bras ou global)
+    const d = state.dexes[di];
+    let reduce = 0;
+    if (d && d.placed) ASSETS.forEach(src => {
+      if (!d.placed[src.id]) return;
+      const h = HDATA_BY_ID[src.id]; if (!h) return;
+      const e = h.passive.effect || {};
+      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += e.value;
+    });
+    return Math.ceil(c * (1 - Math.min(reduce, 0.8)));
+  }
+  // --- Effets des héros déployés (passifs) ------------------------------
+  // Effets GLOBAUX agrégés sur tous les Dex (clic, auto-clic, gemmes, hors-ligne…)
+  function globalHeroFx() {
+    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, freePull: 0 };
+    state.dexes.forEach(d => {
+      ASSETS.forEach(n => {
+        if (!(d.placed && d.placed[n.id])) return;
+        const h = HDATA_BY_ID[n.id]; if (!h) return;
+        const e = h.passive.effect || {};
+        switch (e.type) {
+          case "clickMult":      fx.clickMult *= e.value; break;
+          case "autoClick":      fx.autoClick += e.value; break;
+          case "gemGen":         fx.gemPerSec += e.value; break;
+          case "gemPriceReduce": fx.gemPriceMult *= (1 - e.value); break;
+          case "offlineMult":
+          case "offlineCap":     fx.offlineMult *= e.value; break;   // offlineCap simplifié
+          case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - e.value); break;
+        }
+      });
+    });
+    return fx;
+  }
+  // Multiplicateur de PRODUCTION d'un module n dans le Dex d (héros de prod déployés)
+  function moduleMult(n, d) {
+    let m = 1;
+    ASSETS.forEach(src => {
+      if (!(d.placed && d.placed[src.id])) return;
+      const h = HDATA_BY_ID[src.id]; if (!h) return;
+      const e = h.passive.effect || {};
+      if (e.type === "mult" && e.scope === "module" && src.id === n.id) m *= e.value;
+      else if (e.type === "mult" && e.scope === "arm" && src.arm === n.arm) m *= e.value;
+      else if (e.type === "rarityMult" && n.tier === e.rarity) m *= e.value;
+      else if (e.type === "downstreamMult" && src.arm === n.arm && n.tier > src.tier) m *= e.value;
+      else if (e.type === "globalMult") m *= e.value;
+      else if (e.type === "synergyMult") m *= e.value;   // placeholder (synergies à l'étape 2)
+    });
+    return m;
   }
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
-      ASSETS.forEach(n => { total += (d.levels[n.id] || 0) * n.rate * DEX_DEFS[di].rateMult; });
+      ASSETS.forEach(n => {
+        const lvl = d.levels[n.id] || 0;
+        if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
+      });
     });
     return total;
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
   function actionable(n) { return !n.source && isUnlocked(n) && state.cash >= costOf(n); }
+
+  function ownsHero(id) { return (state.heroes[id] || 0) > 0; }
+  function isDeployed(node, di = state.currentDex) { return !!(dex(di).placed && dex(di).placed[node.id]); }
+  function toggleDeploy(node) {
+    if (!ownsHero(node.id)) { toast("Héros non obtenu — invoque-le au gacha"); return; }
+    const placed = dex(state.currentDex).placed;
+    placed[node.id] = !placed[node.id];
+    const h = HDATA_BY_ID[node.id];
+    toast(placed[node.id] ? `🦸 ${h ? h.name : node.name} déployé` : "Héros retiré");
+    render();
+    save();
+  }
 
   // --- Achat / gestion des Dex ------------------------------------------
   function nextDexIndex() { return state.dexes.length; }
@@ -398,7 +687,7 @@
     const cost = DEX_DEFS[i].buyCost;
     if (state.cash < cost) { toast("Pas assez de cash pour un nouveau Dex !"); return; }
     state.cash -= cost;
-    state.dexes.push({ levels: {} });
+    state.dexes.push({ levels: {}, placed: {} });
     state.currentDex = i;
     renderTabs();
     render();
@@ -417,12 +706,15 @@
       if (Array.isArray(saved.dexes) && saved.dexes.length) state.dexes = saved.dexes;
       else if (saved.levels) state.dexes = [ { levels: saved.levels } ];
       else state.dexes = [ { levels: {} } ];
-      state.dexes.forEach(d => { d.levels = d.levels || {}; });
+      state.dexes.forEach(d => { d.levels = d.levels || {}; d.placed = d.placed || {}; });
       delete state.levels;
+      if (typeof state.gems !== "number") state.gems = 0;
+      if (typeof state.pity !== "number") state.pity = 0;
+      if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
       if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
       const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
       if (elapsed > 1) {
-        const gained = perSecond() * elapsed;
+        const gained = perSecond() * elapsed * globalHeroFx().offlineMult;
         if (gained > 0) {
           state.cash += gained;
           setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} gagnés hors-ligne`), 400);
@@ -445,8 +737,9 @@
 
   // --- Actions -----------------------------------------------------------
   function click(e) {
-    state.cash += state.clickPower;
-    spawnFloat(e, "+$" + state.clickPower);
+    const gain = state.clickPower * globalHeroFx().clickMult;
+    state.cash += gain;
+    spawnFloat(e, "+$" + fmt(gain));
     render();
   }
 
@@ -472,7 +765,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, dexes: [ { levels: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -517,6 +810,7 @@
         card.id = "node-" + id;
         card.innerHTML =
           `<span class="dot" id="dot-${id}"></span>` +
+          `<span class="hbadge" id="hbadge-${id}">🦸</span>` +
           `<div class="nemoji">${n.emoji}</div>` +
           `<div class="nname">${n.name}</div>` +
           `<div class="ninfo" id="info-${id}"></div>`;
@@ -529,7 +823,21 @@
   }
 
   // --- Navigation entre écrans ------------------------------------------
-  let currentModule = null;   // id du module ouvert, ou null (vue d'ensemble)
+  let screen = "overview";    // "overview" | "module" | "gacha" | "heroes"
+  let currentModule = null;   // id du module ouvert
+  let ficheId = null;         // id du héros dont la fiche est ouverte
+  function showScreen(name) {
+    screen = name;
+    document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
+    document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
+    document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
+    document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
+    setActiveNav();
+  }
+  function setActiveNav() {
+    const key = screen === "module" ? "overview" : screen;   // le module fait partie de "Cash Flow"
+    document.querySelectorAll(".navtab").forEach(b => b.classList.toggle("active", b.dataset.nav === key));
+  }
   function openModule(id) {
     currentModule = id;
     const n = NODE[id];
@@ -539,15 +847,86 @@
     rar.textContent = RARITY[n.tier];
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
-    document.getElementById("overviewScreen").style.display = "none";
-    document.getElementById("moduleScreen").style.display = "block";
+    showScreen("module");
     render();
   }
-  function backToOverview() {
-    currentModule = null;
-    document.getElementById("moduleScreen").style.display = "none";
-    document.getElementById("overviewScreen").style.display = "block";
+  function backToOverview() { currentModule = null; showScreen("overview"); render(); }
+  function openGacha() { document.getElementById("pullResult").innerHTML = ""; showScreen("gacha"); render(); }
+
+  // --- Codex des héros (fiches) -----------------------------------------
+  function openHeroes() {
+    ficheId = null;
+    document.getElementById("heroList").style.display = "block";
+    document.getElementById("heroFiche").style.display = "none";
+    showScreen("heroes");
     render();
+  }
+  function backToList() {
+    ficheId = null;
+    document.getElementById("heroFiche").style.display = "none";
+    document.getElementById("heroList").style.display = "block";
+    render();
+  }
+  function openFiche(id) {
+    const h = HDATA_BY_ID[id];
+    if (!h) return;
+    ficheId = id;
+    const meta = HMETA.rarities[h.rarity] || { stars: 3, name: "", color: "#fff" };
+    document.getElementById("ficheEmoji").textContent = h.emoji;
+    document.getElementById("ficheName").textContent = h.name;
+    const rar = document.getElementById("ficheRarity");
+    rar.textContent = "★".repeat(meta.stars) + " " + meta.name;
+    rar.style.color = meta.color;
+    document.getElementById("ficheClass").textContent = h.klass;
+    document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
+    document.getElementById("ficheRegime").textContent = h.regime || "Polyvalent";
+    document.getElementById("fichePassive").textContent = h.passive.text;
+    document.getElementById("ficheSig").innerHTML =
+      `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
+    document.getElementById("ficheSyn").textContent =
+      (h.synergies || []).map(k => { const s = HMETA.synergies.find(x => x.key === k); return s ? s.name : k; }).join(" · ") || "—";
+    document.getElementById("heroList").style.display = "none";
+    document.getElementById("heroFiche").style.display = "block";
+    showScreen("heroes");
+    render();
+  }
+  function buildHeroGrid() {
+    const g = document.getElementById("heroGrid");
+    g.innerHTML = "";
+    HDATA.slice().sort((a, b) => a.rarity - b.rarity).forEach(h => {
+      const meta = HMETA.rarities[h.rarity] || { stars: 3 };
+      const cell = document.createElement("div");
+      cell.className = "hcell r" + h.rarity;
+      cell.id = "hg-" + h.id;
+      cell.innerHTML =
+        `<span class="hccopies" id="hgcopies-${h.id}"></span>` +
+        `<div class="hcemoji">${h.emoji}</div>` +
+        `<div class="hcname">${h.name}</div>` +
+        `<div class="hcstar">${"★".repeat(meta.stars)}</div>`;
+      cell.addEventListener("click", () => openFiche(h.id));
+      g.appendChild(cell);
+    });
+  }
+  function renderHeroesScreen() {
+    let owned = 0;
+    HDATA.forEach(h => {
+      const copies = state.heroes[h.id] || 0;
+      if (copies > 0) owned++;
+      const cell = document.getElementById("hg-" + h.id);
+      if (cell) {
+        cell.classList.toggle("owned", copies > 0);
+        document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "×" + copies : "";
+      }
+    });
+    document.getElementById("heroesOwned").textContent = owned;
+    if (ficheId) {
+      const copies = state.heroes[ficheId] || 0;
+      const node = NODE[ficheId];
+      const deployed = node && isDeployed(node);
+      document.getElementById("ficheStatus").innerHTML = copies > 0
+        ? `Possédé ×${copies}${deployed ? " · 🦸 déployé sur ce Dex" : ""}`
+        : `Non obtenu — invoque-le au gacha 🎲`;
+    }
   }
   function gotoSibling(delta) {
     const idx = NAV.indexOf(NODE[currentModule]);
@@ -562,12 +941,20 @@
     document.getElementById("perSec").textContent = "$" + fmt(perSecond()) + " / sec";
     document.getElementById("clickPower").textContent = state.clickPower;
     document.getElementById("connCount").textContent = connectedCount();
-    document.getElementById("info-source").innerHTML = `<span class="nlevel">+$${state.clickPower}/clic</span>`;
+
+    document.getElementById("gemCount").textContent = Math.floor(state.gems || 0);
+    const gp = gemPrice();
+    document.getElementById("gemPrice100").textContent = "$" + fmt(gp * 100);
+    document.getElementById("gemPrice1000").textContent = "$" + fmt(gp * 1000);
+    document.getElementById("buyGem100").classList.toggle("can", state.cash >= gp * 100);
+    document.getElementById("buyGem1000").classList.toggle("can", state.cash >= gp * 1000);
 
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
 
-    if (currentModule) renderModulePage();
+    if (screen === "module") renderModulePage();
+    else if (screen === "gacha") renderGacha();
+    else if (screen === "heroes") renderHeroesScreen();
     else renderOverview();
   }
 
@@ -586,6 +973,7 @@
             ? `<span class="ncost">$${fmt(costOf(n))}</span>`
             : `<span class="nlevel">niv.${levelOf(n)}</span>`);
       document.getElementById("dot-" + n.id).classList.toggle("show", actionable(n));
+      document.getElementById("hbadge-" + n.id).classList.toggle("show", isDeployed(n));
       const link = document.getElementById("link-" + n.id);
       if (link) link.classList.toggle("active", connected);
     });
@@ -599,7 +987,7 @@
     const unlocked = isUnlocked(n);
     const cost = costOf(n);
     document.getElementById("mpLevel").textContent = lvl;
-    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm) + "/s";
+    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm * moduleMult(n, dex(state.currentDex))) + "/s";
     const btn = document.getElementById("mpAction");
     if (!unlocked) {
       btn.textContent = "🔒 Connecte d'abord " + NODE[n.parent].name;
@@ -618,6 +1006,66 @@
     const nextN = NAV[(idx + 1) % NAV.length];
     document.getElementById("prevDot").classList.toggle("show", actionable(prevN));
     document.getElementById("nextDot").classList.toggle("show", actionable(nextN));
+
+    // Slot héros : déploiement (multiplicateur de prod du module, par Dex)
+    const owns = ownsHero(n.id);
+    const deployed = isDeployed(n);
+    const info = document.getElementById("mpHeroInfo");
+    const hbtn = document.getElementById("mpHeroBtn");
+    const hd = HDATA_BY_ID[n.id];
+    const hname = hd ? hd.name : n.name;
+    const eff = hd ? hd.passive.text : "";
+    if (!owns) {
+      info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque-le au gacha`;
+      hbtn.style.display = "none";
+    } else {
+      const copies = state.heroes[n.id] || 0;
+      info.innerHTML = deployed
+        ? `🦸 <b>${hname}</b> déployé · <span style="color:var(--accent)">${eff}</span> <span style="color:var(--muted)">(×${copies})</span>`
+        : `🦸 <b>${hname}</b> disponible · <span style="color:var(--muted)">${eff} (×${copies})</span>`;
+      hbtn.style.display = "inline-block";
+      hbtn.textContent = deployed ? "Retirer le héros" : "Déployer";
+      hbtn.className = "btn" + (deployed ? "" : " can");
+    }
+  }
+
+  // --- Rendu du gacha ----------------------------------------------------
+  function renderGacha() {
+    document.getElementById("gachaGems").textContent = Math.floor(state.gems || 0);
+    document.getElementById("pityCount").textContent = state.pity || 0;
+    document.getElementById("pull1").classList.toggle("can", (state.gems || 0) >= PULL_COST);
+    document.getElementById("pull10").classList.toggle("can", (state.gems || 0) >= PULL_COST * 10);
+    renderCollection();
+  }
+  function renderPullResults(results) {
+    document.getElementById("pullResult").innerHTML = results.map(r =>
+      `<div class="pull-card r${r.tier}">
+        <div class="pemoji">${r.hero.emoji}</div>
+        <div class="pname">${r.hero.name}</div>
+        <div class="ptag">${RARITY[r.tier]}${r.isNew ? " · NEW" : ""}</div>
+      </div>`).join("");
+  }
+  function buildCollection() {
+    const c = document.getElementById("collection");
+    c.innerHTML = "";
+    HEROES.forEach(h => {
+      const cell = document.createElement("div");
+      cell.className = "col-cell r" + h.tier;
+      cell.id = "col-" + h.id;
+      cell.innerHTML =
+        `<div class="cemoji">${h.emoji}</div>` +
+        `<div class="cname">${h.name}</div>` +
+        `<div class="ccopies" id="copies-${h.id}">—</div>`;
+      cell.addEventListener("click", () => openFiche(h.id));
+      c.appendChild(cell);
+    });
+  }
+  function renderCollection() {
+    HEROES.forEach(h => {
+      const copies = state.heroes[h.id] || 0;
+      document.getElementById("col-" + h.id).classList.toggle("owned", copies > 0);
+      document.getElementById("copies-" + h.id).textContent = copies > 0 ? "×" + copies : "—";
+    });
   }
 
   // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
@@ -647,23 +1095,43 @@
   let lastTick = Date.now();
   function loop() {
     const now = Date.now();
-    state.cash += perSecond() * (now - lastTick) / 1000;
+    const dt = (now - lastTick) / 1000;
     lastTick = now;
+    const fx = globalHeroFx();
+    state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
+    if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     render();
   }
 
   // --- Démarrage ---------------------------------------------------------
   load();
   buildOverview();
+  buildCollection();
+  buildHeroGrid();
   renderTabs();
   render();
   document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
+  document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
+  document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
+  document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("heroesBackBtn").addEventListener("click", backToOverview);
+  document.querySelectorAll(".navtab").forEach(b => b.addEventListener("click", () => {
+    const nav = b.dataset.nav;
+    if (nav === "gacha") openGacha();
+    else if (nav === "heroes") openHeroes();
+    else backToOverview();
+  }));
+  document.getElementById("ficheBackBtn").addEventListener("click", backToList);
+  document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
+  document.getElementById("pull1").addEventListener("click", () => pull(1));
+  document.getElementById("pull10").addEventListener("click", () => pull(10));
   document.getElementById("backBtn").addEventListener("click", backToOverview);
   document.getElementById("prevBtn").addEventListener("click", () => gotoSibling(-1));
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
+  document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);

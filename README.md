@@ -57,17 +57,24 @@ réutilise le même graphe avec des chiffres à l'échelle (coûts ×50, prod ×
 Le déblocage passe par `canBuyDex()` — pour l'instant uniquement le cash ; à terme,
 il exigera aussi d'avoir tous les héros.
 
-## Héros (en construction)
+## Héros & Gacha
 
-Chaque module aura un **slot héros**. Un héros est **lié à un module** et multiplie
-sa production. Conception validée :
-- **Acquisition** : gacha. Boucle *cash → gemmes → tirages*.
-- **Rareté = palier du module** : tier 0 = Commun, tier 1 = Rare, tier 2 = Épique.
-- **Fusion** : les doublons se fusionnent pour monter le héros en niveau.
-- **Portée** : un slot par module **et par Dex**.
+Chaque module a un héros associé (1 héros = 1 module, même rareté = palier).
+Boucle d'acquisition : **cash → gemmes → tirages**.
+
+- **Gemmes** : achetées avec du cash, **prix indexé sur la production** (un 10-pull ≈ 100 s de prod).
+- **Gacha** (réglages du GDD *Desk Heroes*) : taux **79 % Commun / 18 % Rare / 3 % Épique**,
+  **pity** (Épique garanti au 80ᵉ tirage, soft pity dès le 74ᵉ). Tirage = **200 💎**.
+- **Collection** des 18 héros + compteur de copies.
+
+**Placement** : sur la page d'un module, si tu possèdes son héros tu peux le
+**déployer** → multiplicateur de production du module (**Commun ×1.25 · Rare ×1.6 ·
+Épique ×2**), indépendant **par Dex**. Un badge 🦸 apparaît sur les modules avec un
+héros déployé.
 
 Construction **étape par étape** : 1) structure 3 paliers + pages module *(fait)* ·
-2) gacha + roster + placement · 3) fusion.
+2) économie de gemmes + **gacha** *(fait)* · 3) **placement** des héros *(fait)* ·
+4) **fusion** des doublons (les copies renforceront le multiplicateur).
 
 ## À venir (roadmap)
 
