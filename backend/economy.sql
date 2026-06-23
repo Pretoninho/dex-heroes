@@ -111,12 +111,10 @@ declare
   v_delta numeric;
   v_kind text;
   v_metadata jsonb;
-  v_sum_per_resource hstore := hstore(array[]::text[]);
   v_key text;
   v_current_balance numeric;
   v_new_balance numeric;
   v_system_id uuid := '00000000-0000-0000-0000-000000000000'::uuid;
-  v_error text;
 begin
   -- Test 0 : tx_id et entries non vides
   if p_tx_id is null or p_entries is null or jsonb_array_length(p_entries) = 0 then
@@ -153,11 +151,6 @@ begin
         return jsonb_build_object('success', false, 'error', 'invalid price in trade');
       end if;
     end if;
-
-    -- Accumuler delta par ressource
-    v_key := v_resource_id;
-    v_sum_per_resource := v_sum_per_resource || hstore(v_key,
-      coalesce((v_sum_per_resource -> v_key)::numeric, 0) + v_delta);
   end loop;
 
   -- Test 1 : conservation (Σ deltas == 0 par ressource, sauf SYSTÈME crée)
@@ -167,20 +160,14 @@ begin
     select distinct resource_id from public.economy_resources
   loop
     declare
-      v_sum numeric;
-      v_system_contrib numeric := 0;
       v_non_system_sum numeric := 0;
     begin
-      v_sum := coalesce((v_sum_per_resource -> v_key)::numeric, 0);
-
-      -- Calculer contribution SYSTÈME et non-SYSTÈME
+      -- Calculer contribution non-SYSTÈME pour cette ressource
       for i in 0 .. jsonb_array_length(p_entries) - 1 loop
         v_entry := p_entries -> i;
         if (v_entry->>'resource_id') = v_key then
           v_delta := (v_entry->>'delta')::numeric;
-          if (v_entry->>'actor_id')::uuid = v_system_id then
-            v_system_contrib := v_system_contrib + v_delta;
-          else
+          if (v_entry->>'actor_id')::uuid != v_system_id then
             v_non_system_sum := v_non_system_sum + v_delta;
           end if;
         end if;
