@@ -248,7 +248,7 @@
   .col-cell {
     border-radius: 10px; padding: 8px 4px; text-align: center;
     border: 1px solid #2a4d3a; background: var(--panel-2); opacity: .4;
-    transition: opacity .2s, border-color .2s;
+    transition: opacity .2s, border-color .2s; cursor: pointer;
   }
   .col-cell.owned { opacity: 1; }
   .col-cell.owned.r1 { border-color: #7ab8ff; }
@@ -256,6 +256,36 @@
   .col-cell .cemoji { font-size: 22px; line-height: 1; }
   .col-cell .cname { font-size: 10px; margin-top: 2px; }
   .col-cell .ccopies { font-size: 11px; color: var(--accent); margin-top: 2px; }
+
+  /* Codex des héros : grille + fiche */
+  .herogrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .hcell {
+    position: relative; border-radius: 10px; padding: 8px 4px; text-align: center;
+    border: 1px solid #2a4d3a; background: var(--panel-2); cursor: pointer;
+    opacity: .45; filter: grayscale(.5); transition: opacity .2s, filter .2s, border-color .2s;
+  }
+  .hcell.owned { opacity: 1; filter: none; }
+  .hcell.owned.r1 { border-color: #7ab8ff; }
+  .hcell.owned.r2 { border-color: var(--accent-2); }
+  .hcell .hcemoji { font-size: 24px; line-height: 1; }
+  .hcell .hcname { font-size: 10px; margin-top: 2px; }
+  .hcell .hcstar { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .hcell .hccopies {
+    position: absolute; top: -6px; right: -4px; font-size: 10px; font-weight: 700;
+    background: #2f7d54; color: #fff; border-radius: 8px; padding: 0 5px; display: none;
+  }
+  .hcell.owned .hccopies { display: block; }
+
+  .fiche-head { display: flex; align-items: center; gap: 14px; margin: 14px 0; }
+  .fiche-emoji { font-size: 48px; line-height: 1; }
+  .fiche-name { font-size: 22px; font-weight: 800; }
+  .fiche-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .fiche-row { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid #1d3d2c; padding: 8px 0; font-size: 14px; }
+  .fiche-k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .fiche-block { border-top: 1px solid #1d3d2c; padding: 10px 0; font-size: 14px; }
+  .fiche-block .fiche-k { margin-bottom: 4px; }
+  .fiche-fam { color: var(--accent); font-weight: 700; }
+  .fiche-status { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); font-size: 14px; }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
   .btn {
@@ -318,6 +348,7 @@
           <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
         </div>
         <button class="btn" id="openGachaBtn" style="margin-top:8px; width:100%">🎲 Invoquer des héros</button>
+        <button class="btn" id="openHeroesBtn" style="margin-top:8px; width:100%">📖 Codex des héros</button>
         <div class="gemhint">Prix des gemmes indexé sur ta production.</div>
       </div>
 
@@ -389,6 +420,35 @@
         <h2 style="margin-top:18px">📒 Collection des héros</h2>
         <div class="collection" id="collection"></div>
       </div>
+
+      <!-- Écran Codex (fiches des héros) -->
+      <div id="heroesScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="heroesBackBtn">← Retour</button>
+          <div>🦸 <b id="heroesOwned">0</b>/18</div>
+        </div>
+        <div id="heroList">
+          <h2>📖 Codex des Héros</h2>
+          <div class="herogrid" id="heroGrid"></div>
+        </div>
+        <div id="heroFiche" style="display:none">
+          <button class="btn" id="ficheBackBtn">← Liste</button>
+          <div class="fiche-head">
+            <div class="fiche-emoji" id="ficheEmoji">🦸</div>
+            <div>
+              <div class="fiche-name" id="ficheName">—</div>
+              <div class="fiche-sub"><span id="ficheRarity"></span> · <span id="ficheClass"></span></div>
+            </div>
+          </div>
+          <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
+          <div class="fiche-row"><span class="fiche-k">Régime</span><span id="ficheRegime"></span></div>
+          <div class="fiche-block"><div class="fiche-k">Passif</div><div id="fichePassive"></div></div>
+          <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
+          <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
+          <div class="fiche-status" id="ficheStatus"></div>
+          <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -436,6 +496,11 @@
   const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
   const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
   const HERO_MULT = [1.25, 1.6, 2.0];   // multiplicateur de prod par rareté (Commun/Rare/Épique)
+
+  // Données d'affichage des fiches (chargées depuis heroes.data.js)
+  const HDATA = (typeof HERO_DATA !== "undefined") ? HERO_DATA : [];
+  const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
+  const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
 
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
@@ -684,13 +749,15 @@
   }
 
   // --- Navigation entre écrans ------------------------------------------
-  let screen = "overview";    // "overview" | "module" | "gacha"
+  let screen = "overview";    // "overview" | "module" | "gacha" | "heroes"
   let currentModule = null;   // id du module ouvert
+  let ficheId = null;         // id du héros dont la fiche est ouverte
   function showScreen(name) {
     screen = name;
     document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
+    document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
   }
   function openModule(id) {
     currentModule = id;
@@ -706,6 +773,83 @@
   }
   function backToOverview() { currentModule = null; showScreen("overview"); render(); }
   function openGacha() { document.getElementById("pullResult").innerHTML = ""; showScreen("gacha"); render(); }
+
+  // --- Codex des héros (fiches) -----------------------------------------
+  function openHeroes() {
+    ficheId = null;
+    document.getElementById("heroList").style.display = "block";
+    document.getElementById("heroFiche").style.display = "none";
+    showScreen("heroes");
+    render();
+  }
+  function backToList() {
+    ficheId = null;
+    document.getElementById("heroFiche").style.display = "none";
+    document.getElementById("heroList").style.display = "block";
+    render();
+  }
+  function openFiche(id) {
+    const h = HDATA_BY_ID[id];
+    if (!h) return;
+    ficheId = id;
+    const meta = HMETA.rarities[h.rarity] || { stars: 3, name: "", color: "#fff" };
+    document.getElementById("ficheEmoji").textContent = h.emoji;
+    document.getElementById("ficheName").textContent = h.name;
+    const rar = document.getElementById("ficheRarity");
+    rar.textContent = "★".repeat(meta.stars) + " " + meta.name;
+    rar.style.color = meta.color;
+    document.getElementById("ficheClass").textContent = h.klass;
+    document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
+    document.getElementById("ficheRegime").textContent = h.regime || "Polyvalent";
+    document.getElementById("fichePassive").innerHTML =
+      `<span class="fiche-fam">[${h.passive.family}]</span> ${h.passive.text}`;
+    document.getElementById("ficheSig").innerHTML =
+      `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
+    document.getElementById("ficheSyn").textContent =
+      (h.synergies || []).map(k => { const s = HMETA.synergies.find(x => x.key === k); return s ? s.name : k; }).join(" · ") || "—";
+    document.getElementById("heroList").style.display = "none";
+    document.getElementById("heroFiche").style.display = "block";
+    showScreen("heroes");
+    render();
+  }
+  function buildHeroGrid() {
+    const g = document.getElementById("heroGrid");
+    g.innerHTML = "";
+    HDATA.slice().sort((a, b) => a.rarity - b.rarity).forEach(h => {
+      const meta = HMETA.rarities[h.rarity] || { stars: 3 };
+      const cell = document.createElement("div");
+      cell.className = "hcell r" + h.rarity;
+      cell.id = "hg-" + h.id;
+      cell.innerHTML =
+        `<span class="hccopies" id="hgcopies-${h.id}"></span>` +
+        `<div class="hcemoji">${h.emoji}</div>` +
+        `<div class="hcname">${h.name}</div>` +
+        `<div class="hcstar">${"★".repeat(meta.stars)}</div>`;
+      cell.addEventListener("click", () => openFiche(h.id));
+      g.appendChild(cell);
+    });
+  }
+  function renderHeroesScreen() {
+    let owned = 0;
+    HDATA.forEach(h => {
+      const copies = state.heroes[h.id] || 0;
+      if (copies > 0) owned++;
+      const cell = document.getElementById("hg-" + h.id);
+      if (cell) {
+        cell.classList.toggle("owned", copies > 0);
+        document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "×" + copies : "";
+      }
+    });
+    document.getElementById("heroesOwned").textContent = owned;
+    if (ficheId) {
+      const copies = state.heroes[ficheId] || 0;
+      const node = NODE[ficheId];
+      const deployed = node && isDeployed(node);
+      document.getElementById("ficheStatus").innerHTML = copies > 0
+        ? `Possédé ×${copies}${deployed ? " · 🦸 déployé sur ce Dex" : ""}`
+        : `Non obtenu — invoque-le au gacha 🎲`;
+    }
+  }
   function gotoSibling(delta) {
     const idx = NAV.indexOf(NODE[currentModule]);
     if (idx < 0) return;
@@ -733,6 +877,7 @@
 
     if (screen === "module") renderModulePage();
     else if (screen === "gacha") renderGacha();
+    else if (screen === "heroes") renderHeroesScreen();
     else renderOverview();
   }
 
@@ -832,6 +977,7 @@
         `<div class="cemoji">${h.emoji}</div>` +
         `<div class="cname">${h.name}</div>` +
         `<div class="ccopies" id="copies-${h.id}">—</div>`;
+      cell.addEventListener("click", () => openFiche(h.id));
       c.appendChild(cell);
     });
   }
@@ -879,6 +1025,7 @@
   load();
   buildOverview();
   buildCollection();
+  buildHeroGrid();
   renderTabs();
   render();
   document.getElementById("billBtn").addEventListener("click", click);
@@ -888,6 +1035,10 @@
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
   document.getElementById("openGachaBtn").addEventListener("click", openGacha);
   document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("openHeroesBtn").addEventListener("click", openHeroes);
+  document.getElementById("heroesBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("ficheBackBtn").addEventListener("click", backToList);
+  document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   document.getElementById("pull1").addEventListener("click", () => pull(1));
   document.getElementById("pull10").addEventListener("click", () => pull(10));
   document.getElementById("backBtn").addEventListener("click", backToOverview);
