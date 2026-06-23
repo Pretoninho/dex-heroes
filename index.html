@@ -150,6 +150,12 @@
     touch-action: manipulation;
   }
   .node .dot { position: absolute; top: -4px; right: -4px; }
+  .node .hbadge { position: absolute; top: -7px; left: -5px; font-size: 13px; display: none; }
+  .node .hbadge.show { display: block; }
+  .hmult { font-weight: 700; }
+  .hmult.t0 { color: var(--muted); }
+  .hmult.t1 { color: #7ab8ff; }
+  .hmult.t2 { color: var(--accent-2); }
 
   /* Point rouge « action disponible » */
   .dot {
@@ -360,7 +366,10 @@
           <div class="mdex" id="mpDex">Dex 1</div>
         </div>
         <button class="big-btn" id="mpAction">Connecter</button>
-        <div class="hero-slot" id="mpHero">🦸 Slot héros — bientôt (gacha)</div>
+        <div class="hero-slot">
+          <div id="mpHeroInfo">🦸 Slot héros</div>
+          <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
+        </div>
       </div>
 
       <!-- Écran Gacha -->
@@ -425,6 +434,7 @@
   // Héros : 1 par module (même id), rareté = palier du module (0/1/2).
   const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
   const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
+  const HERO_MULT = [1.25, 1.6, 2.0];   // multiplicateur de prod par rareté (Commun/Rare/Épique)
 
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
@@ -453,7 +463,7 @@
     gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
     heroes: {},                  // { heroId(=moduleId): nombre de copies possédées }
     pity: 0,                     // compteur de tirages depuis le dernier Épique
-    dexes: [ { levels: {} } ],   // un objet par Dex possédé : { levels: {nodeId: niveau} }
+    dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
     currentDex: 0,               // Dex affiché
     lastSeen: Date.now()
   };
@@ -505,13 +515,29 @@
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
-      ASSETS.forEach(n => { total += (d.levels[n.id] || 0) * n.rate * DEX_DEFS[di].rateMult; });
+      ASSETS.forEach(n => {
+        const mult = (d.placed && d.placed[n.id]) ? HERO_MULT[n.tier] : 1;
+        total += (d.levels[n.id] || 0) * n.rate * DEX_DEFS[di].rateMult * mult;
+      });
     });
     return total;
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
   function actionable(n) { return !n.source && isUnlocked(n) && state.cash >= costOf(n); }
+
+  // --- Héros déployés (multiplicateur par module et par Dex) ------------
+  function ownsHero(id) { return (state.heroes[id] || 0) > 0; }
+  function isDeployed(node, di = state.currentDex) { return !!(dex(di).placed && dex(di).placed[node.id]); }
+  function heroMult(node, di = state.currentDex) { return isDeployed(node, di) ? HERO_MULT[node.tier] : 1; }
+  function toggleDeploy(node) {
+    if (!ownsHero(node.id)) { toast("Héros non obtenu — invoque-le au gacha"); return; }
+    const placed = dex(state.currentDex).placed;
+    placed[node.id] = !placed[node.id];
+    toast(placed[node.id] ? `🦸 ${node.name} déployé ×${HERO_MULT[node.tier]}` : "Héros retiré");
+    render();
+    save();
+  }
 
   // --- Achat / gestion des Dex ------------------------------------------
   function nextDexIndex() { return state.dexes.length; }
@@ -522,7 +548,7 @@
     const cost = DEX_DEFS[i].buyCost;
     if (state.cash < cost) { toast("Pas assez de cash pour un nouveau Dex !"); return; }
     state.cash -= cost;
-    state.dexes.push({ levels: {} });
+    state.dexes.push({ levels: {}, placed: {} });
     state.currentDex = i;
     renderTabs();
     render();
@@ -541,7 +567,7 @@
       if (Array.isArray(saved.dexes) && saved.dexes.length) state.dexes = saved.dexes;
       else if (saved.levels) state.dexes = [ { levels: saved.levels } ];
       else state.dexes = [ { levels: {} } ];
-      state.dexes.forEach(d => { d.levels = d.levels || {}; });
+      state.dexes.forEach(d => { d.levels = d.levels || {}; d.placed = d.placed || {}; });
       delete state.levels;
       if (typeof state.gems !== "number") state.gems = 0;
       if (typeof state.pity !== "number") state.pity = 0;
@@ -599,7 +625,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, dexes: [ { levels: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -644,6 +670,7 @@
         card.id = "node-" + id;
         card.innerHTML =
           `<span class="dot" id="dot-${id}"></span>` +
+          `<span class="hbadge" id="hbadge-${id}">🦸</span>` +
           `<div class="nemoji">${n.emoji}</div>` +
           `<div class="nname">${n.name}</div>` +
           `<div class="ninfo" id="info-${id}"></div>`;
@@ -723,6 +750,7 @@
             ? `<span class="ncost">$${fmt(costOf(n))}</span>`
             : `<span class="nlevel">niv.${levelOf(n)}</span>`);
       document.getElementById("dot-" + n.id).classList.toggle("show", actionable(n));
+      document.getElementById("hbadge-" + n.id).classList.toggle("show", isDeployed(n));
       const link = document.getElementById("link-" + n.id);
       if (link) link.classList.toggle("active", connected);
     });
@@ -736,7 +764,7 @@
     const unlocked = isUnlocked(n);
     const cost = costOf(n);
     document.getElementById("mpLevel").textContent = lvl;
-    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm) + "/s";
+    document.getElementById("mpProd").textContent = "+$" + fmt(lvl * n.rate * rm * heroMult(n)) + "/s";
     const btn = document.getElementById("mpAction");
     if (!unlocked) {
       btn.textContent = "🔒 Connecte d'abord " + NODE[n.parent].name;
@@ -756,11 +784,24 @@
     document.getElementById("prevDot").classList.toggle("show", actionable(prevN));
     document.getElementById("nextDot").classList.toggle("show", actionable(nextN));
 
-    // Slot héros (placement à l'étape 3) — indique la possession
-    const copies = state.heroes[n.id] || 0;
-    document.getElementById("mpHero").textContent = copies > 0
-      ? `🦸 ${n.name} (héros) possédé ×${copies} — placement à venir`
-      : `🦸 Héros « ${n.name} » non obtenu — invoque-le au gacha`;
+    // Slot héros : déploiement (multiplicateur de prod du module, par Dex)
+    const owns = ownsHero(n.id);
+    const deployed = isDeployed(n);
+    const info = document.getElementById("mpHeroInfo");
+    const hbtn = document.getElementById("mpHeroBtn");
+    if (!owns) {
+      info.innerHTML = `🦸 Héros « ${n.name} » non obtenu — invoque-le au gacha`;
+      hbtn.style.display = "none";
+    } else {
+      const copies = state.heroes[n.id] || 0;
+      const mult = `<span class="hmult t${n.tier}">×${HERO_MULT[n.tier]}</span>`;
+      info.innerHTML = deployed
+        ? `🦸 <b>${n.name}</b> déployé · ${mult} <span style="color:var(--muted)">(${RARITY[n.tier]}, possédé ×${copies})</span>`
+        : `🦸 Héros « ${n.name} » disponible · bonus ${mult} <span style="color:var(--muted)">(possédé ×${copies})</span>`;
+      hbtn.style.display = "inline-block";
+      hbtn.textContent = deployed ? "Retirer le héros" : `Déployer (×${HERO_MULT[n.tier]})`;
+      hbtn.className = "btn" + (deployed ? "" : " can");
+    }
   }
 
   // --- Rendu du gacha ----------------------------------------------------
@@ -852,6 +893,7 @@
   document.getElementById("prevBtn").addEventListener("click", () => gotoSibling(-1));
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
+  document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);

@@ -67,9 +67,14 @@ Boucle d'acquisition : **cash → gemmes → tirages**.
   **pity** (Épique garanti au 80ᵉ tirage, soft pity dès le 74ᵉ). Tirage = **200 💎**.
 - **Collection** des 18 héros + compteur de copies.
 
+**Placement** : sur la page d'un module, si tu possèdes son héros tu peux le
+**déployer** → multiplicateur de production du module (**Commun ×1.25 · Rare ×1.6 ·
+Épique ×2**), indépendant **par Dex**. Un badge 🦸 apparaît sur les modules avec un
+héros déployé.
+
 Construction **étape par étape** : 1) structure 3 paliers + pages module *(fait)* ·
-2) économie de gemmes + **gacha** *(fait)* · 3) **placement** des héros sur les modules
-(multiplicateur, par Dex) · 4) **fusion** des doublons.
+2) économie de gemmes + **gacha** *(fait)* · 3) **placement** des héros *(fait)* ·
+4) **fusion** des doublons (les copies renforceront le multiplicateur).
 
 ## À venir (roadmap)
 
