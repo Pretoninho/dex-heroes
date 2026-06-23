@@ -147,6 +147,7 @@ Détail chiffré : à définir à l'étape « Fusion ».
 1. **Passifs** (familles A–D) : un effet par héros, déployable. *(socle)* — **fait**
 2. **Synergies** (F) : sets de bras / rareté / thème. — **fait**
 3. **Signatures** (E) : capacités actives à cooldown, déclenchées depuis une **barre
-   d'abilities globale**.
+   d'abilities globale**. — **fait** (boosts de prod temporaires, cash instantané,
+   auto-clic, clic, tirage gratuit, boost de drop ; cooldown persistant).
 4. **Fusion** : doublons → niveaux.
 5. **Régimes** (G) : couche avancée (rétention long terme).

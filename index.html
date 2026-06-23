@@ -25,9 +25,30 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 24px 16px 60px;
+    padding: 24px 16px 96px;
     touch-action: manipulation;
   }
+
+  /* Barre d'abilities (signatures) */
+  .abilitybar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 900px; display: flex; gap: 6px; overflow-x: auto;
+    padding: 8px 10px; z-index: 90;
+    background: rgba(13, 31, 23, .95); backdrop-filter: blur(8px);
+    border-top: 1px solid #1d3d2c;
+  }
+  .ability {
+    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    min-width: 72px; background: var(--panel-2); color: var(--text);
+    border: 1px solid #2a4d3a; border-radius: 10px; padding: 6px 8px;
+    cursor: pointer; touch-action: manipulation; transition: border-color .15s, opacity .15s;
+  }
+  .ability.ready { border-color: var(--accent-2); box-shadow: 0 0 8px rgba(255,210,77,.4); }
+  .ability.cooling { opacity: .55; }
+  .ab-emoji { font-size: 20px; line-height: 1; }
+  .ab-name { font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .ab-cd { font-size: 10px; color: var(--accent-2); }
+  .ability.cooling .ab-cd { color: var(--muted); }
   h1 {
     margin: 0 0 4px;
     font-size: 28px;
@@ -480,6 +501,7 @@
     </div>
   </div>
 
+  <div class="abilitybar" id="abilityBar" style="display:none"></div>
   <div class="toast" id="toast"></div>
 
 <script src="heroes.data.js"></script>
@@ -534,9 +556,12 @@
   const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
   function epicProb(counter) {      // proba d'Épique au prochain tirage (soft pity 74, dur 80)
     const c = counter + 1;
-    if (c >= 80) return 1.0;
-    if (c >= 74) return Math.min(1, 0.03 + (c - 74) * 0.04);
-    return 0.03;
+    let p;
+    if (c >= 80) p = 1.0;
+    else if (c >= 74) p = Math.min(1, 0.03 + (c - 74) * 0.04);
+    else p = 0.03;
+    if (state.dropBoost && state.dropBoost.pulls > 0) p = Math.min(1, p + state.dropBoost.bonus);   // signature Levée
+    return p;
   }
 
   // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
@@ -556,6 +581,10 @@
     gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
     heroes: {},                  // { heroId(=moduleId): nombre de copies possédées }
     pity: 0,                     // compteur de tirages depuis le dernier Épique
+    buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
+    cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
+    dropBoost: null,             // signature Levée : { bonus, pulls }
+    freePullNext: false,         // signature Lancement : prochain tirage gratuit
     dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
     currentDex: 0,               // Dex affiché
     lastSeen: Date.now()
@@ -574,13 +603,22 @@
   }
   function pull(times) {
     const free = globalHeroFx().freePull;
-    let paid = 0;
-    for (let i = 0; i < times; i++) if (Math.random() >= free) paid++;   // tirages gratuits éventuels
+    let paid = 0, useFlag = false;
+    for (let i = 0; i < times; i++) {
+      let isFree = false;
+      if (i === 0 && state.freePullNext) { isFree = true; useFlag = true; }   // signature Lancement
+      else if (Math.random() < free) isFree = true;
+      if (!isFree) paid++;
+    }
     const cost = PULL_COST * paid;
     if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
+    if (useFlag) state.freePullNext = false;
     state.gems -= cost;
     const results = [];
-    for (let i = 0; i < times; i++) results.push(pullOnce());
+    for (let i = 0; i < times; i++) {
+      results.push(pullOnce());
+      if (state.dropBoost && state.dropBoost.pulls > 0 && --state.dropBoost.pulls <= 0) state.dropBoost = null;
+    }
     if (paid < times) setTimeout(() => toast(`🎟️ ${times - paid} tirage(s) gratuit(s) !`), 300);
     renderPullResults(results);
     render();
@@ -639,6 +677,13 @@
         }
       });
     });
+    // Buffs de signature globaux (clic / auto-clic)
+    const tnow = Date.now();
+    state.buffs.forEach(b => {
+      if (b.until <= tnow) return;
+      if (b.kind === "click") fx.clickMult *= b.value;
+      else if (b.kind === "auto") fx.autoClick += b.value;
+    });
     return fx;
   }
   // Synergies actives dans un Dex : tous les membres déployés
@@ -662,6 +707,16 @@
       else if (e.type === "synergyMult") m *= Math.pow(e.value, syns.length);   // Geoff : ×prod par synergie active
     });
     syns.forEach(s => { if (s.members.indexOf(n.id) !== -1) m *= (s.mult || 1); });
+    // Buffs de signature actifs (production) dans ce Dex
+    const di = state.dexes.indexOf(d), tnow = Date.now();
+    state.buffs.forEach(b => {
+      if (b.kind !== "prod" || b.until <= tnow || b.dexIndex !== di) return;
+      if (b.scope === "global") m *= b.value;
+      else if (b.scope === "module" && b.moduleId === n.id) m *= b.value;
+      else if (b.scope === "arm" && b.arm === n.arm) m *= b.value;
+      else if (b.scope === "downstream" && b.arm === n.arm && n.tier > b.tier) m *= b.value;
+      else if (b.scope === "rarity" && n.tier === b.rarity) m *= b.value;
+    });
     return m;
   }
   function perSecond() {
@@ -686,6 +741,40 @@
     placed[node.id] = !placed[node.id];
     const h = HDATA_BY_ID[node.id];
     toast(placed[node.id] ? `🦸 ${h ? h.name : node.name} déployé` : "Héros retiré");
+    render();
+    save();
+  }
+
+  // --- Signatures (capacités actives à cooldown) ------------------------
+  function cleanBuffs() { const t = Date.now(); state.buffs = state.buffs.filter(b => b.until > t); }
+  function sigReady(id) { return Date.now() >= (state.cd[id] || 0); }
+  function sigRemain(id) { return Math.max(0, Math.ceil(((state.cd[id] || 0) - Date.now()) / 1000)); }
+  function triggerSig(node) {
+    if (!isDeployed(node)) return;
+    const h = HDATA_BY_ID[node.id]; if (!h || !h.signature || !h.signature.effect) return;
+    if (!sigReady(node.id)) { toast(`⏳ ${h.signature.name} : ${sigRemain(node.id)} s`); return; }
+    const e = h.signature.effect, until = Date.now() + (e.duration || 0) * 1000;
+    if (e.kind === "prod") {
+      state.buffs.push({ kind: "prod", value: e.value, scope: e.scope, moduleId: node.id, arm: node.arm, tier: node.tier, rarity: e.rarity, dexIndex: state.currentDex, until });
+      toast(`✨ ${h.signature.name} : ×${e.value} (${e.duration}s)`);
+    } else if (e.kind === "auto") {
+      state.buffs.push({ kind: "auto", value: e.value, until });
+      toast(`✨ ${h.signature.name} (${e.duration}s)`);
+    } else if (e.kind === "click") {
+      state.buffs.push({ kind: "click", value: e.value, until });
+      toast(`✨ ${h.signature.name} : clics ×${e.value} (${e.duration}s)`);
+    } else if (e.kind === "cash") {
+      const gain = e.seconds * perSecond();
+      state.cash += gain;
+      toast(`💰 ${h.signature.name} : +$${fmt(gain)}`);
+    } else if (e.kind === "freePull") {
+      state.freePullNext = true;
+      toast(`🎟️ ${h.signature.name} : prochain tirage gratuit`);
+    } else if (e.kind === "dropBoost") {
+      state.dropBoost = { bonus: e.bonus, pulls: e.pulls };
+      toast(`🎲 ${h.signature.name} : +${Math.round(e.bonus * 100)}% drop (${e.pulls} tirages)`);
+    }
+    state.cd[node.id] = Date.now() + h.signature.cooldown * 1000;
     render();
     save();
   }
@@ -723,6 +812,10 @@
       if (typeof state.gems !== "number") state.gems = 0;
       if (typeof state.pity !== "number") state.pity = 0;
       if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
+      if (!Array.isArray(state.buffs)) state.buffs = [];
+      state.buffs = state.buffs.filter(b => b && b.until > Date.now());   // buffs temporaires expirés
+      if (!state.cd || typeof state.cd !== "object") state.cd = {};
+      if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
       if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
       const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
       if (elapsed > 1) {
@@ -777,7 +870,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, pity: 0, buffs: [], cd: {}, dropBoost: null, freePullNext: false, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -968,6 +1061,36 @@
     else if (screen === "gacha") renderGacha();
     else if (screen === "heroes") renderHeroesScreen();
     else renderOverview();
+    renderAbilities();
+  }
+
+  // Barre d'abilities : signatures des héros déployés (Dex courant)
+  let abilityBarKey = "";
+  function renderAbilities() {
+    const bar = document.getElementById("abilityBar");
+    const d = dex(state.currentDex);
+    const list = ASSETS.filter(n => d.placed && d.placed[n.id] && HDATA_BY_ID[n.id] && HDATA_BY_ID[n.id].signature && HDATA_BY_ID[n.id].signature.effect);
+    if (!list.length) { bar.style.display = "none"; abilityBarKey = ""; return; }
+    bar.style.display = "flex";
+    const key = state.currentDex + ":" + list.map(n => n.id).join(",");
+    if (key !== abilityBarKey) {
+      abilityBarKey = key;
+      bar.innerHTML = list.map(n => {
+        const h = HDATA_BY_ID[n.id];
+        return `<button class="ability" id="ab-${n.id}" data-id="${n.id}" title="${h.signature.text}">` +
+          `<span class="ab-emoji">${n.emoji}</span>` +
+          `<span class="ab-name">${h.signature.name}</span>` +
+          `<span class="ab-cd" id="abcd-${n.id}"></span></button>`;
+      }).join("");
+      bar.querySelectorAll(".ability").forEach(b => b.addEventListener("click", () => triggerSig(NODE[b.dataset.id])));
+    }
+    list.forEach(n => {
+      const ready = sigReady(n.id);
+      const btn = document.getElementById("ab-" + n.id);
+      btn.classList.toggle("ready", ready);
+      btn.classList.toggle("cooling", !ready);
+      document.getElementById("abcd-" + n.id).textContent = ready ? "Prêt" : sigRemain(n.id) + "s";
+    });
   }
 
   function renderOverview() {
@@ -1113,6 +1236,7 @@
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
+    cleanBuffs();
     const fx = globalHeroFx();
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
