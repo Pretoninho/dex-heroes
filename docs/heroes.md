@@ -103,12 +103,16 @@ Légende familles entre [crochets]. Valeurs = propositions à équilibrer.
 
 Bonus quand plusieurs héros sont **déployés en même temps** (sur un Dex) :
 
-- **Synergie de bras** : les 3 héros d'un même bras (C+R+E) → **+25 % prod du bras**.
-- **Synergie de rareté** : déployer 6 héros d'une rareté → bonus croissant (6 Épiques = effet ultime).
-- **Synergies thématiques** (exemples) :
-  - *Spéculation* : Bourse + Crypto + Hedge Fund + Licorne → +risque/+gain.
-  - *Briques & mortier* : Immobilier + Promotion + Gratte-ciel + Industrie → +rente.
-  - *Deep tech* : Aérospatial + Fusion + Renouvelable → +prod & −coûts.
+Une synergie est **active** quand **tous ses membres sont déployés** (sur un Dex) →
+elle multiplie la prod de ses modules membres. **Fait.**
+
+- **Synergie de bras** : les 3 héros d'un même bras (C+R+E) → **×1.25 prod du bras**.
+- **Synergies thématiques** (×1.30 prod des membres) :
+  - *Spéculation* : Bourse + Crypto + Hedge Fund + Licorne.
+  - *Briques & mortier* : Immobilier + Promotion + Gratte-ciel + Industrie.
+  - *Deep tech* : Aérospatial + Fusion + Renouvelable.
+- **Geoff Bezus** (`synergyMult`) : ×prod **par synergie active** (désormais fonctionnel).
+- *Synergie de rareté (6 d'une rareté)* : prévue plus tard (pas encore dans les données).
 
 -----
 
@@ -141,7 +145,7 @@ Détail chiffré : à définir à l'étape « Fusion ».
 ## 7. Ordre de construction proposé
 
 1. **Passifs** (familles A–D) : un effet par héros, déployable. *(socle)* — **fait**
-2. **Synergies** (F) : sets de bras / rareté / thème.
+2. **Synergies** (F) : sets de bras / rareté / thème. — **fait**
 3. **Signatures** (E) : capacités actives à cooldown, déclenchées depuis une **barre
    d'abilities globale**.
 4. **Fusion** : doublons → niveaux.

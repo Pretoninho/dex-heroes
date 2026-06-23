@@ -153,6 +153,9 @@
     margin-left: 14px;
     padding-left: 10px;
   }
+  .synbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+  .synpill { background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 2px 9px; font-weight: 700; }
+
   .row { display: flex; align-items: stretch; gap: 3px; }
   .conn {
     flex: 0 0 auto;
@@ -396,6 +399,7 @@
         <h2>🔗 Cash Flow</h2>
         <p class="hint">Tape un module pour ouvrir sa page (connecter / améliorer).</p>
         <div class="tabs" id="dexTabs"></div>
+        <div class="synbar" id="synbar"></div>
         <div class="branches" id="branches"></div>
       </div>
 
@@ -523,6 +527,7 @@
   const HDATA = (typeof HERO_DATA !== "undefined") ? HERO_DATA : [];
   const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
   const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
+  const HSYN = HMETA.synergies || [];   // synergies de collection
 
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
@@ -636,9 +641,15 @@
     });
     return fx;
   }
+  // Synergies actives dans un Dex : tous les membres déployés
+  function activeSynergies(d) {
+    if (!d || !d.placed) return [];
+    return HSYN.filter(s => s.members.every(id => d.placed[id]));
+  }
   // Multiplicateur de PRODUCTION d'un module n dans le Dex d (héros de prod déployés)
   function moduleMult(n, d) {
     let m = 1;
+    const syns = activeSynergies(d);
     ASSETS.forEach(src => {
       if (!(d.placed && d.placed[src.id])) return;
       const h = HDATA_BY_ID[src.id]; if (!h) return;
@@ -648,8 +659,9 @@
       else if (e.type === "rarityMult" && n.tier === e.rarity) m *= e.value;
       else if (e.type === "downstreamMult" && src.arm === n.arm && n.tier > src.tier) m *= e.value;
       else if (e.type === "globalMult") m *= e.value;
-      else if (e.type === "synergyMult") m *= e.value;   // placeholder (synergies à l'étape 2)
+      else if (e.type === "synergyMult") m *= Math.pow(e.value, syns.length);   // Geoff : ×prod par synergie active
     });
+    syns.forEach(s => { if (s.members.indexOf(n.id) !== -1) m *= (s.mult || 1); });
     return m;
   }
   function perSecond() {
@@ -959,6 +971,10 @@
   }
 
   function renderOverview() {
+    const syns = activeSynergies(dex(state.currentDex));
+    document.getElementById("synbar").innerHTML = syns.length
+      ? "⚡ Synergies actives : " + syns.map(s => `<span class="synpill">${s.name} ×${s.mult}</span>`).join(" ")
+      : `<span style="opacity:.6">⚡ Aucune synergie active — déploie tous les héros d'un bras (ou d'un thème)</span>`;
     ASSETS.forEach(n => {
       const card = document.getElementById("node-" + n.id);
       const info = document.getElementById("info-" + n.id);

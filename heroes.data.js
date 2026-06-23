@@ -30,15 +30,15 @@
     },
     // Synergies de collection (héros déployés ensemble) — voir docs/heroes.md §4
     synergies: [
-      { key: "arm_banque",  name: "Banque",          members: ["a0t0", "a0t1", "a0t2"], bonus: "+25 % prod du bras" },
-      { key: "arm_bourse",  name: "Bourse",          members: ["a1t0", "a1t1", "a1t2"], bonus: "+25 % prod du bras" },
-      { key: "arm_immo",    name: "Immobilier",      members: ["a2t0", "a2t1", "a2t2"], bonus: "+25 % prod du bras" },
-      { key: "arm_indus",   name: "Industrie",       members: ["a3t0", "a3t1", "a3t2"], bonus: "+25 % prod du bras" },
-      { key: "arm_startup", name: "Startup",         members: ["a4t0", "a4t1", "a4t2"], bonus: "+25 % prod du bras" },
-      { key: "arm_energie", name: "Énergie",         members: ["a5t0", "a5t1", "a5t2"], bonus: "+25 % prod du bras" },
-      { key: "speculation", name: "Spéculation",     members: ["a1t0", "a1t1", "a1t2", "a4t1"], bonus: "+risque / +gain" },
-      { key: "briques",     name: "Briques & mortier", members: ["a2t0", "a2t1", "a2t2", "a3t0"], bonus: "+rente" },
-      { key: "deeptech",    name: "Deep tech",       members: ["a3t2", "a5t2", "a5t1"], bonus: "+prod & −coûts" }
+      { key: "arm_banque",  name: "Banque",          members: ["a0t0", "a0t1", "a0t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "arm_bourse",  name: "Bourse",          members: ["a1t0", "a1t1", "a1t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "arm_immo",    name: "Immobilier",      members: ["a2t0", "a2t1", "a2t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "arm_indus",   name: "Industrie",       members: ["a3t0", "a3t1", "a3t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "arm_startup", name: "Startup",         members: ["a4t0", "a4t1", "a4t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "arm_energie", name: "Énergie",         members: ["a5t0", "a5t1", "a5t2"], mult: 1.25, bonus: "+25 % prod du bras" },
+      { key: "speculation", name: "Spéculation",     members: ["a1t0", "a1t1", "a1t2", "a4t1"], mult: 1.30, bonus: "+risque / +gain" },
+      { key: "briques",     name: "Briques & mortier", members: ["a2t0", "a2t1", "a2t2", "a3t0"], mult: 1.30, bonus: "+rente" },
+      { key: "deeptech",    name: "Deep tech",       members: ["a3t2", "a5t2", "a5t1"], mult: 1.30, bonus: "+prod & −coûts" }
     ]
   };
 
