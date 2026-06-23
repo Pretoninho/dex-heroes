@@ -57,8 +57,16 @@ create table if not exists public.economy_ledger (
   -- Pas de contrainte de kind sur SYSTÈME : il est aussi le séquestre du marché
   -- (escrow/trade/refund/unescrow). La conservation (somme=0) garantit l'intégrité.
 );
--- Retirer l'ancienne contrainte si une version précédente l'avait créée
-alter table public.economy_ledger drop constraint if exists economy_ledger_check;
+-- Retirer toute contrainte CHECK héritée d'une version précédente (peu importe son nom)
+do $$
+declare c text;
+begin
+  for c in select conname from pg_constraint
+    where conrelid = 'public.economy_ledger'::regclass and contype = 'c'
+  loop
+    execute 'alter table public.economy_ledger drop constraint ' || quote_ident(c);
+  end loop;
+end $$;
 alter table public.economy_ledger enable row level security;
 drop policy if exists "ledger_read_own" on public.economy_ledger;
 create policy "ledger_read_own" on public.economy_ledger for select
