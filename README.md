@@ -82,11 +82,18 @@ Construction **étape par étape** : 1) structure 3 paliers + pages module *(fai
 - 🔒 Déblocage du Dex suivant conditionné aux **héros** (en plus du cash).
 - 🏆 Succès / objectifs, améliorations de clic.
 
+## Multijoueur (optionnel) — Phase A : sauvegarde cloud
+
+Le jeu peut se synchroniser entre appareils via **Supabase** (comptes + cloud
+save). C'est **désactivé par défaut** : tant que les clés ne sont pas renseignées
+dans `cloud.js`, tout reste en local (`localStorage`). Mise en place dans
+[`backend/README.md`](./backend/README.md). Suite prévue : classement (Phase B),
+puis marché de gemmes **100 % in-game** (Phase C).
+
 ## Structure du code
 
-Tout tient dans `index.html`. Le graphe est décrit par le tableau `NODES`
-(position `x/y`, `parent`, `baseCost`, `rate`, `growth`) — ajouter un actif ou une
-branche = ajouter une ligne.
+L'essentiel tient dans `index.html`. Les données des héros sont dans
+`heroes.data.js`, l'intégration cloud (optionnelle) dans `cloud.js`.
 
 ## Déploiement GitHub Pages
 

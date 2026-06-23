@@ -505,6 +505,8 @@
   <div class="abilitybar" id="abilityBar" style="display:none"></div>
   <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloud.js"></script>
 <script src="heroes.data.js"></script>
 <script>
 (() => {
@@ -576,21 +578,45 @@
   const SAVE_KEY = "dexHeroesSave";
 
   // --- État --------------------------------------------------------------
-  let state = {
-    cash: 0,
-    clickPower: 1,
-    gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
-    heroes: {},                  // { heroId(=moduleId): copies en inventaire (1 base + doublons) }
-    lvl: {},                     // { heroId: niveau de fusion (>=1 si possédé) }
-    pity: 0,                     // compteur de tirages depuis le dernier Épique
-    buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
-    cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
-    dropBoost: null,             // signature Levée : { bonus, pulls }
-    freePullNext: false,         // signature Lancement : prochain tirage gratuit
-    dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
-    currentDex: 0,               // Dex affiché
-    lastSeen: Date.now()
-  };
+  function defaultState() {
+    return {
+      cash: 0,
+      clickPower: 1,
+      gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
+      heroes: {},                  // { heroId(=moduleId): copies en inventaire (1 base + doublons) }
+      lvl: {},                     // { heroId: niveau de fusion (>=1 si possédé) }
+      pity: 0,                     // compteur de tirages depuis le dernier Épique
+      buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
+      cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
+      dropBoost: null,             // signature Levée : { bonus, pulls }
+      freePullNext: false,         // signature Lancement : prochain tirage gratuit
+      dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
+      currentDex: 0,               // Dex affiché
+      lastSeen: Date.now()
+    };
+  }
+  let state = defaultState();
+
+  // Adopte une sauvegarde (locale OU cloud) : fusion sur les valeurs par défaut + normalisation/migration.
+  function adopt(saved) {
+    saved = saved || {};
+    state = Object.assign(defaultState(), saved);
+    if (Array.isArray(saved.dexes) && saved.dexes.length) state.dexes = saved.dexes;
+    else if (saved.levels) state.dexes = [ { levels: saved.levels, placed: {} } ];
+    else state.dexes = [ { levels: {}, placed: {} } ];
+    state.dexes.forEach(d => { d.levels = d.levels || {}; d.placed = d.placed || {}; });
+    delete state.levels;
+    if (typeof state.gems !== "number") state.gems = 0;
+    if (typeof state.pity !== "number") state.pity = 0;
+    if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
+    if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
+    Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
+    if (!Array.isArray(state.buffs)) state.buffs = [];
+    state.buffs = state.buffs.filter(b => b && b.until > Date.now());
+    if (!state.cd || typeof state.cd !== "object") state.cd = {};
+    if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
+    if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
+  }
 
   // --- Gacha : tirage avec pity -----------------------------------------
   function pullOnce() {
@@ -829,24 +855,9 @@
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      state = Object.assign(state, saved);
-      // Normalisation / migration ancien format (levels global) -> dexes[]
-      if (Array.isArray(saved.dexes) && saved.dexes.length) state.dexes = saved.dexes;
-      else if (saved.levels) state.dexes = [ { levels: saved.levels } ];
-      else state.dexes = [ { levels: {} } ];
-      state.dexes.forEach(d => { d.levels = d.levels || {}; d.placed = d.placed || {}; });
-      delete state.levels;
-      if (typeof state.gems !== "number") state.gems = 0;
-      if (typeof state.pity !== "number") state.pity = 0;
-      if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
-      if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
-      Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
-      if (!Array.isArray(state.buffs)) state.buffs = [];
-      state.buffs = state.buffs.filter(b => b && b.until > Date.now());   // buffs temporaires expirés
-      if (!state.cd || typeof state.cd !== "object") state.cd = {};
-      if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
-      if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
-      const elapsed = (Date.now() - (saved.lastSeen || Date.now())) / 1000;
+      const prevSeen = saved.lastSeen;
+      adopt(saved);
+      const elapsed = (Date.now() - (prevSeen || Date.now())) / 1000;
       if (elapsed > 1) {
         const gained = perSecond() * elapsed * globalHeroFx().offlineMult;
         if (gained > 0) {
@@ -859,6 +870,7 @@
   function save() {
     state.lastSeen = Date.now();
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    if (window.Cloud && window.Cloud.enabled) window.Cloud.push(state);   // Phase A : sauvegarde cloud
   }
 
   // --- Formatage ---------------------------------------------------------
@@ -899,7 +911,7 @@
   function reset() {
     if (!confirm("Réinitialiser toute ta progression ?")) return;
     localStorage.removeItem(SAVE_KEY);
-    state = { cash: 0, clickPower: 1, gems: 0, heroes: {}, lvl: {}, pity: 0, buffs: [], cd: {}, dropBoost: null, freePullNext: false, dexes: [ { levels: {}, placed: {} } ], currentDex: 0, lastSeen: Date.now() };
+    state = defaultState();
     renderTabs();
     render();
     toast("Partie réinitialisée");
@@ -1306,6 +1318,13 @@
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
+  // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)
+  window.DEX = {
+    getState: () => state,
+    applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); }
+  };
+  if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
+
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);
