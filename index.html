@@ -487,7 +487,7 @@
             <div class="fiche-emoji" id="ficheEmoji">🦸</div>
             <div>
               <div class="fiche-name" id="ficheName">—</div>
-              <div class="fiche-sub"><span id="ficheRarity"></span> · <span id="ficheClass"></span></div>
+              <div class="fiche-sub"><span id="ficheRarity"></span></div>
             </div>
           </div>
           <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
@@ -1022,7 +1022,6 @@
     const rar = document.getElementById("ficheRarity");
     rar.textContent = "★".repeat(meta.stars) + " " + meta.name;
     rar.style.color = meta.color;
-    document.getElementById("ficheClass").textContent = h.klass;
     document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
     document.getElementById("fichePassive").textContent = h.passive.text;
     document.getElementById("ficheSig").innerHTML =
