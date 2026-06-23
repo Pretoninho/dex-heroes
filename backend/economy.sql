@@ -53,10 +53,12 @@ create table if not exists public.economy_ledger (
   delta numeric not null,                   -- peut être négatif ; signé
   kind text not null,                       -- "trade", "transfer", "production", "gacha", …
   metadata jsonb,                           -- {"price": 100, "counterparty": "...", …}
-  created_at timestamptz not null default now(),
-  check (actor_id != '00000000-0000-0000-0000-000000000000'::uuid or kind in ('production', 'gacha'))
-  -- SYSTÈME ne peut créer que via production/gacha (pas de transfer dedans)
+  created_at timestamptz not null default now()
+  -- Pas de contrainte de kind sur SYSTÈME : il est aussi le séquestre du marché
+  -- (escrow/trade/refund/unescrow). La conservation (somme=0) garantit l'intégrité.
 );
+-- Retirer l'ancienne contrainte si une version précédente l'avait créée
+alter table public.economy_ledger drop constraint if exists economy_ledger_check;
 alter table public.economy_ledger enable row level security;
 drop policy if exists "ledger_read_own" on public.economy_ledger;
 create policy "ledger_read_own" on public.economy_ledger for select
