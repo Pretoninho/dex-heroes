@@ -153,30 +153,26 @@ begin
     end if;
   end loop;
 
-  -- Test 1 : conservation (Σ deltas == 0 par ressource, sauf SYSTÈME crée)
-  -- On accepte une tx où SYSTÈME contribue positivement (production) ou négativement (puits)
-  -- mais toute autre combinaison doit sommer à zéro
+  -- Test 1 : conservation — comptabilité en partie double.
+  -- La somme TOTALE des deltas (SYSTÈME inclus) doit être nulle par ressource.
+  -- SYSTÈME est le seul autorisé à devenir négatif : c'est le robinet/puits
+  -- (faucet = {SYSTÈME:-X, joueur:+X} ; puits = {joueur:-X, SYSTÈME:+X}).
   for v_key in
     select distinct id from public.economy_resources
   loop
     declare
-      v_non_system_sum numeric := 0;
+      v_total numeric := 0;
     begin
-      -- Calculer contribution non-SYSTÈME pour cette ressource
       for i in 0 .. jsonb_array_length(p_entries) - 1 loop
         v_entry := p_entries -> i;
         if (v_entry->>'resource_id') = v_key then
-          v_delta := (v_entry->>'delta')::numeric;
-          if (v_entry->>'actor_id')::uuid != v_system_id then
-            v_non_system_sum := v_non_system_sum + v_delta;
-          end if;
+          v_total := v_total + (v_entry->>'delta')::numeric;
         end if;
       end loop;
 
-      -- Hors SYSTÈME, la somme doit être nulle (conservation)
-      if v_non_system_sum != 0 then
+      if v_total != 0 then
         return jsonb_build_object('success', false, 'error',
-          'conservation failure for ' || v_key || ': non-system sum = ' || v_non_system_sum);
+          'conservation failure for ' || v_key || ': total = ' || v_total);
       end if;
     end;
   end loop;
