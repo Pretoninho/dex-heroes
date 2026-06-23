@@ -15,8 +15,8 @@
 (function () {
   "use strict";
 
-  var SUPABASE_URL = "YOUR_SUPABASE_URL";          // ex: https://abcd1234.supabase.co
-  var SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  var SUPABASE_URL = "https://zfimirtznyjsvukpcoec.supabase.co";          // URL de base (sans /rest/v1/)
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmaW1pcnR6bnlqc3Z1a3Bjb2VjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODYzNDcsImV4cCI6MjA5Nzc2MjM0N30.EoMjtkxK4v4XGTLer8BmzVyIJzoAVqezMpVaykD0Fz8";
 
   var Cloud = { enabled: false, push: function () {}, init: function () {} };
   window.Cloud = Cloud;
