@@ -830,8 +830,7 @@
     document.getElementById("ficheClass").textContent = h.klass;
     document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
     document.getElementById("ficheRegime").textContent = h.regime || "Polyvalent";
-    document.getElementById("fichePassive").innerHTML =
-      `<span class="fiche-fam">[${h.passive.family}]</span> ${h.passive.text}`;
+    document.getElementById("fichePassive").textContent = h.passive.text;
     document.getElementById("ficheSig").innerHTML =
       `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
     document.getElementById("ficheSyn").textContent =
