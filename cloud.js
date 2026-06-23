@@ -15,8 +15,8 @@
 (function () {
   "use strict";
 
-  var SUPABASE_URL = "YOUR_SUPABASE_URL";          // ex: https://abcd1234.supabase.co
-  var SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  var SUPABASE_URL = "https://zfimirtznyjsvukpcoec.supabase.co/rest/v1/";          // ex: https://abcd1234.supabase.co
+  var SUPABASE_ANON_KEY = "sb_publishable_j90seJWpkZU_uKWbGt9ZRg_rNfQ5ztf";
 
   var Cloud = { enabled: false, push: function () {}, init: function () {} };
   window.Cloud = Cloud;
