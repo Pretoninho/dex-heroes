@@ -131,13 +131,15 @@
         '<input id="cName" placeholder="pseudo (classement)" maxlength="20" value="' + esc(getName()) + '">' +
         '<div class="row"><button class="primary" id="cSync">Synchroniser</button>' +
         '<button id="cBoard">🏆 Classement</button></div>' +
-        '<div class="row"><button id="cOut">Déconnexion</button></div>' +
+        '<div class="row"><button id="cMarket">🏦 Marché</button>' +
+        '<button id="cOut">Déconnexion</button></div>' +
         '<div class="cloud-msg" id="cMsg"></div>' +
         '<div class="cloud-board" id="cBoardList"></div>' +
         '<button class="cloud-close" id="cClose">Fermer</button>';
       msgEl = card.querySelector("#cMsg");
       card.querySelector("#cName").onchange = function () { setName(this.value); say("Pseudo enregistré."); };
       card.querySelector("#cSync").onclick = function () { lastPush = 0; Cloud.push(bridge.getState()); say("Sauvegardé ✔"); };
+      card.querySelector("#cMarket").onclick = function () { document.getElementById("cloudOv").classList.remove("show"); openMarket(); };
       card.querySelector("#cOut").onclick = function () { sb.auth.signOut().then(function () { say("Déconnecté."); }); };
       card.querySelector("#cBoard").onclick = function () {
         say("Chargement du classement…");
@@ -176,5 +178,88 @@
     if (close) close.onclick = function () { document.getElementById("cloudOv").classList.remove("show"); };
   }
 
+  // ===== Phase C : Marché de gemmes =====================================
+  Cloud.market = {
+    wallet: function () { return sb.rpc("ensure_wallet"); },
+    deposit: function (g, c) { return sb.rpc("deposit", { d_gems: g, d_cash: c }).then(function (r) { if (!r.error) { if (g) bridge.addGems(-g); if (c) bridge.addCash(-c); } return r; }); },
+    withdraw: function (g, c) { return sb.rpc("withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (!r.error) { if (g) bridge.addGems(g); if (c) bridge.addCash(c); } return r; }); },
+    listings: function () { return sb.from("listings").select("id,seller,seller_name,gems,price").order("price", { ascending: true }); },
+    create: function (g, p) { return sb.rpc("create_listing", { l_gems: g, l_price: p }); },
+    cancel: function (id) { return sb.rpc("cancel_listing", { l_id: id }); },
+    buy: function (id) { return sb.rpc("buy_listing", { l_id: id }); }
+  };
+
+  var mkMsg = null;
+  function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
+  function mkAfter(ok) { return function (r) { mkSay(r && r.error ? (r.error.message || "Erreur") : ok); renderMarket(); }; }
+  function mkNum(id) { var v = parseFloat(document.getElementById(id).value); return isFinite(v) && v > 0 ? Math.floor(v) : 0; }
+  function openMarket() { document.getElementById("mkOv").classList.add("show"); renderMarket(); }
+
+  function renderMarket() {
+    Cloud.market.wallet().then(function (r) {
+      var w = (r && r.data) || { gems: 0, cash: 0 };
+      var el = document.getElementById("mkWallet");
+      if (el) el.innerHTML = "Porte-monnaie : 💎 <b>" + fmtN(w.gems) + "</b> &middot; $<b>" + fmtN(w.cash) + "</b>";
+    });
+    Cloud.market.listings().then(function (r) {
+      var el = document.getElementById("mkList"); if (!el) return;
+      if (r.error) { el.textContent = r.error.message; return; }
+      var rows = r.data || [];
+      if (!rows.length) { el.innerHTML = '<div class="mk-li">Aucune annonce</div>'; return; }
+      el.innerHTML = rows.map(function (x) {
+        var mine = user && x.seller === user.id;
+        var btn = mine ? '<button data-cancel="' + x.id + '">Annuler</button>'
+                       : '<button class="primary" data-buy="' + x.id + '">Acheter</button>';
+        return '<div class="mk-li"><span>' + esc(x.seller_name || "anonyme") + ' — 💎' + fmtN(x.gems) + ' pour $' + fmtN(x.price) + '</span>' + btn + '</div>';
+      }).join("");
+      el.querySelectorAll("[data-buy]").forEach(function (b) { b.onclick = function () { Cloud.market.buy(b.getAttribute("data-buy")).then(mkAfter("Acheté !")); }; });
+      el.querySelectorAll("[data-cancel]").forEach(function (b) { b.onclick = function () { Cloud.market.cancel(b.getAttribute("data-cancel")).then(mkAfter("Annulé.")); }; });
+    });
+  }
+
+  function injectMarketUI() {
+    var css = ""
+      + ".mk-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;z-index:210;padding:16px;overflow:auto}"
+      + ".mk-ov.show{display:flex}"
+      + ".mk-card{background:#12281d;border:1px solid #1d3d2c;border-radius:16px;padding:18px;width:100%;max-width:440px;color:#eafff4;margin:auto}"
+      + ".mk-card h3{margin:0 0 10px}.mk-wallet{background:#18342695;border:1px solid #2a4d3a;border-radius:10px;padding:10px;font-size:15px;margin-bottom:12px}"
+      + ".mk-wallet b{color:#ffd24d}.mk-sub{color:#8fb7a3;font-size:12px;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}"
+      + ".mk-card input{width:78px;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #2a4d3a;background:#0d1f17;color:#eafff4}"
+      + ".mk-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}"
+      + ".mk-card button{padding:8px 12px;border-radius:8px;border:1px solid #2a4d3a;background:#18342695;color:#eafff4;cursor:pointer}"
+      + ".mk-card button.primary{border-color:#ffd24d;color:#ffd24d}.mk-list{max-height:240px;overflow:auto}"
+      + ".mk-li{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border-bottom:1px solid #1d3d2c;padding:7px 2px}"
+      + ".mk-msg{font-size:12px;color:#ffd24d;min-height:16px;margin-top:8px}.mk-close{margin-top:12px;width:100%;opacity:.85}";
+    var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+
+    var ov = document.createElement("div"); ov.className = "mk-ov"; ov.id = "mkOv";
+    ov.innerHTML = '<div class="mk-card">'
+      + '<h3>🏦 Marché des gemmes</h3>'
+      + '<div class="mk-wallet" id="mkWallet">Porte-monnaie : …</div>'
+      + '<div class="mk-sub">Déposer / retirer (jeu &harr; marché)</div>'
+      + '<div class="mk-row">💎<input id="mkDg" type="number" min="0" placeholder="gemmes"> $<input id="mkDc" type="number" min="0" placeholder="cash">'
+      + '<button id="mkDep">Déposer</button><button id="mkWit">Retirer</button></div>'
+      + '<div class="mk-sub">Vendre des gemmes</div>'
+      + '<div class="mk-row">💎<input id="mkSg" type="number" min="1" placeholder="gemmes"> $<input id="mkSp" type="number" min="1" placeholder="prix">'
+      + '<button class="primary" id="mkSell">Mettre en vente</button></div>'
+      + '<div class="mk-sub">Annonces</div>'
+      + '<div class="mk-list" id="mkList">…</div>'
+      + '<div class="mk-msg" id="mkMsg"></div>'
+      + '<button class="mk-close" id="mkClose">Fermer</button></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.classList.remove("show"); });
+    mkMsg = ov.querySelector("#mkMsg");
+    ov.querySelector("#mkClose").onclick = function () { ov.classList.remove("show"); };
+    ov.querySelector("#mkDep").onclick = function () {
+      var g = mkNum("mkDg"), c = mkNum("mkDc"), s = bridge.getState();
+      if (g > (s.gems || 0) || c > (s.cash || 0)) { mkSay("Pas assez dans le jeu."); return; }
+      if (!g && !c) { mkSay("Indique un montant."); return; }
+      Cloud.market.deposit(g, c).then(mkAfter("Déposé."));
+    };
+    ov.querySelector("#mkWit").onclick = function () { var g = mkNum("mkDg"), c = mkNum("mkDc"); if (!g && !c) { mkSay("Indique un montant."); return; } Cloud.market.withdraw(g, c).then(mkAfter("Retiré.")); };
+    ov.querySelector("#mkSell").onclick = function () { var g = mkNum("mkSg"), p = mkNum("mkSp"); if (!g || !p) { mkSay("Gemmes et prix requis."); return; } Cloud.market.create(g, p).then(mkAfter("En vente !")); };
+  }
+
   injectUI();
+  injectMarketUI();
 })();

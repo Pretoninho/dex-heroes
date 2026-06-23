@@ -1322,6 +1322,8 @@
   window.DEX = {
     getState: () => state,
     getScore: () => Math.round(perSecond()),   // métrique du classement : production /s
+    addGems: (n) => { state.gems = Math.max(0, (state.gems || 0) + n); render(); save(); },
+    addCash: (n) => { state.cash = Math.max(0, (state.cash || 0) + n); render(); save(); },
     applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); }
   };
   if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
