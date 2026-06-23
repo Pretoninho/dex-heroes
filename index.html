@@ -518,15 +518,15 @@
   // héros (étape gacha). parent = module amont requis pour se connecter.
   // baseCost : coût de connexion | rate : +$/sec par niveau | growth : ×coût.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const GROWTH = 1.18;
+  const GROWTH = 1.21;
   const RARITY = ["Commun", "Rare", "Épique"];   // index = palier (tier)
   const ARMS = [
-    { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:1500,   rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:30000,   rate:120  } ] },
-    { tiers: [ { name:"Bourse",     emoji:"📈", cost:120,  rate:1   }, { name:"Crypto",      emoji:"🪙", cost:4000,   rate:18  }, { name:"Hedge Fund",  emoji:"🐋", cost:80000,   rate:220  } ] },
-    { tiers: [ { name:"Immobilier", emoji:"🏠", cost:300,  rate:2   }, { name:"Promotion",   emoji:"🏗️", cost:9000,   rate:35  }, { name:"Gratte-ciel", emoji:"🌆", cost:180000,  rate:420  } ] },
-    { tiers: [ { name:"Industrie",  emoji:"🏭", cost:700,  rate:3.5 }, { name:"Commerce",    emoji:"🚢", cost:20000,  rate:70  }, { name:"Aérospatial", emoji:"🛰️", cost:400000,  rate:850  } ] },
-    { tiers: [ { name:"Startup",    emoji:"💼", cost:1600, rate:6   }, { name:"Licorne",     emoji:"🦄", cost:45000,  rate:140 }, { name:"Conglomérat", emoji:"🌍", cost:900000,  rate:1700 } ] },
-    { tiers: [ { name:"Énergie",    emoji:"🛢️", cost:4000, rate:12  }, { name:"Renouvelable",emoji:"⚡", cost:100000, rate:280 }, { name:"Fusion",      emoji:"☢️", cost:2000000, rate:3500 } ] },
+    { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:2250,    rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:60000,    rate:120  } ] },
+    { tiers: [ { name:"Bourse",     emoji:"📈", cost:120,  rate:1   }, { name:"Crypto",      emoji:"🪙", cost:6000,    rate:18  }, { name:"Hedge Fund",  emoji:"🐋", cost:160000,   rate:220  } ] },
+    { tiers: [ { name:"Immobilier", emoji:"🏠", cost:300,  rate:2   }, { name:"Promotion",   emoji:"🏗️", cost:13500,   rate:35  }, { name:"Gratte-ciel", emoji:"🌆", cost:360000,   rate:420  } ] },
+    { tiers: [ { name:"Industrie",  emoji:"🏭", cost:700,  rate:3.5 }, { name:"Commerce",    emoji:"🚢", cost:30000,   rate:70  }, { name:"Aérospatial", emoji:"🛰️", cost:800000,   rate:850  } ] },
+    { tiers: [ { name:"Startup",    emoji:"💼", cost:1600, rate:6   }, { name:"Licorne",     emoji:"🦄", cost:67500,   rate:140 }, { name:"Conglomérat", emoji:"🌍", cost:1800000,  rate:1700 } ] },
+    { tiers: [ { name:"Énergie",    emoji:"🛢️", cost:4000, rate:12  }, { name:"Renouvelable",emoji:"⚡", cost:150000,  rate:280 }, { name:"Fusion",      emoji:"☢️", cost:4000000, rate:3500 } ] },
   ];
 
   const NODES = [ Object.assign({}, SOURCE) ];
@@ -656,7 +656,7 @@
 
   // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
   // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
-  const GEM_BASE = 1, GEM_T = 0.05;
+  const GEM_BASE = 1, GEM_T = 0.10;
   function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T * globalHeroFx().gemPriceMult)); }
   function buyGems(qty) {
     const cost = qty * gemPrice();
