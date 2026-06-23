@@ -126,8 +126,12 @@ Classes (du GDD) et affinité forte :
 - 🐂 Momentum → BULL · 🐻 Short Seller → BEAR/CRASH · 🦀 Market Maker → CRABE
 - 💎 Diamond Hands → CRASH · 🚀 Degen → HYPE · 🛡️ Quant → polyvalent
 
-> Couche **optionnelle / phase ultérieure** : on peut livrer le système héros sans
-> les régimes d'abord, puis ajouter cette couche pour la rétention long terme.
+**Source du régime (décidé)** : il ne sera **pas aléatoire**. Il **transcrira le
+marché interne** du jeu (la bourse aux gemmes : tendance de prix / volume) → option
+« marché des joueurs ». **Différé** jusqu'à ce qu'il y ait assez de joueurs/volume
+pour produire un signal. En attendant, la fonction est **en sommeil** et le régime
+**n'est plus affiché** sur la fiche héros (les champs `klass`/`regime` restent dans
+les données, prêts à l'emploi).
 
 -----
 

@@ -491,7 +491,6 @@
             </div>
           </div>
           <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
-          <div class="fiche-row"><span class="fiche-k">Régime</span><span id="ficheRegime"></span></div>
           <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
           <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
           <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
@@ -1025,7 +1024,6 @@
     rar.style.color = meta.color;
     document.getElementById("ficheClass").textContent = h.klass;
     document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
-    document.getElementById("ficheRegime").textContent = h.regime || "Polyvalent";
     document.getElementById("fichePassive").textContent = h.passive.text;
     document.getElementById("ficheSig").innerHTML =
       `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
