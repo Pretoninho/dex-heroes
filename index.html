@@ -477,7 +477,7 @@
           <button class="btn" id="mpFuseBtn" style="display:none; margin-top:8px">Fusionner</button>
         </div>
 
-        <!-- Accès Exchange (modules du bras Bourse uniquement) -->
+        <!-- Activité Exchange (module Bourse uniquement) -->
         <div class="mp-exchange" id="mpExchange" style="display:none">
           <div class="mp-ex-title">🫱🏻‍🫲🏻 Activité : Exchange</div>
           <p class="hint">Trade tes gemmes contre du cash sur le marché. Dépose d'abord depuis ton jeu.</p>
@@ -588,7 +588,9 @@
   });
   const NODE = Object.fromEntries(NODES.map(n => [n.id, n]));
   const ASSETS = NODES.filter(n => !n.source);
-  const BOURSE_ARM = ARMS.findIndex(a => a.tiers[0].name === "Bourse");   // bras de l'activité Exchange
+  // Chaque module portera à terme SA propre activité (18 au total).
+  // Pour l'instant : le module Bourse = activité Exchange.
+  const EXCHANGE_MODULE = (NODES.find(n => n.name === "Bourse") || {}).id;
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
@@ -1043,10 +1045,10 @@
     rar.textContent = RARITY[n.tier];
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
-    // Section Exchange : uniquement sur les modules du bras Bourse
-    const isBourse = n.arm === BOURSE_ARM;
-    document.getElementById("mpExchange").style.display = isBourse ? "block" : "none";
-    if (isBourse) refreshExWallet();
+    // Activité Exchange : uniquement sur le module Bourse
+    const isExchange = id === EXCHANGE_MODULE;
+    document.getElementById("mpExchange").style.display = isExchange ? "block" : "none";
+    if (isExchange) refreshExWallet();
     showScreen("module");
     render();
   }
