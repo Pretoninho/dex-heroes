@@ -31,7 +31,7 @@
 
   Cloud.enabled = true;
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  var bridge = null, user = null, lastPush = 0, pushTimer = null, msgEl = null;
+  var bridge = null, user = null, lastPush = 0, pushTimer = null, msgEl = null, pulling = false;
 
   // --- API publique ------------------------------------------------------
   Cloud.init = function (gameBridge) {
@@ -46,7 +46,7 @@
   };
 
   Cloud.push = function (st) {
-    if (!user) return;
+    if (!user || pulling) return;   // ne pousse pas pendant le chargement d'un compte (anti-écrasement)
     clearTimeout(pushTimer);
     var delay = Math.max(0, 8000 - (Date.now() - lastPush));   // throttle ~8 s
     pushTimer = setTimeout(function () {
@@ -71,19 +71,47 @@
 
   // --- Interne -----------------------------------------------------------
   function setUser(u, doPull) {
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }   // annule un push en attente → n'écrit pas vers le mauvais compte
     user = u;
     renderUI();
     if (u && doPull && bridge) pullAndApply();
   }
 
+  // Quel compte possède la partie locale actuellement en mémoire (localStorage partagé entre comptes).
+  function localOwner() { return localStorage.getItem("dexCloudOwner"); }
+  function setLocalOwner(uid) { localStorage.setItem("dexCloudOwner", uid); }
+
   function pullAndApply() {
-    sb.from("saves").select("state").eq("user_id", user.id).maybeSingle().then(function (r) {
-      if (r.error) { say("Erreur de chargement : " + r.error.message); return; }
+    var uid = user.id, owner = localOwner();
+    pulling = true;   // gèle les push automatiques le temps du chargement
+    sb.from("saves").select("state").eq("user_id", uid).maybeSingle().then(function (r) {
+      if (r.error) { pulling = false; say("Erreur de chargement : " + r.error.message); return; }
       var remote = r.data && r.data.state;
       var local = bridge.getState();
-      if (!remote) { Cloud.push(local); say("Première sync : ta partie locale est sauvegardée."); return; }
-      if ((remote.lastSeen || 0) >= (local.lastSeen || 0)) bridge.applyState(remote);   // le plus récent gagne
-      else Cloud.push(local);
+      var sameOwner = (owner === uid);
+
+      if (remote) {
+        // Compte existant. Même compte/appareil → le plus récent gagne.
+        // Changement de compte (owner différent) → on charge le cloud sans discuter.
+        if (sameOwner && (local.lastSeen || 0) > (remote.lastSeen || 0)) { setLocalOwner(uid); pulling = false; Cloud.push(local); }
+        else { bridge.applyState(remote); setLocalOwner(uid); pulling = false; }
+        return;
+      }
+
+      // Aucune sauvegarde distante pour CE compte.
+      setLocalOwner(uid);
+      if (owner && owner !== uid && bridge.resetState) {
+        // La partie locale appartient à un AUTRE compte → on repart à neuf pour celui-ci.
+        bridge.resetState();
+        pulling = false;
+        Cloud.push(bridge.getState());
+        say("Nouveau compte : nouvelle partie.");
+      } else {
+        // Première sync d'un joueur jusque-là anonyme → on adopte la partie locale.
+        pulling = false;
+        Cloud.push(local);
+        say("Première sync : ta partie locale est sauvegardée.");
+      }
     });
   }
 
