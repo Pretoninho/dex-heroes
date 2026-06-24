@@ -49,7 +49,7 @@ On trade des **Éclats** (fongibles) — voir §3.
 ## 3. Éclats (fragments de héros) — *premier nouvel actif*
 
 > Statut : **Phase 1 codée** (faucet + sink + fusion de secours, 100 % côté save).
-> **Phase 2 à venir** : pont vers le ledger + marché secondaire sur l'Exchange.
+> **Phase 2 : design verrouillé** (juin 2026, voir §3 bis), pas encore codé.
 
 - **Mutualisés par rareté** : 3 types — Éclats **Commun / Rare / Épique** (pas 18
   marchés illiquides). Stockés dans `state.shards = {0,1,2}` (clé = rareté).
@@ -68,6 +68,134 @@ On trade des **Éclats** (fongibles) — voir §3.
 
 **UI** : barre d'Éclats + bouton « Fabriquer » sur la fiche (Codex 📖) ; le bouton
 Fusionner du module bascule sur le coût en Éclats quand les doublons manquent.
+
+---
+
+## 3 bis. Éclats — Phase 2 : trade & raffinage (design verrouillé, juin 2026)
+
+> Statut : **design validé en discussion, pas encore codé.** Reste **1 décision d'archi**
+> (couture client↔ledger, voir fin de section) avant le build. Issu d'une analyse
+> multi-perspectives (5 lentilles de design + critique adverse).
+
+**Le pari.** Rendre les Éclats échangeables **sans** que le cash achète la puissance ni la
+collection. Principe directeur : **le gacha possède la DÉCOUVERTE, le marché possède la
+PROFONDEUR — gatée.**
+
+**Décisions verrouillées :**
+
+1. Éclats ↔ **cash** ; **tout sur le ledger** (plus de faucet/sink offline).
+2. **Collection = gacha-souverain** : les Éclats (faucet ou achetés) ne **débloquent
+   jamais** un héros jamais tiré ; ils ne servent qu'à **leveler/fusionner un héros déjà
+   possédé**. Protège le « NEW ! » (cœur émotionnel du gacha).
+3. **Un seul Éclat *tradable* par rareté** (jeton spéculatif, liquide) **+ Éclat *lié***
+   (soulbound, matière à puissance). Le **raffinage** est le goulot à sens unique entre les
+   deux — il porte tous les gates.
+4. **Épique non-tradable en v1** (l'inversion de coût le rend le plus dangereux *et* le plus
+   désirable). Ouvrir **Commun/Rare** d'abord ; Épique réévalué sous télémétrie.
+
+**Le flux (4 étapes) :**
+
+```text
+1. FAUCET      doublon-surplus sur héros maxé → +1 Éclat TRADABLE   (ledger : SYSTÈME −1 = l'offre)
+2. MARCHÉ      achat/vente Éclat tradable ↔ cash                    (MM = backstop plancher, jamais de mint)
+3. RAFFINAGE   Éclat tradable → Éclat LIÉ                           ← GATES : ratio + horloge
+4. FABRICATION Éclats liés → copie/level d'un héros DÉJÀ possédé    ← GATES : sink cash + verrou collection
+```
+
+**Les gates (rôles distincts, complémentaires) :**
+
+| Gate | Étape | Rôle | Valeur v1 |
+|---|---|---|---|
+| **Ratio** | Raffinage | friction de valeur *en Éclats* ; les pertes → SYSTÈME = sink déflationniste (contre le faucet) | **1,2:1** |
+| **Horloge** | Raffinage | gate de **vitesse** : découple richesse ↔ rythme de puissance | **hard-cap ~10 tradables/j**, reset 00:00 UTC, global/compte |
+| **Sink cash** | Fabrication | gate de **valeur** : le knob de calibration anti-P2W | ≈ coût gacha (voir calibration) |
+| **Verrou collection** | Fabrication | leveling-only, jamais débloquer | protège la découverte gacha |
+
+Ratio + cash = *combien ça coûte* ; horloge = *à quelle vitesse*. **Les deux nécessaires** :
+sans horloge un riche convertit tout d'un coup ; sans gate de valeur l'horloge ne fait que
+retarder un power-grab pas cher.
+
+**Calibration (l'invariant chiffré).** Anchor : *fabriquer 1 copie par le marché doit coûter
+≥ tirer cette copie au gacha.* Gacha (taux 79/18/3 %, 6 héros/rareté, tirage 200 💎 ≈
+20 000 cash à l'ancre 100) → coût d'une copie d'un **héros précis** (donc leveling) :
+
+| Rareté | Tirages/copie | Coût gacha/copie | Sink cash/copie (strawman) | Plancher MM/Éclat |
+|---|---|---|---|---|
+| **Commun** | 7,6 | ~152 000 cash | ~150 000 | ~3 000 |
+| **Rare** | 33,3 | ~667 000 cash | ~650 000 | ~12 000 |
+
+Split retenu : **plancher bas + gros sink cash** → marché d'Éclats **liquide** (bon pour le
+méta-jeu Bourse), puissance payée à la **fabrication**. Total Commun ≈ **1,18× le gacha** →
+acheter+raffiner reste *un peu plus cher* que tirer, mais déterministe : c'est la **prime de
+déterminisme**, jamais un raccourci. ⚠️ Chiffres à **caler sur la vraie courbe de cash-flow**.
+
+**Market-maker des Éclats** (≠ MM des gems, voir Gotchas) :
+
+- **Acheteur de dernier recours** à un **plancher cash fixe par rareté** (`economy_config`,
+  comme les fees). N'agit **qu'au plancher** ; au-dessus → price discovery pure.
+- **Budget cash borné/période** (anti-inflation, anti-hoard). Asks **depuis inventaire de
+  consignation** uniquement — **jamais de mint d'Éclats**.
+- **Pas de NPC momentum** : le prix doit rester un **signal propre de rareté** (overflow whale
+  vs demande raffineur), pas un cours piloté.
+
+**Conservation inversée (la digue).** Contrairement à gems/cash, **SYSTÈME ne peut être négatif
+sur les Éclats QUE via le faucet** (doublon-surplus mérité). Le MM ne mint jamais (solde Éclats
+≥ 0). Invariant **vérifiable**, pas une règle molle.
+
+**Conséquences assumées :**
+
+- **`fuse()` ET `craftHero()` passent par le même goulot** (ne consomment que des Éclats *liés*
+  + sink cash). Sinon la fusion-de-secours est un **backdoor** qui contourne tous les gates.
+- **La Phase 2 re-gate rétroactivement la Phase 1** : la fabrication ciblée *gratuite* du surplus
+  disparaît (le ledger est **fongible** → impossible de distinguer Éclat mérité vs acheté ; le
+  tracking de provenance a été écarté). C'est le prix de « aucun chemin de puissance non-gaté ».
+
+**La couture client↔ledger — TRANCHÉE (client-trusted borné).** Le faucet (mint Éclat) et le
+verrou collection vivent **à cheval** entre la save **client-authoritative** et l'économie
+**server-authoritative**. Constats d'archi (vérifiés) :
+
+- L'**état du jeu = un blob client**, upsert verbatim dans `saves` ([`cloud.js`]) — **zéro
+  validation serveur**.
+- **Gems + gacha = 100 % client** : `pull()` fait `state.gems -= cost` et roule en
+  `Math.random()`, **sans appel serveur**. Le **seul** morceau server-authoritative = le ledger
+  (trades/settlement/conservation).
+- 🔑 Le **pont game→ledger est DÉJÀ client-trusted** : `economy_deposit` crédite le ledger avec
+  ce que le client demande (garde-fou unique : `d_gems > 1e9`), **sans vérifier la possession**.
+  Un save-editor peut déjà **injecter des gems fantômes** dans l'économie multijoueur.
+
+**Décision : (a) client-trusted, cohérent avec l'existant.** Sécuriser le faucet d'Éclats pendant
+que le dépôt de gems est grand ouvert serait *verrouiller la fenêtre à côté d'une porte ouverte*
+(gain marginal ~nul, incohérent). L'anti-P2W vise les **incitations du joueur honnête**, pas
+l'anti-triche (un save-editor s'octroie déjà n'importe quoi — hors modèle de menace). L'option
+« mirror du roster serveur » est **circulaire** (relire le blob = relire la triche) ; une vraie
+sécurité exigerait un **gacha server-authoritative** = hors scope.
+
+**Triptyque retenu :**
+
+1. **Faucet via RPC capé serveur** (montant/appel + cap/jour, façon garde-fou `1e9`) → **plafonne
+   le rayon de nuisance** d'un tricheur sur le marché multijoueur, sans prétendre l'empêcher.
+2. **Coût serveur / octroi-lock client** : la fabrication est un **RPC qui brûle cash ledger +
+   Éclats liés** (coût 100 % réel → l'économie anti-P2W tient) ; le **verrou collection** reste
+   **client-side** (best-effort). Même un tricheur qui le contourne **paie le plein coût ledger**
+   — pas de puissance *bon marché*, juste du ciblage qu'il avait déjà en éditant le blob. Le lock
+   client coûte donc ~zéro en sécurité.
+3. **Gates server-enforced** : horloge de raffinage, sink cash, calibration — tous applicables
+   côté ledger (qui détient cash et Éclats). Ils font le travail réel.
+
+→ **Coût = serveur (réel) · octroi/lock = client (best-effort) · gates = serveur** — exactement le
+partage déjà en place pour gems/gacha.
+
+**À durcir plus tard (pas Phase 2) :** le dépôt client-trusted est un trou latent de l'économie
+multijoueur ; si la triche devient un vrai problème, durcir **holistiquement** (gacha + pont
+server-authoritative), pas spécifiquement les Éclats.
+
+**Démantèlement** (héros non désiré → Éclats) : toujours **plus tard**, pas en v1.
+
+**Build (engineering, au « go ») :** généraliser le matching à la paire (`base_resource` ↔ cash)
+· nouvelles ressources ledger (`shard_c/r` tradables, `shard_c/r_bound` liés) · fonctions
+faucet/refine/fabricate/MM · invariant de conservation Éclats · migration des `state.shards`
+Phase 1 → ledger · tests + ordre de déploiement · frontend (sélecteur de paire, UI
+raffinage/fabrication) · bump `?v=`.
 
 ---
 
@@ -197,7 +325,7 @@ les modules.
 
 ## 10. Ordre de construction suggéré (au « go »)
 
-1. ~~**Éclats** (faucet fusion + sink fabrication)~~ — ✅ **Phase 1 FAITE** (local). Reste : trade (Phase 2, pont ledger).
+1. ~~**Éclats** (faucet fusion + sink fabrication)~~ — ✅ **Phase 1 FAITE** (local). Reste : **trade (Phase 2)** — design verrouillé (**§3 bis**), reste 1 décision d'archi (couture client↔ledger) puis le build.
 2. ~~**Surnoms de héros**~~ — ✅ FAIT (local, `state.nicknames`, éditeur fiche Codex).
 3. ~~**Tiers retail/OTC** + **achat de gems au cours**~~ — ✅ FAIT (`economy_retail.sql` + `economy_otc.sql`).
 4. **$VOLT** : minage (Énergie) + module Spéculation + actif volatil + staking.
