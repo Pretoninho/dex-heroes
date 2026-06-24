@@ -66,6 +66,24 @@
   // Pseudo affiché au classement (modifiable ; défaut = préfixe email)
   function getName() { return localStorage.getItem("dexCloudName") || (user && user.email ? user.email.split("@")[0] : "Joueur"); }
   function setName(n) { localStorage.setItem("dexCloudName", (n || "").slice(0, 20)); }
+  // Pousse le pseudo vers le cloud (table scores) pour qu'il suive le compte.
+  function pushName() {
+    if (!user) return;
+    var score = bridge && bridge.getScore ? bridge.getScore() : 0;
+    sb.from("scores").upsert({ user_id: user.id, display_name: getName(), net_worth: score, updated_at: new Date().toISOString() })
+      .then(function (r) { if (r.error) console.warn("[Cloud] name:", r.error.message); });
+  }
+  // Charge le pseudo du compte depuis le cloud à la connexion (suit le compte, multi-appareils).
+  function loadCloudName(uid) {
+    sb.from("scores").select("display_name").eq("user_id", uid).maybeSingle().then(function (r) {
+      var nm = r.data && r.data.display_name;
+      if (nm) {
+        localStorage.setItem("dexCloudName", nm);
+        var inp = document.getElementById("cName");
+        if (inp && document.activeElement !== inp) inp.value = nm;
+      }
+    });
+  }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function fmtN(n) { n = Number(n) || 0; if (n < 1000) return Math.floor(n).toString(); var u = ["", "k", "M", "B", "T", "Qa"], t = Math.min(Math.floor(Math.log10(n) / 3), u.length - 1); return (n / Math.pow(1000, t)).toFixed(2) + u[t]; }
 
@@ -83,6 +101,7 @@
 
   function pullAndApply() {
     var uid = user.id, owner = localOwner();
+    loadCloudName(uid);   // récupère le pseudo du compte (suit le compte)
     pulling = true;   // gèle les push automatiques le temps du chargement
     sb.from("saves").select("state").eq("user_id", uid).maybeSingle().then(function (r) {
       if (r.error) { pulling = false; say("Erreur de chargement : " + r.error.message); return; }
@@ -164,7 +183,8 @@
         '<div class="cloud-board" id="cBoardList"></div>' +
         '<button class="cloud-close" id="cClose">Fermer</button>';
       msgEl = card.querySelector("#cMsg");
-      card.querySelector("#cName").onchange = function () { setName(this.value); say("Pseudo enregistré."); };
+      card.querySelector("#cName").oninput = function () { setName(this.value); };
+      card.querySelector("#cName").onchange = function () { setName(this.value); this.value = getName(); pushName(); this.blur(); say("Pseudo « " + getName() + " » enregistré ✔"); };
       card.querySelector("#cSync").onclick = function () { lastPush = 0; Cloud.push(bridge.getState()); say("Sauvegardé ✔"); };
       card.querySelector("#cOut").onclick = function () { sb.auth.signOut().then(function () { say("Déconnecté."); }); };
       card.querySelector("#cBoard").onclick = function () {
