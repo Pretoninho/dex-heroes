@@ -56,7 +56,8 @@ Invariant santé : `select resource_id, sum(balance) from economy_balances group
 ### Couches
 - **L1** ledger + acteurs + `economy_post_tx` (3 tests : conservation / bornes / sanité prix).
 - **L2** marché : `economy_orders`, `economy_trades`, `economy_price_index`, matching, `economy_refresh_price`.
-- **L3** NPC **market-maker** (tick `economy_tick_npcs`, `economy_ensure_market_maker`, `economy_place_order_as`, `economy_cancel_all_orders`). *Réactif (L3b) PAS encore fait.*
+- **L3** NPC **market-maker** (`economy_ensure_market_maker`, `economy_place_order_as`, `economy_cancel_all_orders`).
+- **L3b** NPC **réactif** (`economy_ensure_reactive_npc`, `economy_market_order_as`) — fait bouger le cours (momentum + retour à la moyenne + bruit). Redéfinit `economy_tick_npcs` (MM + réactif + historique + régime).
 - **L4** **régime** émergent global (`economy_classify_market`, `economy_update_regime` avec **hystérésis**, `economy_get_regime`). 5 régimes BULL/BEAR/CRASH/CRABE/HYPE. Lit la tendance du cours, déterministe, jamais aléatoire.
 - **L5** contrats / **levier** — PAS encore fait.
 - Frais : `economy_fees.sql` (maker/taker + retrait), `economy_get_fees`.
@@ -66,9 +67,11 @@ Invariant santé : `select resource_id, sum(balance) from economy_balances group
 ### Ordre de déploiement SQL (CRITIQUE — chaque fichier redéfinit des fonctions du précédent)
 ```
 economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
-→ economy_market_api.sql → economy_fees.sql → economy_market_order.sql
+→ economy_market_api.sql → economy_fees.sql → economy_market_order.sql → economy_l3b.sql
 ```
-⚠️ Si on re-passe `economy_l3.sql`, re-passer **l4** (réécrit `economy_tick_npcs`) **puis** `economy_fees.sql` (réécrit `economy_match_orders` avec frais).
+⚠️ `economy_l3b.sql` doit être **le dernier** : il redéfinit `economy_tick_npcs` (MM + réactif +
+historique + régime) et `economy_market_order` (délègue à `economy_market_order_as`). Si on
+re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
 
 ## Le terminal Exchange (frontend, dans `cloud.js`)
 
@@ -92,7 +95,7 @@ economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
 
 ## Tâches en attente / roadmap
 
-1. **NPC réactif (L3b)** — anime le cours (suit/contrarie la tendance). Rendrait le marché vivant sans joueurs.
+1. ~~**NPC réactif (L3b)**~~ — ✅ FAIT (`economy_l3b.sql`). Le cours bouge tout seul.
 2. **Régime → effet héros (famille G)** — ⚠️ trou : le régime est calculé/affiché mais **ne modifie pas encore la production**. Brancher dans `globalHeroFx()` un bonus/malus selon `hero.regime` vs régime courant.
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
