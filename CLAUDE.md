@@ -116,6 +116,11 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 - **Régime non aléatoire** : transcrit le marché interne (option 2). Global, recalculé au tick, **hystérésis** (ne change pas chaque minute).
 - **Levier** : à construire en L5, **max-levier = f(niveau du héros Bourse)** (seule influence héros sur l'Exchange).
 - Exécution **instantanée avant échéance** (ordre limite avant contrats à terme).
+- **Éclats (Phase 1)** : **local** d'abord (pas de ledger) · fabrication **ciblée** (héros choisi) ·
+  **un seul taux** `SHARD_PER_COPY`=8/6/4 (Commun/Rare/Épique) qui sert et à fabriquer **et** à
+  couvrir une fusion (Éclats = doublons de secours) · faucet = **1 Éclat par doublon-surplus** d'un
+  héros déjà maxé. **On ne trade JAMAIS les héros entiers** (anti-pay-to-win) — le trade portera sur
+  les Éclats (fongibles par rareté) en Phase 2.
 
 ## Tâches en attente / roadmap
 
