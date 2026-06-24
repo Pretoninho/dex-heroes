@@ -28,7 +28,7 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=19**.
+  Version actuelle : **v=20**.
 - **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
   (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
@@ -97,7 +97,7 @@ re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
 ## Tâches en attente / roadmap
 
 1. ~~**NPC réactif (L3b)**~~ — ✅ FAIT (`economy_l3b.sql`). Le cours bouge tout seul.
-2. **Régime → effet héros (famille G)** — ⚠️ trou : le régime est calculé/affiché mais **ne modifie pas encore la production**. Brancher dans `globalHeroFx()` un bonus/malus selon `hero.regime` vs régime courant.
+2. ~~**Régime → effet héros (famille G)**~~ — ✅ FAIT. `regimeProdMult()` dans index.html (aligné ×1.08 / contre-emploi ×0.96 / Quant neutre), badge régime en jeu, fetch via `Cloud.economy.regime()` toutes les 60 s.
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
 5. **Les 17 autres activités de module**.

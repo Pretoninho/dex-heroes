@@ -238,6 +238,7 @@
   // --- API Exchange (nouveau marché sur le ledger L2-L4) --------------------
   Cloud.economy = {
     ticker:     function () { return sb.rpc("economy_get_ticker"); },
+    regime:     function () { return sb.rpc("economy_get_regime"); },
     orderbook:  function () { return sb.rpc("economy_orderbook"); },
     myBalances: function () { return sb.rpc("economy_my_balances"); },
     myOrders:   function () { return sb.rpc("economy_my_orders"); },
