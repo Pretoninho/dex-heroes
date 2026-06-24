@@ -241,8 +241,10 @@
     orderbook:  function () { return sb.rpc("economy_orderbook"); },
     myBalances: function () { return sb.rpc("economy_my_balances"); },
     myOrders:   function () { return sb.rpc("economy_my_orders"); },
+    fees:       function () { return sb.rpc("economy_get_fees"); },
+    history:    function () { return sb.from("economy_price_history").select("price,captured_at").order("captured_at", { ascending: false }).limit(180); },
     deposit:    function (g, c) { return sb.rpc("economy_deposit", { d_gems: g, d_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(-g); if (c) bridge.addCash(-c); } return r; }); },
-    withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(g); if (c) bridge.addCash(c); } return r; }); },
+    withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { var ng = r.data.net_gems != null ? r.data.net_gems : g, nc = r.data.net_cash != null ? r.data.net_cash : c; if (ng) bridge.addGems(ng); if (nc) bridge.addCash(nc); } return r; }); },
     place:      function (side, g, p) { return sb.rpc("economy_place_order", { p_side: side, p_gems: g, p_price: p }); },
     cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); },
     amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); }
@@ -263,6 +265,11 @@
   Cloud.marketOpen = function () {
     if (!document.getElementById("xPrice")) return;   // UI pas encore montée
     renderMarket();
+    Cloud.economy.fees().then(function (r) {
+      var f = (r && r.data) || {}, el = document.getElementById("xFees"); if (!el) return;
+      var pct = function (x) { return (Number(x) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 3 }) + " %"; };
+      el.textContent = "Frais : maker " + pct(f.maker || 0.001) + " · taker " + pct(f.taker || 0.002) + " · retrait " + pct(f.withdraw || 0.005);
+    });
     if (mkRefresh) clearInterval(mkRefresh);
     mkRefresh = setInterval(renderMarket, 5000);
   };
@@ -432,6 +439,7 @@
       + ".xch-orders{max-height:200px;overflow:auto}.xord{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border-bottom:1px solid #1d3d2c;padding:7px 2px}"
       + ".xord .buy{color:var(--accent)}.xord .sell{color:#e06b6b}.xord-act{display:flex;gap:4px}.xord button{padding:5px 10px;border-radius:7px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);cursor:pointer;font-size:12px}"
       + ".xord-edit{display:flex;gap:4px;align-items:center}.xord-edit input{width:64px!important;padding:6px;font-size:13px}"
+      + ".xch-fees{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}"
       + ".xch-msg{font-size:12px;color:var(--accent-2);min-height:16px;margin-top:10px}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
@@ -453,6 +461,7 @@
       + '<div class="xch-total">Total : $<b id="xTotal">0</b></div>'
       + '<div class="xch-avbl" id="xAvbl">…</div>'
       + '<button class="xch-go buy" id="xGo">Acheter 💎</button>'
+      + '<div class="xch-fees" id="xFees"></div>'
       + '<div class="xch-sub">Jeu ⇄ Marché</div>'
       + '<div class="xch-row">💎<input id="xMg" type="number" min="0" placeholder="gemmes"> $<input id="xMc" type="number" min="0" placeholder="cash">'
       + '<button id="xDep">Déposer</button><button id="xWit">Retirer</button></div>'
