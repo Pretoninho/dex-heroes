@@ -24,7 +24,11 @@ suppression délibérée, à confirmer avant chaque purge) :
   **automatisation** (managers), **prestige**, contenu de bras/modules.
 - **Règle d'or** : chaque système a un **chemin passif par défaut** ; l'endgame
   **n'exige jamais** une action manuelle/online.
-- **Focus courant** : bloc **Hors-ligne + Automatisation** (1ᵉʳ bloc idle-natif).
+- **Focus courant** : ~~bloc **Hors-ligne + Automatisation**~~ ✅ FAIT (1ᵉʳ bloc idle-natif) :
+  gains hors-ligne **plafonnés** (`OFFLINE_CAP_BASE`=4 h, héros `offlineCap` l'étendent via
+  `offlineCapMult` — désormais distinct d'`offlineMult`) + **modale « Bon retour »** ;
+  **auto-amélioration** (`state.autoBuy`, `autoBuyStep`, toggle 🤖, cadence `AUTO_BUY_MS`).
+  Prochains idle-natifs : **prestige/ascension**, contenu de bras/modules.
 - ⚠️ Les sections « économie/Exchange/$VOLT » ci-dessous décrivent l'existant **en
   sursis** : ne plus l'étendre ; le documenter sert surtout à savoir **quoi retirer**.
 

@@ -426,6 +426,26 @@
     text-align: center;
   }
   .toast.show { opacity: 1; }
+
+  /* Modale « Bon retour » (gains hors-ligne) */
+  .wb-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .wb-card {
+    background: var(--panel); border: 1px solid #2a4d3a; border-radius: 16px;
+    box-shadow: var(--shadow); padding: 24px 22px; max-width: 360px; width: 100%;
+    text-align: center; animation: pop .25s ease;
+  }
+  .wb-card h2 { margin: 6px 0 2px; }
+  .wb-emoji { font-size: 40px; line-height: 1; }
+  .wb-sub { color: var(--muted); font-size: 13px; }
+  .wb-gain { font-size: 30px; font-weight: 800; color: var(--accent); margin: 14px 0 6px; }
+  .wb-line { font-size: 13px; color: var(--muted); }
+  .wb-cap { font-size: 12px; color: var(--accent-2); margin-top: 10px; }
+  .wb-cap .wb-hint { color: var(--muted); }
+  .wb-card .big-btn { margin-top: 18px; width: 100%; }
 </style>
 </head>
 <body>
@@ -460,6 +480,7 @@
       </div>
 
       <div class="controls">
+        <button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button>
         <button class="btn" id="saveBtn">💾 Sauver</button>
         <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
       </div>
@@ -594,6 +615,19 @@
   <div class="abilitybar" id="abilityBar" style="display:none"></div>
   <div class="toast" id="toast"></div>
 
+  <!-- Modale « Bon retour » (gains hors-ligne) -->
+  <div class="wb-overlay" id="welcomeBack" style="display:none">
+    <div class="wb-card">
+      <div class="wb-emoji">💤</div>
+      <h2>Bon retour !</h2>
+      <div class="wb-sub" id="wbAway">Absent pendant —</div>
+      <div class="wb-gain">+$<span id="wbGain">0</span></div>
+      <div class="wb-line">Production hors-ligne : <b id="wbRate">$0/s</b></div>
+      <div class="wb-cap" id="wbCap"></div>
+      <button class="big-btn can" id="wbClose">Encaisser</button>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloud.js?v=22"></script>
 <script src="heroes.data.js?v=8"></script>
@@ -669,6 +703,10 @@
     save();
   }
 
+  // Idle : gains hors-ligne + automatisation
+  const OFFLINE_CAP_BASE = 4 * 3600;   // plafond de base des gains hors-ligne (4 h, en secondes)
+  const AUTO_BUY_MS = 300;             // cadence de l'auto-amélioration (ms)
+
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
   const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
@@ -709,6 +747,7 @@
       freePullNext: false,         // signature Lancement : prochain tirage gratuit
       dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
       currentDex: 0,               // Dex affiché
+      autoBuy: false,              // automatisation : auto-améliorer le module le moins cher
       lastSeen: Date.now()
     };
   }
@@ -744,6 +783,7 @@
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
     if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
     if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
+    if (typeof state.autoBuy !== "boolean") state.autoBuy = false;
   }
 
   // --- Gacha : tirage avec pity -----------------------------------------
@@ -839,7 +879,7 @@
   // --- Effets des héros déployés (passifs) ------------------------------
   // Effets GLOBAUX agrégés sur tous les Dex (clic, auto-clic, gemmes, hors-ligne…)
   function globalHeroFx() {
-    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, freePull: 0 };
+    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, offlineCapMult: 1, freePull: 0 };
     state.dexes.forEach(d => {
       ASSETS.forEach(n => {
         if (!(d.placed && d.placed[n.id])) return;
@@ -850,8 +890,8 @@
           case "autoClick":      fx.autoClick += scaleVal("autoClick", e.value, lvl); break;
           case "gemGen":         fx.gemPerSec += scaleVal("gemGen", e.value, lvl); break;
           case "gemPriceReduce": fx.gemPriceMult *= (1 - Math.min(0.9, scaleVal("gemPriceReduce", e.value, lvl))); break;
-          case "offlineMult":
-          case "offlineCap":     fx.offlineMult *= scaleVal("offlineMult", e.value, lvl); break;
+          case "offlineMult":    fx.offlineMult *= scaleVal("offlineMult", e.value, lvl); break;
+          case "offlineCap":     fx.offlineCapMult *= scaleVal("offlineCap", e.value, lvl); break;
           case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - Math.min(0.9, scaleVal("freePullChance", e.value, lvl))); break;
         }
       });
@@ -1069,6 +1109,25 @@
   }
 
   // --- Chargement / sauvegarde ------------------------------------------
+  let pendingWelcome = null;   // infos de gains hors-ligne, affichées au démarrage
+  function fmtDuration(s) {
+    s = Math.floor(s);
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return d + " j " + h + " h";
+    if (h > 0) return h + " h " + m + " min";
+    if (m > 0) return m + " min";
+    return s + " s";
+  }
+  function showWelcomeBack(info) {
+    document.getElementById("wbAway").textContent = "Absent pendant " + fmtDuration(info.elapsed);
+    document.getElementById("wbGain").textContent = fmt(info.gained);
+    document.getElementById("wbRate").textContent = "$" + fmt(perSecond()) + "/s";
+    const capEl = document.getElementById("wbCap");
+    capEl.innerHTML = info.capped
+      ? `⏳ Plafond atteint (${fmtDuration(info.cap)}) — crédité jusqu'au plafond. <span class="wb-hint">Des héros « hors-ligne » l'étendent.</span>`
+      : "";
+    document.getElementById("welcomeBack").style.display = "flex";
+  }
   function load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
@@ -1078,10 +1137,14 @@
       adopt(saved);
       const elapsed = (Date.now() - (prevSeen || Date.now())) / 1000;
       if (elapsed > 1) {
-        const gained = perSecond() * elapsed * globalHeroFx().offlineMult;
+        const fx = globalHeroFx();
+        const cap = OFFLINE_CAP_BASE * fx.offlineCapMult;        // plafond (héros offlineCap l'étendent)
+        const eff = Math.min(elapsed, cap);                      // durée créditée, plafonnée
+        const gained = perSecond() * eff * fx.offlineMult;
         if (gained > 0) {
           state.cash += gained;
-          setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} gagnés hors-ligne`), 400);
+          // Modale seulement pour une vraie absence (>= 60 s) ; sinon on crédite en silence
+          if (elapsed >= 60) pendingWelcome = { elapsed: elapsed, eff: eff, cap: cap, gained: gained, capped: elapsed > cap };
         }
       }
     } catch (e) { console.warn("Sauvegarde illisible", e); }
@@ -1125,6 +1188,38 @@
       : `${node.emoji} ${node.name} amélioré → niv. ${levels[node.id]}`);
     render();
     save();
+  }
+
+  // Automatisation : achète en silence le(s) module(s) actionnable(s) le(s) moins cher(s)
+  // du Dex courant. Bornée par appel (anti-boucle) ; pas de toast ni de save (timer 15 s).
+  function autoBuyStep(maxBuys) {
+    let bought = 0;
+    const levels = dex(state.currentDex).levels;
+    while (bought < (maxBuys || 25)) {
+      let best = null, bestCost = Infinity;
+      ASSETS.forEach(n => {
+        if (n.source || !isUnlocked(n)) return;
+        const c = costOf(n);
+        if (c < bestCost && state.cash >= c) { best = n; bestCost = c; }
+      });
+      if (!best) break;
+      state.cash -= bestCost;
+      levels[best.id] = (levels[best.id] || 0) + 1;
+      bought++;
+    }
+    return bought;
+  }
+  function toggleAutoBuy() {
+    state.autoBuy = !state.autoBuy;
+    toast(state.autoBuy ? "🤖 Auto-amélioration activée" : "Auto-amélioration coupée");
+    renderAutoBtn();
+    save();
+  }
+  function renderAutoBtn() {
+    const b = document.getElementById("autoBuyBtn");
+    if (!b) return;
+    b.textContent = state.autoBuy ? "🤖 Auto : ON" : "🤖 Auto : OFF";
+    b.className = "btn" + (state.autoBuy ? " can" : "");
   }
 
   function reset() {
@@ -1569,7 +1664,7 @@
   }
 
   // --- Boucle ------------------------------------------------------------
-  let lastTick = Date.now();
+  let lastTick = Date.now(), lastAuto = 0;
   function loop() {
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
@@ -1578,6 +1673,7 @@
     const fx = globalHeroFx();
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
+    if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
     render();
   }
 
@@ -1588,7 +1684,11 @@
   buildHeroGrid();
   renderTabs();
   render();
+  renderAutoBtn();
+  if (pendingWelcome) { showWelcomeBack(pendingWelcome); pendingWelcome = null; }
   document.getElementById("billBtn").addEventListener("click", click);
+  document.getElementById("autoBuyBtn").addEventListener("click", toggleAutoBuy);
+  document.getElementById("wbClose").addEventListener("click", () => { document.getElementById("welcomeBack").style.display = "none"; });
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
