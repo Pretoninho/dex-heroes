@@ -20,6 +20,9 @@ declare
   v_sell_price numeric;
 begin
   -- ============ A) ISOLATION ============
+  -- Vider le carnet pour que "0 trade en isolation" soit un vrai test
+  -- (sinon le MM matcherait de vieux ordres d'autres passes).
+  delete from public.economy_orders;
   select count(*) into v_trades_before from public.economy_trades;
 
   -- Premier tick : crée + amorce le MM, poste buy + sell

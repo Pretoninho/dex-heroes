@@ -15,6 +15,10 @@ declare
   v_buyer_gems numeric;  v_buyer_cash numeric;
   v_price numeric;
 begin
+  -- 0) Isolation : vider le carnet (transient) pour ne pas matcher de vieux ordres.
+  --    L'escrow des ordres orphelins reste chez SYSTÈME (conservation globale OK).
+  delete from public.economy_orders;
+
   -- 1) Deux acteurs neufs
   insert into public.economy_actors (type, name) values ('player', 'mkt_seller_' || gen_random_uuid()::text) returning id into v_a;
   insert into public.economy_actors (type, name) values ('player', 'mkt_buyer_'  || gen_random_uuid()::text) returning id into v_b;
@@ -55,20 +59,22 @@ begin
   select balance into v_seller_cash from public.economy_balances where actor_id = v_a and resource_id = 'cash';
   select balance into v_buyer_gems  from public.economy_balances where actor_id = v_b and resource_id = 'gems';
   select balance into v_buyer_cash  from public.economy_balances where actor_id = v_b and resource_id = 'cash';
-  select price into v_price from public.economy_price_index where id = 'gems_cash';
+  -- Prix d'exécution du trade PRÉCIS entre nos deux acteurs (robuste à l'historique)
+  select price into v_price from public.economy_trades
+    where seller_id = v_a and buyer_id = v_b order by executed_at desc limit 1;
 
   raise notice 'SELLER : % gems, % cash (attendu 50 / 3000)', v_seller_gems, v_seller_cash;
   raise notice 'BUYER  : % gems, % cash (attendu 30 / 7000)', v_buyer_gems, v_buyer_cash;
-  raise notice 'COURS  : % (attendu 100)', v_price;
+  raise notice 'PRIX DU TRADE : % (attendu 100)', v_price;
 
   -- 7) ASSERTIONS : lèvent une exception si un solde est faux
   if v_seller_gems != 50   then raise exception 'FAIL seller gems: % (attendu 50)', v_seller_gems; end if;
   if v_seller_cash != 3000 then raise exception 'FAIL seller cash: % (attendu 3000)', v_seller_cash; end if;
   if v_buyer_gems != 30    then raise exception 'FAIL buyer gems: % (attendu 30)', v_buyer_gems; end if;
   if v_buyer_cash != 7000  then raise exception 'FAIL buyer cash: % (attendu 7000)', v_buyer_cash; end if;
-  if v_price != 100        then raise exception 'FAIL price: % (attendu 100)', v_price; end if;
+  if v_price != 100        then raise exception 'FAIL prix du trade: % (attendu 100)', v_price; end if;
 
-  raise notice '✓ ASSERTIONS L2 OK : soldes + cours corrects, conservation respectée';
+  raise notice '✓ ASSERTIONS L2 OK : soldes + prix corrects, conservation respectée';
 end; $$;
 
 -- 8) Affichage du dernier fait de trade + cours
