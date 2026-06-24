@@ -207,7 +207,7 @@
     HYPE:  ["🚀", "Euphorie", "#22c197"]
   };
   var mkMsg = null, mkSide = "buy", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
-  var mkRefresh = null, mkClock = null, mkEditing = false;
+  var mkRefresh = null, mkEditing = false;
   function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
   function $id(i) { return document.getElementById(i); }
@@ -217,18 +217,10 @@
     renderMarket();
     if (mkRefresh) clearInterval(mkRefresh);
     mkRefresh = setInterval(renderMarket, 5000);
-    if (mkClock) clearInterval(mkClock);
-    tickClock(); mkClock = setInterval(tickClock, 1000);
   };
   Cloud.marketClose = function () {
     if (mkRefresh) { clearInterval(mkRefresh); mkRefresh = null; }
-    if (mkClock) { clearInterval(mkClock); mkClock = null; }
   };
-  function tickClock() {
-    var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
-    var el = $id("xClock");
-    if (el) el.textContent = p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds()) + " UTC";
-  }
 
   function mkAvail() {
     var p = parseFloat($id("xPriceIn").value) || mkPrice || 0;
@@ -396,7 +388,7 @@
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
     container.innerHTML = '<div class="xch">'
-      + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div><div class="xch-clock" id="xClock">--:--:-- UTC</div></div>'
+      + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div></div>'
       + '<div class="xch-tick"><div class="xch-price" id="xPrice">—</div><div class="xch-chg" id="xChg">—</div><div class="xch-reg" id="xReg">🦀 Plat</div></div>'
       + '<div class="xch-hl" id="xHL">H — · B —</div>'
       + '<div class="xch-body">'
