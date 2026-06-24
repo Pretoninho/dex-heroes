@@ -279,6 +279,23 @@
     border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
   }
 
+  /* Section Exchange dans le module Bourse */
+  .mp-exchange {
+    margin-top: 16px; padding: 16px; border-radius: 12px;
+    border: 1px solid #1d3d2c; background: var(--panel-2);
+  }
+  .mp-ex-title { font-weight: 700; margin-bottom: 4px; }
+  .mp-ex-wallet { font-size: 13px; color: var(--muted); margin: 12px 0 8px; }
+  .mp-ex-wallet b { color: var(--accent-2); }
+  .mp-ex-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .mp-ex-row input {
+    flex: 1; min-width: 60px; box-sizing: border-box; padding: 9px;
+    border-radius: 8px; border: 1px solid #2a4d3a; background: var(--bg);
+    color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums;
+  }
+  .mp-ex-row .btn { flex: 1; }
+  .mp-ex-msg { font-size: 12px; color: var(--accent-2); min-height: 16px; }
+
   /* Gacha */
   .droprates { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
   .droprates .r0 { color: var(--muted); }
@@ -393,7 +410,7 @@
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
-      <button class="navtab" data-nav="market">🏦<span>Bourse</span></button>
+      <button class="navtab" data-nav="market">🫱🏻‍🫲🏻<span>Exchange</span></button>
     </div>
   </nav>
 
@@ -458,6 +475,23 @@
           <div id="mpHeroInfo">🦸 Slot héros</div>
           <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
           <button class="btn" id="mpFuseBtn" style="display:none; margin-top:8px">Fusionner</button>
+        </div>
+
+        <!-- Accès Exchange (modules du bras Bourse uniquement) -->
+        <div class="mp-exchange" id="mpExchange" style="display:none">
+          <div class="mp-ex-title">🫱🏻‍🫲🏻 Activité : Exchange</div>
+          <p class="hint">Trade tes gemmes contre du cash sur le marché. Dépose d'abord depuis ton jeu.</p>
+          <button class="big-btn" id="mpExOpen">Ouvrir l'Exchange ↗</button>
+          <div class="mp-ex-wallet" id="mpExWallet">Wallet exchange : …</div>
+          <div class="mp-ex-row">
+            💎<input id="mpExG" type="number" min="0" placeholder="gemmes">
+            $<input id="mpExC" type="number" min="0" placeholder="cash">
+          </div>
+          <div class="mp-ex-row">
+            <button class="btn" id="mpExDep">Déposer</button>
+            <button class="btn" id="mpExWit">Retirer</button>
+          </div>
+          <div class="mp-ex-msg" id="mpExMsg"></div>
         </div>
       </div>
 
@@ -554,6 +588,7 @@
   });
   const NODE = Object.fromEntries(NODES.map(n => [n.id, n]));
   const ASSETS = NODES.filter(n => !n.source);
+  const BOURSE_ARM = ARMS.findIndex(a => a.tiers[0].name === "Bourse");   // bras de l'activité Exchange
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
@@ -1008,8 +1043,38 @@
     rar.textContent = RARITY[n.tier];
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
+    // Section Exchange : uniquement sur les modules du bras Bourse
+    const isBourse = n.arm === BOURSE_ARM;
+    document.getElementById("mpExchange").style.display = isBourse ? "block" : "none";
+    if (isBourse) refreshExWallet();
     showScreen("module");
     render();
+  }
+  // --- Mini-wallet Exchange (dans le module Bourse) ---------------------
+  function exMsg(t) { const e = document.getElementById("mpExMsg"); if (e) e.textContent = t || ""; }
+  function exFmt(n) { return (Math.floor(Number(n) || 0)).toLocaleString("fr-FR"); }
+  function cloudReady() { return window.Cloud && window.Cloud.enabled && window.Cloud.economy; }
+  function refreshExWallet() {
+    const el = document.getElementById("mpExWallet"); if (!el) return;
+    if (!cloudReady()) { el.innerHTML = "☁️ Connecte-toi (onglet ☁️) pour gérer ton wallet."; return; }
+    window.Cloud.economy.myBalances().then(function (r) {
+      if (r && r.data && !r.error) el.innerHTML = "Wallet exchange : 💎 <b>" + exFmt(r.data.gems) + "</b> · $ <b>" + exFmt(r.data.cash) + "</b>";
+      else el.innerHTML = "☁️ Connecte-toi pour gérer ton wallet.";
+    }).catch(function () { el.innerHTML = "☁️ Connecte-toi pour gérer ton wallet."; });
+  }
+  function exMove(kind) {
+    if (!cloudReady()) { exMsg("Connecte-toi d'abord (onglet ☁️)."); return; }
+    const g = Math.floor(parseFloat(document.getElementById("mpExG").value) || 0);
+    const c = Math.floor(parseFloat(document.getElementById("mpExC").value) || 0);
+    if (!g && !c) { exMsg("Indique un montant."); return; }
+    if (kind === "dep" && (g > (state.gems || 0) || c > (state.cash || 0))) { exMsg("Pas assez dans le jeu."); return; }
+    const fn = kind === "dep" ? window.Cloud.economy.deposit : window.Cloud.economy.withdraw;
+    fn(g, c).then(function (r) {
+      const ok = r && r.data && r.data.success;
+      exMsg(ok ? (kind === "dep" ? "Déposé ✔" : "Retiré ✔") : ((r && r.data && r.data.error) || (kind === "dep" ? "Erreur." : "Solde marché insuffisant.")));
+      document.getElementById("mpExG").value = ""; document.getElementById("mpExC").value = "";
+      refreshExWallet(); render();
+    });
   }
   function backToOverview() { currentModule = null; showScreen("overview"); render(); }
   function openGacha() { document.getElementById("pullResult").innerHTML = ""; showScreen("gacha"); render(); }
@@ -1345,6 +1410,9 @@
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
+  document.getElementById("mpExOpen").addEventListener("click", () => { currentModule = null; showScreen("market"); render(); });
+  document.getElementById("mpExDep").addEventListener("click", () => exMove("dep"));
+  document.getElementById("mpExWit").addEventListener("click", () => exMove("wit"));
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)
   window.DEX = {
     getState: () => state,
