@@ -298,7 +298,38 @@
     syncTotal();
   }
 
+  // Graphique en chandeliers (lecture de l'historique de prix)
+  function renderChart() {
+    var el = document.getElementById("xChart"); if (!el) return;
+    Cloud.economy.history().then(function (r) {
+      var rows = (r && r.data) || [];
+      var pts = rows.slice().reverse().map(function (x) { return Number(x.price) || 0; }).filter(function (p) { return p > 0; });
+      if (pts.length < 2) { el.innerHTML = '<div class="xempty">Pas encore d\'historique — le marché démarre (1 point/minute).</div>'; return; }
+      // Regrouper en bougies (OHLC)
+      var nC = Math.min(30, pts.length), per = Math.ceil(pts.length / nC), candles = [];
+      for (var i = 0; i < pts.length; i += per) {
+        var seg = pts.slice(i, i + per); if (!seg.length) continue;
+        candles.push({ o: seg[0], c: seg[seg.length - 1], hi: Math.max.apply(null, seg), lo: Math.min.apply(null, seg) });
+      }
+      var hi = Math.max.apply(null, candles.map(function (k) { return k.hi; }));
+      var lo = Math.min.apply(null, candles.map(function (k) { return k.lo; }));
+      var pad = (hi - lo) * 0.08 || (hi * 0.05) || 1; hi += pad; lo -= pad;
+      var cw = 10, w = candles.length * cw, h = 100;
+      var y = function (p) { return (h - (p - lo) / (hi - lo) * h).toFixed(2); };
+      var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">';
+      candles.forEach(function (k, i) {
+        var x = (i * cw + cw / 2).toFixed(2), up = k.c >= k.o, col = up ? "#34d17a" : "#e06b6b";
+        var yo = +y(k.o), yc = +y(k.c), top = Math.min(yo, yc), bh = Math.max(0.6, Math.abs(yc - yo));
+        svg += '<line x1="' + x + '" x2="' + x + '" y1="' + y(k.hi) + '" y2="' + y(k.lo) + '" stroke="' + col + '" stroke-width="0.7"/>';
+        svg += '<rect x="' + (i * cw + 2) + '" y="' + top.toFixed(2) + '" width="' + (cw - 4) + '" height="' + bh.toFixed(2) + '" fill="' + col + '"/>';
+      });
+      svg += '</svg>';
+      el.innerHTML = svg;
+    }).catch(function () {});
+  }
+
   function renderMarket() {
+    renderChart();
     // Ticker
     Cloud.economy.ticker().then(function (r) {
       var t = (r && r.data) || {};
@@ -409,6 +440,8 @@
       + ".xch-price{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}"
       + ".xch-chg{font-weight:600}.xch-reg{margin-left:auto;font-weight:600}"
       + ".xch-hl{color:var(--muted);font-size:12px;margin:2px 0 12px}"
+      + ".xch-chart{background:var(--bg);border:1px solid #1d3d2c;border-radius:12px;padding:6px;margin-bottom:12px}"
+      + ".xch-chart svg{display:block;width:100%;height:150px}"
       + ".xch-body{display:flex;flex-direction:column;gap:14px}"
       + "@media(min-width:640px){.xch-body{display:grid;grid-template-columns:1fr 1fr;align-items:start}}"
       + ".xch-book{background:var(--bg);border:1px solid #1d3d2c;border-radius:12px;padding:8px}"
@@ -447,6 +480,7 @@
       + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div></div>'
       + '<div class="xch-tick"><div class="xch-price" id="xPrice">—</div><div class="xch-chg" id="xChg">—</div><div class="xch-reg" id="xReg">🦀 Plat</div></div>'
       + '<div class="xch-hl" id="xHL">H — · B —</div>'
+      + '<div class="xch-chart" id="xChart"><div class="xempty">Chargement du graphique…</div></div>'
       + '<div class="xch-body">'
       + '<div class="xch-col-book"><div class="xch-book"><div class="xch-bookhead"><span>Prix ($)</span><span>Qté 💎</span></div>'
       + '<div id="xAsks"></div><div class="xch-mid" id="xMid">—</div><div id="xBids"></div>'
