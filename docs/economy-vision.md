@@ -122,7 +122,13 @@ Jeton **volatil, à offre plafonnée**, **carburant de la verticale Trading**.
 
 ---
 
-## 6. Tiers d'Exchange : Retail vs OTC
+## 6. Tiers d'Exchange : Retail vs OTC — ✅ IMPLÉMENTÉ (`economy_otc.sql`)
+
+> Statut : **codé** (venue `otc` cloisonnée, 2 cours, MM mince, taker 1 %, taille
+> mini 200 💎, impact réel, NPC garde-fou d'arbitrage >5 %, widget d'écart côté UI).
+> L'**arbitragiste joueur** est l'activité visée ; les frais (round-trip ~1,2 %) sont
+> le gate, le garde-fou ne borne que les écarts extrêmes. **Reste** : outils
+> d'arbitrage avancés (raccourci 1-clic achète-retail→vends-OTC), graphique OTC dédié.
 
 Pour gérer la **manipulation** sans casser l'onboarding : deux tiers, mappés sur
 les modules.
@@ -134,7 +140,8 @@ les modules.
 
 - La **manipulation est confinée à l'OTC** (jeu entre gros) ; le **retail reste
   stable** pour les nouveaux.
-- **Écart de prix** retail/OTC → **arbitrage** (rôle possible d'un NPC arbitragiste).
+- **Écart de prix** retail/OTC → **arbitrage** : activité **joueur** (gate = frais
+  ~1,2 % aller-retour) ; un **NPC garde-fou** ne recolle que les écarts > 5 %.
 - C'est la base du design du **levier** (sur l'OTC).
 
 ---
@@ -175,7 +182,7 @@ les modules.
 
 1. **Éclats** (faucet fusion + sink fabrication + trade) — premier nouvel actif, sûr.
 2. **Surnoms de héros** — petit, isolé, sympa.
-3. **Tiers retail/OTC** + **achat de gems au cours** — restructure l'Exchange existant.
+3. ~~**Tiers retail/OTC** + **achat de gems au cours**~~ — ✅ FAIT (`economy_retail.sql` + `economy_otc.sql`).
 4. **$VOLT** : minage (Énergie) + module Spéculation + actif volatil + staking.
 5. **Levier (L5)** sur l'OTC, gated par le niveau du héros Bourse.
 6. **Endgame** : bascule frais → stakers (quand $VOLT plafonné).

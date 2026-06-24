@@ -559,7 +559,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=21"></script>
+<script src="cloud.js?v=22"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -599,6 +599,7 @@
   // Pour l'instant : le module Bourse = activité Exchange.
   const EXCHANGE_MODULE = (NODES.find(n => n.name === "Bourse") || {}).id;
   const TRADING_ARM = (NODES.find(n => n.name === "Bourse") || {}).arm;   // tout le bras Bourse = verticale Trading
+  let pendingMarketVenue = null;   // venue à ouvrir (Hedge Fund → 'otc', sinon retail)
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
@@ -1097,7 +1098,7 @@
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("marketScreen").style.display = name === "market" ? "block" : "none";
-    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(); }
+    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(pendingMarketVenue); pendingMarketVenue = null; }
     else { if (window.Cloud && window.Cloud.marketClose) window.Cloud.marketClose(); }
     setActiveNav();
   }
@@ -1499,7 +1500,10 @@
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
-  document.getElementById("mpExOpen").addEventListener("click", () => { currentModule = null; showScreen("market"); render(); });
+  document.getElementById("mpExOpen").addEventListener("click", () => {
+    pendingMarketVenue = (currentModule && NODE[currentModule] && NODE[currentModule].name === "Hedge Fund") ? "otc" : "retail";
+    currentModule = null; showScreen("market"); render();
+  });
   document.getElementById("mpExDep").addEventListener("click", () => exMove("dep"));
   document.getElementById("mpExWit").addEventListener("click", () => exMove("wit"));
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)

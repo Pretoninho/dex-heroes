@@ -28,7 +28,7 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=21**.
+  Version actuelle : **v=22**.
 - **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
   (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
@@ -61,6 +61,13 @@ Invariant santé : `select resource_id, sum(balance) from economy_balances group
 - **L3b** NPC **réactif** (`economy_ensure_reactive_npc`, `economy_market_order_as`) — fait bouger le cours (momentum + retour à la moyenne + bruit). Redéfinit `economy_tick_npcs` (MM + réactif + historique + régime).
 - **L4** **régime** émergent global (`economy_classify_market`, `economy_update_regime` avec **hystérésis**, `economy_get_regime`). 5 régimes BULL/BEAR/CRASH/CRABE/HYPE. Lit la tendance du cours, déterministe, jamais aléatoire.
 - **L5** contrats / **levier** — PAS encore fait.
+- **OTC** (`economy_otc.sql`) — **2ᵉ venue** (`venue` ∈ retail/otc) cloisonnée du retail :
+  matching/market-order/refresh-price **paramétrés par venue** (`*_v(p_venue)` + surcharges
+  rétro-compat 'retail'), **2 cours** (`gems_cash` retail / `gems_cash_otc` OTC), NPC MM **mince** +
+  réactif **agité** + **garde-fou d'arbitrage** (n'agit qu'au-delà de `arb_threshold`=5 %).
+  Frais OTC `economy_config['fees_otc']` (taker **1,0 %**). API joueur : `economy_ticker_otc`,
+  `economy_orderbook_otc`, `economy_place_order_otc`, `economy_market_order_otc` (taille mini 200 💎).
+  Redéfinit `economy_tick_npcs` (corps L3b + `economy_tick_otc()`).
 - Frais : `economy_fees.sql` (maker/taker + retrait), `economy_get_fees`.
 - Ordres Market : `economy_market_order.sql`.
 - API UI : `economy_market_api.sql` (ticker UTC, deposit/withdraw, my_balances, my_orders, amend).
@@ -69,12 +76,16 @@ Invariant santé : `select resource_id, sum(balance) from economy_balances group
 ```
 economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
 → economy_market_api.sql → economy_fees.sql → economy_market_order.sql → economy_l3b.sql
-→ economy_retail.sql
+→ economy_retail.sql → economy_otc.sql
 ```
 ⚠️ `economy_l3b.sql` redéfinit `economy_tick_npcs` (MM + réactif + historique + régime) et
 `economy_market_order` (délègue à `economy_market_order_as`) → le passer **avant** `economy_retail.sql`
 (qui dépend de `economy_market_order_as`). Si on re-passe un fichier intermédiaire, re-passer la suite.
 `economy_retail.sql` = achat de gems au cours (tier retail, sous-acteur de passage).
+⚠️ `economy_otc.sql` est le **DERNIER** : il redéfinit `economy_tick_npcs` (corps L3b **+** `economy_tick_otc()`),
+le matching, `economy_market_order_as`, `economy_place_order_as` et `economy_refresh_price` en versions
+**venue-aware** (les surcharges sans `p_venue` restent 'retail' → 0 régression). **Si on re-passe `l3b`,
+RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `test_economy_otc.sql`.
 
 ## Le terminal Exchange (frontend, dans `cloud.js`)
 
@@ -82,6 +93,12 @@ economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
   `index.html` appelle `Cloud.marketOpen()/marketClose()` via `showScreen("market")`.
 - **Accès Exchange sur tout le bras Bourse** (`TRADING_ARM`) : chaque module du bras (Bourse / Crypto /
   Hedge Fund) a un accès Exchange + mini-wallet (dépôt/retrait). Vision : bras = verticale Trading.
+- **Bascule de venue Retail ⇄ OTC** (`mkVenue`, `setVenue()`) : toggle en haut du terminal. Ouvrir
+  l'Exchange depuis **Hedge Fund** force la venue **OTC** (`Cloud.marketOpen('otc')` via `pendingMarketVenue`).
+  En OTC : carnet/ticker/buy/sell routés vers `*_otc` ; frais 1,0 % ; min 200 💎.
+- **Widget d'arbitrage** (`#xArb`) toujours visible : `Retail $ · OTC $ · écart %`, passe **🟢 vert** quand
+  |écart| > friction aller-retour (~1,2 %). L'arbitrage est une **activité joueur** (les frais sont le gate ;
+  le garde-fou NPC ne borne que les écarts extrêmes). Pas de graphique OTC (l'historique reste retail = réf. régime).
 - **Achat de gems au cours** : le bouton +100/+1000 fait un `economy_retail_buy_gems` (tier retail) si
   connecté ; sinon formule indexée (fallback hors-ligne). Cours lu via `Cloud.economy.ticker()`.
 - Contenu : ticker (prix, **% var depuis 00:00 UTC**, régime nom+badge, H/B), **graphique chandeliers
@@ -93,7 +110,9 @@ economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
 
 - Numéraire = **cash**. Paire v1 = **gemmes ↔ cash**.
 - Frais v1 = **maker 0,1 % / taker 0,2 % / retrait 0,5 %** (tunables dans `economy_config`).
-  **Les héros ne réduisent PAS les frais.**
+  **Les héros ne réduisent PAS les frais.** **OTC** : maker 0,2 % / **taker 1,0 %** (`fees_otc`).
+- **Arbitrage = activité joueur** : les **frais** sont le gate (round-trip ~1,2 % → l'écart doit le dépasser).
+  Le **NPC garde-fou** ne recolle que les écarts **extrêmes** (>5 %) → la bande de profit reste au joueur.
 - **Régime non aléatoire** : transcrit le marché interne (option 2). Global, recalculé au tick, **hystérésis** (ne change pas chaque minute).
 - **Levier** : à construire en L5, **max-levier = f(niveau du héros Bourse)** (seule influence héros sur l'Exchange).
 - Exécution **instantanée avant échéance** (ordre limite avant contrats à terme).
@@ -108,7 +127,7 @@ economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
 
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** (fragments par rareté, faucet = surplus de fusion, trade) →
-(2) **surnoms de héros** → (3) **tiers retail/OTC** (~~achat de gems au cours~~ ✅ fait ; **OTC = Hedge Fund** : book séparé + caps + impact = à faire) →
+(2) **surnoms de héros** → (3) ~~**tiers retail/OTC**~~ ✅ FAIT (`economy_otc.sql` : achat de gems au cours + **OTC = Hedge Fund** book séparé, taille mini, taker 1 %, impact, garde-fou d'arbitrage + widget d'écart) →
 (4) **$VOLT** (miné par le bras Énergie, plafond global, module 🎲 Spéculation, staking, ancre faible + NPC agité) →
 (5) **levier (L5)** sur l'OTC → (6) **endgame** frais→stakers → (cap lointain) **DEX-shares**.
 ⚠️ Le **protocole de halving du $VOLT** reste à concevoir.
