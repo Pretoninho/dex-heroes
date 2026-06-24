@@ -539,6 +539,7 @@
             </div>
           </div>
           <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
+          <div class="fiche-row"><span class="fiche-k">Affinité de régime</span><span id="ficheRegime"></span></div>
           <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
           <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
           <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
@@ -1151,6 +1152,17 @@
     rar.textContent = "★".repeat(meta.stars) + " " + meta.name;
     rar.style.color = meta.color;
     document.getElementById("ficheModule").textContent = h.emoji + " " + h.module;
+    // Affinité de régime (famille G) : classe + régime fort + état actuel
+    const fr = document.getElementById("ficheRegime");
+    if (h.regime == null) {
+      fr.innerHTML = (h.klass || "Quant") + ' <span style="color:var(--muted)">— polyvalent (insensible au régime)</span>';
+    } else {
+      const ri = REGIME_INFO[h.regime] || { e: "", n: h.regime };
+      let txt = (h.klass || "—") + " — fort en " + ri.e + " " + ri.n;
+      if (h.regime === currentRegime) txt += ' <span style="color:var(--accent)">· adapté au marché actuel (+' + Math.round((REGIME_ALIGN - 1) * 100) + '%)</span>';
+      else txt += ' <span style="color:var(--muted)">· à contre-emploi (−' + Math.round((1 - REGIME_MIS) * 100) + '%)</span>';
+      fr.innerHTML = txt;
+    }
     document.getElementById("fichePassive").textContent = h.passive.text;
     document.getElementById("ficheSig").innerHTML =
       `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
