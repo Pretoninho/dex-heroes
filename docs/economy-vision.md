@@ -9,6 +9,57 @@
 
 ---
 
+## 0. Boucle de jeu (état actuel) — pourquoi le $VOLT
+
+> Section **descriptive** : le cycle du joueur tel qu'il tourne **aujourd'hui**
+> (implémenté), ses trous, et où les blocs à venir se branchent. Sert de
+> motivation au reste du document.
+
+### Le cycle
+
+```
+  ① IDLE / CASH FLOW ──$──► acheter des 💎 (cours retail, ou formule de repli)
+     (connecter/améliorer modules → $/sec)            │
+        ▲                                             ▼
+        │                                   ② GACHA (200💎, pity 80) → héros
+        │                                             │
+        │                          doublon d'un héros maxé ─► 🧩 Éclats ─┐
+   ④ +PRODUCTION                                      ▼                  │
+   (passifs + synergies + signatures)      ③ HÉROS : fusion (doublons → │
+        ▲                                   niveau) · Éclats → héros     │
+        │                                   ciblé ◄──────────────────────┘
+        └───────────── déployer dans le Dex ─────────┘
+
+  ⑤ MÉTA  ⟳ Régime de marché → +prod des héros déployés alignés (adapter sa compo)
+  ⑥ EXCHANGE (cloud) : déposer 💎/$ ⇄ trader · Retail⇄OTC arbitrage → multiplier
+     💎/$ → retirer → relance le gacha
+```
+
+- **Boucle primaire (idle, solide)** : `$ → 💎 → gacha → héros → +prod → $`. Tourne
+  hors-ligne, sans cloud. ✅
+- **Boucle de collection (solide)** : doublons → fusion ; surplus → Éclats →
+  fabrication ciblée (ferme la malchance gacha). ✅
+- **Boucle de marché (optionnelle, cloud)** : déposer → trader/arbitrer retail⇄OTC →
+  multiplier 💎/$ → re-tirer. Seul espace **actif/compétitif**. ✅
+- **Méta ambiante** : le régime (global, piloté par le marché interne) module la prod
+  des héros alignés → plus **subi** qu'agi pour le joueur lambda. ⚠️
+
+### Les trous (état actuel)
+
+1. **Pas de vrai endgame** : héros maxés + Dex achetés → ne reste que « +$/sec » → plafonne.
+2. **Le bras Énergie n'a aucun rôle propre** : il ne fait que du cash, comme les autres.
+3. **Les frais du marché sont un puits pur** (restent chez SYSTÈME) → valeur dormante.
+4. **L'Exchange est cloisonné** : trader multiplie 💎/$ mais ne crée pas d'actif nouveau.
+
+### Où ça se branche
+
+Le **$VOLT** (§5) vise exactement ces 4 trous : Énergie **mine** (#2) → le jeton se
+**trade** (#4) → le **staking** transforme les frais dormants en **rendement** (#1, #3),
+le **halving** entretient la tension d'offre. Le **levier** (L5) puis l'**endgame
+frais→stakers** referment la boucle économique de fin de partie.
+
+---
+
 ## 1. Principe directeur : le bras = une *verticale*, le module = une *facette*
 
 On abandonne « 1 module = 1 activité isolée » au profit de **« 1 bras = 1
