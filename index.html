@@ -279,6 +279,11 @@
     border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
   }
 
+  /* Badge de régime (effet famille G) */
+  .regime-badge { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
+  .regime-badge b { color: var(--text); }
+  .regime-badge .reg-fx { color: var(--accent); font-weight: 700; }
+
   /* Section Exchange dans le module Bourse */
   .mp-exchange {
     margin-top: 16px; padding: 16px; border-radius: 12px;
@@ -419,6 +424,7 @@
     <div class="panel counter">
       <div class="cash" id="cashCount">$0</div>
       <div class="per-sec" id="perSec">$0 / sec</div>
+      <div class="regime-badge" id="regimeBadge" title="Régime de marché">🦀 <b>Plat</b> · effet héros 0%</div>
       <button class="bill-btn" id="billBtn" aria-label="Gagner du cash">💵</button>
       <div class="click-hint">+$<span id="clickPower">1</span> par clic</div>
       <div class="stat">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
@@ -552,7 +558,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=19"></script>
+<script src="cloud.js?v=20"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -797,6 +803,45 @@
     });
     return m;
   }
+  // --- Régime de marché → effet sur les héros (famille G) ----------------
+  // Le régime vient de l'économie (cloud). Hors-ligne : CRABE neutre.
+  const REGIME_INFO = {
+    BULL:  { e: "🐂", n: "Haussier" }, BEAR: { e: "🐻", n: "Baissier" },
+    CRASH: { e: "💥", n: "Krach" },    CRABE:{ e: "🦀", n: "Plat" },
+    HYPE:  { e: "🚀", n: "Euphorie" }
+  };
+  const REGIME_ALIGN = 1.08;   // héros adapté au régime courant
+  const REGIME_MIS   = 0.96;   // héros à contre-emploi
+  let currentRegime = "CRABE";
+  // Multiplicateur GLOBAL de production selon l'adéquation des héros déployés.
+  function regimeProdMult() {
+    let m = 1;
+    state.dexes.forEach(d => {
+      if (!d.placed) return;
+      ASSETS.forEach(n => {
+        if (!d.placed[n.id]) return;
+        const h = HDATA_BY_ID[n.id]; if (!h || h.regime == null) return;   // Quant = polyvalent
+        m *= (h.regime === currentRegime) ? REGIME_ALIGN : REGIME_MIS;
+      });
+    });
+    return m;
+  }
+  function renderRegimeBadge() {
+    const el = document.getElementById("regimeBadge"); if (!el) return;
+    const info = REGIME_INFO[currentRegime] || REGIME_INFO.CRABE;
+    const pct = Math.round((regimeProdMult() - 1) * 100), sign = pct > 0 ? "+" : "";
+    el.innerHTML = info.e + " <b>" + info.n + "</b> · "
+      + (pct ? '<span class="reg-fx">' + sign + pct + "%</span>" : "effet héros 0%");
+    el.title = "Régime de marché : " + info.n + ". Déploie des héros de la classe adaptée pour un bonus de production.";
+  }
+  function fetchRegime() {
+    if (!(window.Cloud && window.Cloud.enabled && window.Cloud.economy && window.Cloud.economy.regime)) return;
+    window.Cloud.economy.regime().then(function (r) {
+      if (r && r.data && r.data.regime && r.data.regime !== currentRegime) { currentRegime = r.data.regime; }
+      renderRegimeBadge();
+    }).catch(function () {});
+  }
+
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
@@ -805,7 +850,7 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
-    return total;
+    return total * regimeProdMult();   // famille G : bonus/malus de régime
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1165,6 +1210,7 @@
   function render() {
     document.getElementById("cashCount").textContent = "$" + fmt(state.cash);
     document.getElementById("perSec").textContent = "$" + fmt(perSecond()) + " / sec";
+    renderRegimeBadge();
     document.getElementById("clickPower").textContent = state.clickPower;
     document.getElementById("connCount").textContent = connectedCount();
 
@@ -1426,6 +1472,8 @@
   };
   if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
 
+  fetchRegime();                       // régime de marché → effet héros (famille G)
+  setInterval(fetchRegime, 60000);     // le régime évolue lentement (hystérésis)
   setInterval(loop, 100);
   setInterval(save, 15000);
   window.addEventListener("beforeunload", save);
