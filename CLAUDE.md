@@ -16,12 +16,19 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 Le projet **se recentre sur l'idle pur**. Tout système **actif/attentionnel/online**
 est **hors périmètre** et sera **retiré des fichiers à terme** (pas tout de suite —
 suppression délibérée, à confirmer avant chaque purge) :
-- **À retirer à terme** : terminal **Exchange** (cloud.js), **OTC** (`economy_otc.sql`),
-  **arbitrage**, achat de gems **au cours**/retail, **levier** (L5), et le **design $VOLT
-  *avec trading*** (le minage passif + staking pourront revenir en version idle-pure).
+- **✅ RETIRÉ du front (2026-06-24)** : tout le terminal **Exchange** — onglet `market`,
+  écran `#marketScreen`, activité Exchange du module Bourse, mini-wallet (dépôt/retrait),
+  achat de gems **au cours**/retail (→ gemmes au **prix-formule** idle pur), `TRADING_ARM`/
+  venue OTC, **et tout `Cloud.economy.*` dans `cloud.js`** (663→229 lignes ; on garde auth/
+  cloud-save/classement/pseudo). Le **régime** est parti avec (badge, fetch, `regimeProdMult`,
+  affinité de fiche) — le champ `regime` des héros **reste en données** pour réemploi futur.
+- **À retirer à terme (backend, encore en place)** : **OTC** (`economy_otc.sql`), **arbitrage**,
+  **retail**, **levier** (L5), `economy_l2/l3/l3b/l4`… (le SQL n'est plus appelé par le front ;
+  purge Supabase à planifier). Design **$VOLT *avec trading*** : minage passif + staking
+  pourront revenir en version idle-pure.
 - **On garde / on construit (idle-natif)** : cash flow, gacha, héros (passifs/synergies/
-  signatures), fusion + Éclats, **régime** (bonus prod passif), **gains hors-ligne**,
-  **automatisation** (managers), **prestige**, contenu de bras/modules.
+  signatures), fusion + Éclats, **gains hors-ligne**, **automatisation** (managers),
+  **Valorisation** (soft-prestige), **Objectifs**, **prestige**, contenu de bras/modules.
 - **Règle d'or** : chaque système a un **chemin passif par défaut** ; l'endgame
   **n'exige jamais** une action manuelle/online.
 - **Focus courant** : ~~bloc **Hors-ligne + Automatisation**~~ ✅ FAIT (1ᵉʳ bloc idle-natif) :
@@ -36,9 +43,9 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), horloge UTC, écran Exchange (conteneur), pont `window.DEX` |
-| `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, regime) |
-| `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo, **et tout le terminal Exchange** (`Cloud.economy.*`, rendu du carnet/graphique/trade) |
+| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), **gains hors-ligne + auto-amélioration**, horloge UTC, pont `window.DEX`. ⚠️ Exchange/régime **retirés** (2026-06-24). |
+| `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, `regime`). Le champ `regime` n'est **plus utilisé** par le front (régime retiré) mais conservé pour réemploi. |
+| `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo. **Le terminal Exchange (`Cloud.economy.*`) a été retiré** (2026-06-24, pivot 100 % Idle). |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
 | `docs/economy.md` | Blueprint de l'économie **implémentée** (lois, couches L1–L5, décisions) |
 | `docs/economy-vision.md` | **Design à venir** (validé en discussion, pas codé) : verticale Trading, Éclats, surnoms héros, jeton **$VOLT**, tiers retail/OTC, achat gems au cours |
@@ -49,7 +56,7 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=22**.
+  Version actuelle : **v=23** (retrait du terminal Exchange).
 - **Workflow git** : l'utilisateur push directement sur `main` ; **le jeu se déploie depuis `main`**.
 - **Déploiement (GitHub Pages via Actions `.github/workflows/pages.yml`)** : `build_type: workflow`, gardé par
   l'**environnement `github-pages`** dont la *deployment-branch-policy* liste les branches autorisées.
@@ -114,7 +121,11 @@ le matching, `economy_market_order_as`, `economy_place_order_as` et `economy_ref
 **venue-aware** (les surcharges sans `p_venue` restent 'retail' → 0 régression). **Si on re-passe `l3b`,
 RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `test_economy_otc.sql`.
 
-## Le terminal Exchange (frontend, dans `cloud.js`)
+## Le terminal Exchange (frontend, dans `cloud.js`) — ⚠️ **RETIRÉ le 2026-06-24**
+
+> Cette section décrit du code **supprimé** (pivot 100 % Idle). Conservée comme référence
+> pour la **purge backend** restante (fonctions SQL `economy_*` encore déployées sur Supabase
+> mais plus appelées). Ne rien réintroduire ici sans décision explicite.
 
 - Onglet **🫱🏻‍🫲🏻 Exchange** (barre du haut, `data-nav="market"`) → écran plein `#marketScreen` (pas une modale).
   `index.html` appelle `Cloud.marketOpen()/marketClose()` via `showScreen("market")`.
@@ -172,7 +183,7 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 ## Tâches en attente / roadmap
 
 1. ~~**NPC réactif (L3b)**~~ — ✅ FAIT (`economy_l3b.sql`). Le cours bouge tout seul.
-2. ~~**Régime → effet héros (famille G)**~~ — ✅ FAIT. `regimeProdMult()` dans index.html : **bonus-only additif plafonné** (+6 %/héros aligné, plafond +40 %, aucun malus). Badge régime en jeu + affinité sur la fiche, fetch via `Cloud.economy.regime()` toutes les 60 s. ⚠️ À prévoir : **rééquilibrer la répartition des affinités** dans `heroes.data.js` (BULL 6 / CRASH 3 / CRABE 3 / HYPE 3 / BEAR 1 / Quant 2 — BEAR trop faible).
+2. ~~**Régime → effet héros (famille G)**~~ — ❌ **RETIRÉ le 2026-06-24** (dépendait du cours Exchange ; pivot 100 % Idle). Le champ `regime` des héros reste en données (`heroes.data.js`) pour un éventuel réemploi **idle-natif** (ex. cycle déterministe piloté par l'horloge UTC, sans backend). Si réintroduit : repartir d'un `regimeProdMult()` local + rééquilibrer les affinités (BULL 6 / CRASH 3 / CRABE 3 / HYPE 3 / BEAR 1 / Quant 2 — BEAR trop faible).
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
 5. **Les 17 autres activités de module**.
