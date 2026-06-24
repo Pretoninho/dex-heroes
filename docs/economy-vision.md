@@ -93,11 +93,31 @@ Fusionner du module bascule sur le coût en Éclats quand les doublons manquent.
 Jeton **volatil, à offre plafonnée**, **carburant de la verticale Trading**.
 (Nom du jeton **découplé** du module, comme les surnoms de héros.)
 
+> **Décisions verrouillées (v1)** — *design validé, pas encore codé* :
+> - **Minage = pool global pro-rata** : émission globale fixe/tick **répartie au prorata
+>   du hashrate** (= prod du bras Énergie déclarée par chaque joueur). Plus de mineurs =
+>   part plus fine (analogue à la difficulté Bitcoin). Mineurs inactifs (hashrate périmé)
+>   exclus. **Pas** de plafond par joueur.
+> - **Halving par seuils de supply** (pas par le temps) : émission `E = base × 2^(−epoch)` ;
+>   `epoch++` quand `cumulative_minted` franchit `C·(1−2⁻ᵏ)` → **épochs géométriques** qui
+>   convergent vers le plafond `C` (parodie **21 000 000**, tunable). Déterministe, équitable.
+> - **Périmètre v1 = minage + trade + staking.** Levier (L5) et carburant des signatures = plus tard.
+> - **Paire = $VOLT ↔ cash**, ouverte depuis le module **🎲 Spéculation** (Crypto, a1t1).
+>   Moteur à rendre **pair-aware** (2ᵉ paire après la base venue-aware d'OTC).
+> - **Staking avec période de lock** (durée exacte à caler), part des frais **croissante
+>   → 100 % au plafond** (raconte l'endgame). **Satoshi (Degen)** déployé → **+rendement de
+>   staking** (seule influence héros sur le $VOLT au v1).
+> - **Backend** : nouveau `economy_volt.sql`, **dernier** de la chaîne ; tables `volt_state`
+>   (cumulative/epoch/cap), `volt_miners` (hashrate), `volt_stakes` ; mint au tick pg_cron.
+> - **Reste à caler (tuning, à l'implémentation)** : `base`/`C` exacts, vitesse → 1er halving,
+>   durée du lock, forme de la courbe part-de-frais, % du boost Satoshi.
+
 ### 5.1 Production : minage par le bras Énergie (modèle Bitcoin)
 - Le bras **Énergie** (🛢️ · ⚡ · ☢️) **mine** le $VOLT : la production d'énergie
   frappe du $VOLT (faucet SYSTÈME → joueur) jusqu'à un **plafond GLOBAL fixe**.
-- **Émission décroissante (halvings)** : ⚠️ **protocole à concevoir** (cadence,
-  taille des paliers, plafond exact). À détailler avant implémentation.
+- **Émission décroissante (halvings)** ✅ **protocole décidé** : épochs géométriques
+  par seuils de supply (voir Décisions verrouillées ci-dessus). Reste à **caler les
+  nombres** (`base`, `C`, vitesse → 1er halving).
 - Cross-arm : **Énergie** (mine) → **Bourse/Spéculation** (trade) → **utilité**.
   Donne enfin un rôle au bras Énergie au-delà du cash.
 
@@ -185,13 +205,13 @@ les modules.
 
 ## 9. Questions ouvertes (à trancher avant implémentation)
 
-- **Protocole de halving du $VOLT** : cadence, paliers, plafond exact, vitesse de
-  minage vs production d'énergie. *(à concevoir)*
+- ~~**Protocole de halving du $VOLT**~~ ✅ **décidé** (épochs géométriques par supply,
+  pool global pro-rata — voir §5). Reste du **tuning** : `base`, `C`, vitesse → 1er halving.
+- ~~**Mécanique de staking**~~ ✅ **décidé** (lock + part des frais croissante → 100 %,
+  Satoshi booste le rendement — voir §5). Reste du **tuning** : durée du lock, courbe, % Satoshi.
 - **Levier** : design détaillé de la liquidation, marge en $VOLT, funding (L5).
-- **Mécanique de staking** : durée de blocage, calcul du rendement (part des frais),
-  effet de Satoshi.
-- **Fabrication de héros via Éclats** : coûts par rareté, héros ciblable ou aléatoire.
-- **NPC arbitragiste** retail↔OTC : utile dès le départ ou plus tard ?
+- ~~**Fabrication de héros via Éclats**~~ ✅ FAIT (ciblé, 8/6/4 — voir §3).
+- ~~**NPC arbitragiste** retail↔OTC~~ ✅ FAIT (garde-fou >5 %, arbitrage = activité joueur — §6).
 
 ---
 
@@ -200,7 +220,9 @@ les modules.
 1. ~~**Éclats** (faucet fusion + sink fabrication)~~ — ✅ **Phase 1 FAITE** (local). Reste : trade (Phase 2, pont ledger).
 2. ~~**Surnoms de héros**~~ — ✅ FAIT (local, `state.nicknames`, éditeur fiche Codex).
 3. ~~**Tiers retail/OTC** + **achat de gems au cours**~~ — ✅ FAIT (`economy_retail.sql` + `economy_otc.sql`).
-4. **$VOLT** : minage (Énergie) + module Spéculation + actif volatil + staking.
+4. **$VOLT** (design verrouillé, voir §5) : minage **pool global pro-rata** (Énergie, halving
+   par supply) + trade **$VOLT↔cash** (module Spéculation) + **staking** (lock, part frais
+   croissante, Satoshi booste). `economy_volt.sql`. ← **prochain bloc**.
 5. **Levier (L5)** sur l'OTC, gated par le niveau du héros Bourse.
 6. **Endgame** : bascule frais → stakers (quand $VOLT plafonné).
 7. *(cap lointain)* **DEX-shares** : bourse d'actions entre joueurs.
