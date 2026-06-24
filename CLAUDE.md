@@ -19,7 +19,8 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 | `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, regime) |
 | `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo, **et tout le terminal Exchange** (`Cloud.economy.*`, rendu du carnet/graphique/trade) |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
-| `docs/economy.md` | Blueprint de l'économie (lois, couches L1–L5, décisions) |
+| `docs/economy.md` | Blueprint de l'économie **implémentée** (lois, couches L1–L5, décisions) |
+| `docs/economy-vision.md` | **Design à venir** (validé en discussion, pas codé) : verticale Trading, Éclats, surnoms héros, jeton **$VOLT**, tiers retail/OTC, achat gems au cours |
 | `docs/heroes.md` | Conception des héros |
 | `backend/README.md` | Guide de mise en place Supabase |
 
@@ -100,6 +101,13 @@ re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
 5. **Les 17 autres activités de module**.
+
+### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
+Ordre suggéré : (1) **Éclats** (fragments par rareté, faucet = surplus de fusion, trade) →
+(2) **surnoms de héros** → (3) **tiers retail/OTC** + **achat de gems au cours** →
+(4) **$VOLT** (miné par le bras Énergie, plafond global, module 🎲 Spéculation, staking, ancre faible + NPC agité) →
+(5) **levier (L5)** sur l'OTC → (6) **endgame** frais→stakers → (cap lointain) **DEX-shares**.
+⚠️ Le **protocole de halving du $VOLT** reste à concevoir.
 
 ## Gotchas connus
 
