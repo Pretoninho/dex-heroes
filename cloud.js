@@ -196,7 +196,8 @@
     deposit:    function (g, c) { return sb.rpc("economy_deposit", { d_gems: g, d_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(-g); if (c) bridge.addCash(-c); } return r; }); },
     withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(g); if (c) bridge.addCash(c); } return r; }); },
     place:      function (side, g, p) { return sb.rpc("economy_place_order", { p_side: side, p_gems: g, p_price: p }); },
-    cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); }
+    cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); },
+    amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); }
   };
 
   // ===== EXCHANGE (Bloc 1 : en-tête ticker + carnet + buy/sell + dépôt) =====
@@ -206,7 +207,7 @@
     HYPE:  ["🚀", "Euphorie", "#22c197"]
   };
   var mkMsg = null, mkSide = "buy", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
-  var mkRefresh = null, mkClock = null;
+  var mkRefresh = null, mkClock = null, mkEditing = false;
   function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
   function $id(i) { return document.getElementById(i); }
@@ -296,15 +297,21 @@
         if ($id("xAvbl")) $id("xAvbl").innerHTML = "Dispo marché : 💎<b>" + fmtN(mkBal.gems) + "</b> · $<b>" + fmtN(mkBal.cash) + "</b>";
       });
       Cloud.economy.myOrders().then(function (r) {
+        if (mkEditing) return;   // ne pas écraser une édition en cours
         var rows = (r && r.data) || [], el = $id("xMyOrders"); if (!el) return;
         if (!rows.length) { el.innerHTML = '<div class="xempty">Aucun ordre ouvert</div>'; return; }
         el.innerHTML = rows.map(function (o) {
           var s = o.side === "buy" ? "Achat" : "Vente";
-          return '<div class="xord"><span class="' + o.side + '">' + s + ' 💎' + fmtN(o.gems_remaining) + ' @ $' + fmtP(o.price) + '</span>'
-            + '<button data-cancel="' + o.id + '">Annuler</button></div>';
+          return '<div class="xord" data-id="' + o.id + '">'
+            + '<span class="xord-view ' + o.side + '">' + s + ' 💎' + fmtN(o.gems_remaining) + ' @ $' + fmtP(o.price) + '</span>'
+            + '<span class="xord-act"><button data-edit="' + o.id + '" data-gems="' + o.gems_remaining + '" data-price="' + o.price + '">Modifier</button>'
+            + '<button data-cancel="' + o.id + '">Annuler</button></span></div>';
         }).join("");
         el.querySelectorAll("[data-cancel]").forEach(function (b) {
           b.onclick = function () { Cloud.economy.cancel(b.getAttribute("data-cancel")).then(function (rr) { mkSay(rr && rr.data && rr.data.success ? "Ordre annulé." : "Erreur."); renderMarket(); }); };
+        });
+        el.querySelectorAll("[data-edit]").forEach(function (b) {
+          b.onclick = function () { startEditOrder(b.getAttribute("data-edit"), b.getAttribute("data-gems"), b.getAttribute("data-price")); };
         });
       });
     } else {
@@ -321,6 +328,26 @@
     go.textContent = side === "buy" ? "Acheter 💎" : "Vendre 💎";
     go.className = "xch-go " + side;
     setAmtFromPct(0);
+  }
+
+  // Édition en ligne d'un ordre (annuler + replacer atomique côté serveur)
+  function startEditOrder(id, gems, price) {
+    mkEditing = true;
+    var row = document.querySelector('.xord[data-id="' + id + '"]'); if (!row) { mkEditing = false; return; }
+    row.innerHTML = '<span class="xord-edit">$<input class="xeP" type="number" min="0" step="0.01" value="' + price + '">'
+      + '💎<input class="xeG" type="number" min="0" value="' + Math.floor(gems) + '"></span>'
+      + '<span class="xord-act"><button class="xeOk">✓</button><button class="xeNo">✗</button></span>';
+    row.querySelector(".xeNo").onclick = function () { mkEditing = false; renderMarket(); };
+    row.querySelector(".xeOk").onclick = function () {
+      var p = parseFloat(row.querySelector(".xeP").value) || 0, g = Math.floor(parseFloat(row.querySelector(".xeG").value) || 0);
+      if (!p || !g) { mkSay("Prix et quantité requis."); return; }
+      mkEditing = false;
+      Cloud.economy.amend(id, g, p).then(function (rr) {
+        if (rr && rr.data && rr.data.success) mkSay("Ordre modifié ✔");
+        else mkSay((rr && rr.error && rr.error.message) || (rr && rr.data && rr.data.error) || "Modification refusée.");
+        renderMarket();
+      });
+    };
   }
 
   function injectMarketUI() {
@@ -361,7 +388,8 @@
       + ".xch-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.xch-row input{flex:1;min-width:70px}"
       + ".xch-row button{padding:9px 12px;border-radius:8px;border:1px solid #243246;background:#16212f;color:#e9eef5;cursor:pointer}"
       + ".xch-orders{max-height:140px;overflow:auto}.xord{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border-bottom:1px solid #1d2a3a;padding:6px 2px}"
-      + ".xord .buy{color:#22c197}.xord .sell{color:#e35d6a}.xord button{padding:4px 9px;border-radius:7px;border:1px solid #243246;background:#16212f;color:#9fb0c3;cursor:pointer;font-size:12px}"
+      + ".xord .buy{color:#22c197}.xord .sell{color:#e35d6a}.xord-act{display:flex;gap:4px}.xord button{padding:4px 9px;border-radius:7px;border:1px solid #243246;background:#16212f;color:#9fb0c3;cursor:pointer;font-size:12px}"
+      + ".xord-edit{display:flex;gap:4px;align-items:center}.xord-edit input{width:62px!important;padding:5px;font-size:13px}"
       + ".xch-msg{font-size:12px;color:#ffd24d;min-height:16px;margin-top:8px}.xch-close{margin-top:10px;width:100%;padding:10px;border-radius:9px;border:1px solid #243246;background:#16212f;color:#9fb0c3;cursor:pointer}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 

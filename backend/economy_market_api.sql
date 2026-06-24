@@ -141,3 +141,35 @@ begin
 end; $$;
 grant execute on function public.economy_my_orders() to authenticated;
 
+-- Modifier un ordre = annuler + replacer, ATOMIQUE (même côté).
+-- Si le replacement échoue (fonds insuffisants...), on lève → l'ordre d'origine
+-- est restauré (rollback de l'annulation). L'ordre perd sa priorité d'ancienneté.
+create or replace function public.economy_amend_order(p_order_id uuid, p_gems numeric, p_price numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_actor uuid; v_order public.economy_orders; v_cancel jsonb; v_place jsonb;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  if p_gems <= 0 or p_price <= 0 then return jsonb_build_object('success', false, 'error', 'invalid amounts'); end if;
+
+  v_actor := public.economy_ensure_player();
+  select * into v_order from public.economy_orders
+    where id = p_order_id and actor_id = v_actor and status = 'open';
+  if not found then return jsonb_build_object('success', false, 'error', 'order not found or not yours'); end if;
+
+  -- 1) annuler (rend l'escrow restant)
+  v_cancel := public.economy_cancel_order(p_order_id);
+  if (v_cancel->>'success')::boolean is not true then return v_cancel; end if;
+
+  -- 2) replacer avec les nouveaux paramètres, MÊME côté
+  v_place := public.economy_place_order(v_order.side, p_gems, p_price);
+
+  -- échec → on lève pour annuler le cancel (l'ordre d'origine est restauré)
+  if (v_place->>'success')::boolean is not true then
+    raise exception 'amend failed: %', coalesce(v_place->>'error', 'replacement refusé');
+  end if;
+
+  return jsonb_build_object('success', true, 'order_id', v_place->>'order_id', 'amended', true);
+end; $$;
+grant execute on function public.economy_amend_order(uuid, numeric, numeric) to authenticated;
+
