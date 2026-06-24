@@ -91,6 +91,7 @@
   function setUser(u, doPull) {
     if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }   // annule un push en attente → n'écrit pas vers le mauvais compte
     user = u;
+    Cloud.user = u;   // exposé au jeu (ex. achat de gems au cours si connecté)
     renderUI();
     if (u && doPull && bridge) pullAndApply();
   }
@@ -248,6 +249,7 @@
     withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { var ng = r.data.net_gems != null ? r.data.net_gems : g, nc = r.data.net_cash != null ? r.data.net_cash : c; if (ng) bridge.addGems(ng); if (nc) bridge.addCash(nc); } return r; }); },
     place:      function (side, g, p) { return sb.rpc("economy_place_order", { p_side: side, p_gems: g, p_price: p }); },
     market:     function (side, g) { return sb.rpc("economy_market_order", { p_side: side, p_gems: g }); },
+    retailBuy:  function (g, budget) { return sb.rpc("economy_retail_buy_gems", { p_gems: g, p_budget: budget }); },
     cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); },
     amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); }
   };
