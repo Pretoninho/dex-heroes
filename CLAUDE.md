@@ -36,7 +36,7 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), horloge UTC, écran Exchange (conteneur), pont `window.DEX` |
+| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), horloge UTC, écran Exchange (conteneur), pont `window.DEX` |
 | `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, regime) |
 | `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo, **et tout le terminal Exchange** (`Cloud.economy.*`, rendu du carnet/graphique/trade) |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
@@ -50,8 +50,14 @@ suppression délibérée, à confirmer avant chaque purge) :
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
   Version actuelle : **v=22**.
-- **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
-  (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
+- **Workflow git** : l'utilisateur push directement sur `main` ; **le jeu se déploie depuis `main`**.
+- **Déploiement (GitHub Pages via Actions `.github/workflows/pages.yml`)** : `build_type: workflow`, gardé par
+  l'**environnement `github-pages`** dont la *deployment-branch-policy* liste les branches autorisées.
+  ⚠️ **Gotcha (réglé le 24/06/2026)** : la policy n'autorisait que `claude/simple-idle-game-dg2zyb` → tout
+  push sur `main` **échouait au déploiement en ~3 s** (rien en ligne). On a **ajouté `main`** à la policy
+  (`gh api -X POST repos/:o/:r/environments/github-pages/deployment-branch-policies -f name=main -f type=branch`).
+  Vérifier qu'un push s'est bien déployé : `gh run list --workflow=pages.yml --branch main -L 1`. Forcer :
+  `gh workflow run pages.yml --ref main`.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
 - Ne **pas** créer de PR sans demande explicite — ici l'utilisateur veut systématiquement push sur main.
 
@@ -150,6 +156,18 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   couvrir une fusion (Éclats = doublons de secours) · faucet = **1 Éclat par doublon-surplus** d'un
   héros déjà maxé. **On ne trade JAMAIS les héros entiers** (anti-pay-to-win) — le trade portera sur
   les Éclats (fongibles par rareté) en Phase 2.
+- **Difficulté (calibre modéré)** : `GROWTH` = **1,28** (×coût/niveau) · gains **hors-ligne plafonnés**
+  (`OFFLINE_CAP_H`=4 h, `OFFLINE_RATE`=0,5 ; les héros `offlineMult`/`offlineCap` étendent le **plafond**
+  en heures, plus le taux) · **Dex 3** (puits de cash endgame, 50 M, efficience ~0,4×). Leviers tunables :
+  `GROWTH`, `OFFLINE_CAP_H`/`OFFLINE_RATE`, `DEX_DEFS`.
+- **Valorisation = soft-prestige SANS reset** : rang d'entreprise acheté **au cash** (`VALO_BASE`=100 k,
+  `VALO_GROWTH`=×8/rang), chaque rang = **+10 %** prod globale (`VALO_STEP`, multiplicatif, permanent).
+  C'est à la fois le **niveau joueur** ET le **puits de cash structurel** de fin de partie. Branché dans
+  `perSecond()` (`× valoMult()`). Titres : Stagiaire→…→Légende, puis `★N`.
+- **Objectifs = jalons one-shot** : conditions **dérivées de l'état courant** (prod $/s, modules connectés,
+  héros possédés/maxés, rang Valo, Dex), donc **pas de compteur cumulatif**. Récompense (💎/🧩) versée
+  **une fois** (latch `state.objectives`). Saves d'avant la feature **amorcées en silence** (`seedObjectives`
+  marque l'acquis sans payer). C'est l'ancrage des futures **quêtes** (récurrentes, reset UTC).
 
 ## Tâches en attente / roadmap
 
@@ -158,6 +176,9 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
 5. **Les 17 autres activités de module**.
+6. **Couche progression** — ✅ **Valorisation** (soft-prestige sans reset) + ✅ **Objectifs** (jalons one-shot) FAITS.
+   Reste : **Quêtes** (tâches dirigées, **reset quotidien UTC** — horloge déjà en place ; c'est ici que vit le
+   **sink récurrent** « dépense X »). Pistes : gater des déblocages sur le rang Valo ; équilibrer la liste d'objectifs.
 
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** ~~Phase 1~~ ✅ FAIT (local : faucet surplus→Éclats, fabrication ciblée,

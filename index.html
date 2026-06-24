@@ -407,6 +407,20 @@
   .gembal b { color: var(--accent-2); }
   .gembuy { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .gemhint { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .valo { margin-top: 16px; border-top: 1px solid rgba(255,255,255,.07); padding-top: 14px; }
+  .valobal { font-size: 15px; margin-bottom: 8px; }
+  .valobal b { color: var(--accent); }
+  .valobal .vmult { color: var(--accent-2); font-weight: 700; }
+  .valohint { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .objlist { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .objrow { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: var(--panel-2); }
+  .objrow.done { border-color: var(--accent); opacity: .7; }
+  .objrow .obj-ic { font-size: 20px; }
+  .objrow .obj-main { flex: 1; min-width: 0; }
+  .objrow .obj-name { font-weight: 700; }
+  .objrow .obj-desc { color: var(--muted); font-size: 12px; }
+  .objrow .obj-rw { color: var(--accent-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .objrow.done .obj-rw { color: var(--accent); }
 
   .toast {
     position: fixed;
@@ -456,6 +470,7 @@
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
+      <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
       <button class="navtab" data-nav="market">🫱🏻‍🫲🏻<span>Exchange</span></button>
     </div>
   </nav>
@@ -477,6 +492,12 @@
           <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
         </div>
         <div class="gemhint" id="gemHint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
+      </div>
+
+      <div class="valo" id="valoBox">
+        <div class="valobal">🏛️ <b id="valoRank">Stagiaire</b> · prod globale <span class="vmult" id="valoMult">×1.00</span></div>
+        <button class="btn" id="valoBtn">📈 Promotion · <span id="valoCost">$100k</span></button>
+        <div class="valohint">Dépense du cash pour un rang permanent (+10 % prod globale). Aucun reset.</div>
       </div>
 
       <div class="controls">
@@ -605,6 +626,17 @@
         </div>
       </div>
 
+      <!-- Écran Objectifs -->
+      <div id="objectivesScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="objBackBtn">← Retour</button>
+          <div>🎯 <b id="objDone">0</b>/<span id="objTotal">0</span></div>
+        </div>
+        <h2>🎯 Objectifs</h2>
+        <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes et 🧩 Éclats.</p>
+        <div class="objlist" id="objList"></div>
+      </div>
+
       <!-- Bourse aux gemmes (terminal) -->
       <div id="marketScreen" style="display:none">
         <div class="mk-fallback" style="color:var(--muted);text-align:center;padding:40px 16px">☁️ Connecte le cloud pour accéder à la Bourse aux gemmes.</div>
@@ -641,7 +673,11 @@
   // héros (étape gacha). parent = module amont requis pour se connecter.
   // baseCost : coût de connexion | rate : +$/sec par niveau | growth : ×coût.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const GROWTH = 1.21;
+  const GROWTH = 1.28;          // ×coût par niveau de module (durci de 1.21 → 1.28 : mid-game plus exigeant)
+  // Gains hors-ligne : PLAFONNÉS + taux réduit. Héros « hors-ligne » : offlineCap étend
+  // le PLAFOND (offlineCapMult), offlineMult BOOSTE le gain par seconde (effets distincts).
+  const OFFLINE_CAP_H = 4;      // plafond de base des gains hors-ligne (heures)
+  const OFFLINE_RATE  = 0.5;    // les gains hors-ligne valent 50 % du taux en ligne
   const RARITY = ["Commun", "Rare", "Épique"];   // index = palier (tier)
   const ARMS = [
     { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:2250,    rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:60000,    rate:120  } ] },
@@ -703,8 +739,7 @@
     save();
   }
 
-  // Idle : gains hors-ligne + automatisation
-  const OFFLINE_CAP_BASE = 4 * 3600;   // plafond de base des gains hors-ligne (4 h, en secondes)
+  // Automatisation (idle)
   const AUTO_BUY_MS = 300;             // cadence de l'auto-amélioration (ms)
 
   // Gacha (réglages issus du GDD Desk Heroes)
@@ -724,8 +759,9 @@
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
   // par canBuyDex() (plus tard : exiger aussi tous les héros).
   const DEX_DEFS = [
-    { name: "Dex 1", costMult: 1,  rateMult: 1,  buyCost: 0 },
-    { name: "Dex 2", costMult: 50, rateMult: 25, buyCost: 250000 },
+    { name: "Dex 1", costMult: 1,    rateMult: 1,    buyCost: 0 },
+    { name: "Dex 2", costMult: 50,   rateMult: 25,   buyCost: 250000 },
+    { name: "Dex 3", costMult: 2500, rateMult: 1000, buyCost: 50000000 },   // puits de cash endgame (efficience ~0,4× → réservé au capital tardif)
   ];
 
   const SAVE_KEY = "dexHeroesSave";
@@ -748,6 +784,8 @@
       dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
       currentDex: 0,               // Dex affiché
       autoBuy: false,              // automatisation : auto-améliorer le module le moins cher
+      valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
+      objectives: {},              // 🎯 jalons atteints { objId: true } (récompense versée une fois)
       lastSeen: Date.now()
     };
   }
@@ -784,6 +822,10 @@
     if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
     if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
     if (typeof state.autoBuy !== "boolean") state.autoBuy = false;
+    if (typeof state.valoRank !== "number" || state.valoRank < 0) state.valoRank = 0;
+    const hadObjectives = saved && saved.objectives && typeof saved.objectives === "object";
+    if (!state.objectives || typeof state.objectives !== "object") state.objectives = {};
+    if (!hadObjectives) seedObjectives();   // save d'avant la feature : marque les jalons déjà atteints SANS récompense
   }
 
   // --- Gacha : tirage avec pity -----------------------------------------
@@ -982,6 +1024,75 @@
     }).catch(function () {});
   }
 
+  // --- 🏛️ Valorisation (rang d'entreprise) : niveau permanent + puits de cash ---
+  // On monte de rang en DÉPENSANT du cash (coût ×VALO_GROWTH par rang). Chaque rang
+  // donne +VALO_STEP de prod GLOBALE (multiplicatif, permanent). Pas de reset : c'est
+  // un « soft-prestige » qui rend le cash de fin de partie utile sans rien effacer.
+  const VALO_BASE = 100000;   // coût du 1er rang ($)
+  const VALO_GROWTH = 8;      // ×coût par rang
+  const VALO_STEP = 0.10;     // +10 % prod globale par rang (multiplicatif)
+  const VALO_RANKS = ["Stagiaire", "Analyste", "Trader", "Gérant", "Directeur", "Associé", "Magnat", "Oligarque", "Baron", "Légende"];
+  function valoRankNum() { return state.valoRank || 0; }
+  function valoMult() { return Math.pow(1 + VALO_STEP, valoRankNum()); }
+  function valoCost(r) { return Math.floor(VALO_BASE * Math.pow(VALO_GROWTH, r == null ? valoRankNum() : r)); }
+  function valoName(r) { r = (r == null ? valoRankNum() : r); return r < VALO_RANKS.length ? VALO_RANKS[r] : VALO_RANKS[VALO_RANKS.length - 1] + " ★" + (r - VALO_RANKS.length + 2); }
+  function buyValo() {
+    const cost = valoCost();
+    if (state.cash < cost) { toast("Pas assez de cash pour la promotion !"); return; }
+    state.cash -= cost;
+    state.valoRank = valoRankNum() + 1;
+    toast(`📈 Promotion : ${valoName()} · +${Math.round(VALO_STEP * 100)} % prod globale`);
+    render(); save();
+  }
+
+  // --- 🎯 Objectifs (jalons one-shot) -----------------------------------
+  // Conditions dérivées de l'état COURANT (monotones) → pas de compteur cumulatif.
+  // Récompense versée UNE seule fois (latch dans state.objectives). Les sauvegardes
+  // d'avant la feature sont amorcées en silence (seedObjectives) : pas de pluie de gains.
+  function objConnected() { const s = new Set(); state.dexes.forEach(d => { if (d.levels) Object.keys(d.levels).forEach(id => { if (d.levels[id] > 0) s.add(id); }); }); return s.size; }
+  function objOwned() { return ASSETS.filter(n => (state.heroes[n.id] || 0) > 0).length; }
+  function objMaxed() { return ASSETS.filter(n => (state.heroes[n.id] || 0) > 0 && (state.lvl[n.id] || 1) >= maxLvl(n.id)).length; }
+  const OBJECTIVES = [
+    { id: "prod1",    label: "Premiers revenus",     desc: "Atteindre $50 / s",           check: () => perSecond() >= 50,       reward: { gems: 200 } },
+    { id: "conn6",    label: "Diversification",      desc: "Connecter 6 modules",         check: () => objConnected() >= 6,     reward: { gems: 300 } },
+    { id: "heroes6",  label: "Recruteur",            desc: "Posséder 6 héros",            check: () => objOwned() >= 6,         reward: { gems: 400 } },
+    { id: "prod2",    label: "Cash-flow positif",    desc: "Atteindre $1 000 / s",        check: () => perSecond() >= 1000,     reward: { gems: 500 } },
+    { id: "valo1",    label: "Promotion",            desc: "Atteindre le rang Analyste",  check: () => valoRankNum() >= 1,      reward: { gems: 400 } },
+    { id: "dex2",     label: "Duplication",          desc: "Acheter le Dex 2",            check: () => state.dexes.length >= 2, reward: { gems: 800 } },
+    { id: "conn12",   label: "Conglomérat",          desc: "Connecter 12 modules",        check: () => objConnected() >= 12,    reward: { gems: 700 } },
+    { id: "max1",     label: "Fusion maximale",      desc: "Maxer un héros",              check: () => objMaxed() >= 1,         reward: { shards: { r: 1, n: 6 } } },
+    { id: "prod3",    label: "Machine à cash",       desc: "Atteindre $100 k / s",        check: () => perSecond() >= 1e5,      reward: { gems: 1200 } },
+    { id: "valo4",    label: "Cadre supérieur",      desc: "Atteindre le rang Directeur", check: () => valoRankNum() >= 4,      reward: { gems: 1500 } },
+    { id: "conn18",   label: "Mainmise totale",      desc: "Connecter les 18 modules",    check: () => objConnected() >= 18,    reward: { gems: 2000 } },
+    { id: "heroes18", label: "Collection complète",  desc: "Posséder les 18 héros",       check: () => objOwned() >= 18,        reward: { gems: 3000 } },
+    { id: "dex3",     label: "Triplication",         desc: "Acheter le Dex 3",            check: () => state.dexes.length >= 3, reward: { gems: 3000 } },
+    { id: "prod4",    label: "Empire financier",     desc: "Atteindre $10 M / s",         check: () => perSecond() >= 1e7,      reward: { gems: 4000 } },
+    { id: "valo7",    label: "Magnat de la finance", desc: "Atteindre le rang Oligarque", check: () => valoRankNum() >= 7,      reward: { gems: 6000 } },
+  ];
+  function objReward(rw) { const p = []; if (rw && rw.gems) p.push("+" + rw.gems + " 💎"); if (rw && rw.shards) p.push("+" + rw.shards.n + " 🧩 " + SHARD_LABEL[rw.shards.r]); return p.join(" · "); }
+  function grantObjReward(rw) { if (!rw) return; if (rw.gems) state.gems = (state.gems || 0) + rw.gems; if (rw.shards) state.shards[rw.shards.r] = (state.shards[rw.shards.r] || 0) + rw.shards.n; }
+  function seedObjectives() { OBJECTIVES.forEach(o => { try { if (o.check()) state.objectives[o.id] = true; } catch (e) {} }); }
+  function checkObjectives() {
+    let changed = false;
+    OBJECTIVES.forEach(o => {
+      if (state.objectives[o.id]) return;
+      let ok = false; try { ok = o.check(); } catch (e) {}
+      if (ok) { state.objectives[o.id] = true; grantObjReward(o.reward); changed = true; const txt = objReward(o.reward); setTimeout(() => toast("🎯 " + o.label + " — " + txt), 150); }
+    });
+    if (changed) { save(); if (screen === "objectives") renderObjectives(); }
+  }
+  function renderObjectives() {
+    document.getElementById("objDone").textContent = OBJECTIVES.filter(o => state.objectives[o.id]).length;
+    document.getElementById("objTotal").textContent = OBJECTIVES.length;
+    document.getElementById("objList").innerHTML = OBJECTIVES.map(o => {
+      const ok = !!state.objectives[o.id];
+      return '<div class="objrow' + (ok ? " done" : "") + '"><div class="obj-ic">' + (ok ? "✅" : "⬜") + "</div>"
+        + '<div class="obj-main"><div class="obj-name">' + o.label + '</div><div class="obj-desc">' + o.desc + "</div></div>"
+        + '<div class="obj-rw">' + (ok ? "Obtenu" : objReward(o.reward)) + "</div></div>";
+    }).join("");
+  }
+  function openObjectives() { showScreen("objectives"); render(); }
+
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
@@ -990,7 +1101,7 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
-    return total * regimeProdMult();   // famille G : bonus/malus de régime
+    return total * regimeProdMult() * valoMult();   // régime (famille G) × rang de Valorisation
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1138,9 +1249,9 @@
       const elapsed = (Date.now() - (prevSeen || Date.now())) / 1000;
       if (elapsed > 1) {
         const fx = globalHeroFx();
-        const cap = OFFLINE_CAP_BASE * fx.offlineCapMult;        // plafond (héros offlineCap l'étendent)
+        const cap = OFFLINE_CAP_H * 3600 * fx.offlineCapMult;    // plafond 4 h, étendu par les héros offlineCap
         const eff = Math.min(elapsed, cap);                      // durée créditée, plafonnée
-        const gained = perSecond() * eff * fx.offlineMult;
+        const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult;   // 50 % du taux × bonus héros offlineMult
         if (gained > 0) {
           state.cash += gained;
           // Modale seulement pour une vraie absence (>= 60 s) ; sinon on crédite en silence
@@ -1292,6 +1403,7 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
+    document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
     document.getElementById("marketScreen").style.display = name === "market" ? "block" : "none";
     if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(pendingMarketVenue); pendingMarketVenue = null; }
     else { if (window.Cloud && window.Cloud.marketClose) window.Cloud.marketClose(); }
@@ -1475,12 +1587,19 @@
       ? "Prix au cours du marché (Exchange). Tirages dans l'onglet 🎲 Gacha."
       : "Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.";
 
+    const vr = valoRankNum(), vc = valoCost(vr);
+    document.getElementById("valoRank").textContent = valoName(vr);
+    document.getElementById("valoMult").textContent = "×" + valoMult().toFixed(2);
+    document.getElementById("valoCost").textContent = "$" + fmt(vc);
+    document.getElementById("valoBtn").classList.toggle("can", state.cash >= vc);
+
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
 
     if (screen === "module") renderModulePage();
     else if (screen === "gacha") renderGacha();
     else if (screen === "heroes") renderHeroesScreen();
+    else if (screen === "objectives") renderObjectives();
     else renderOverview();
     renderAbilities();
   }
@@ -1674,6 +1793,7 @@
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
+    checkObjectives();
     render();
   }
 
@@ -1691,14 +1811,17 @@
   document.getElementById("wbClose").addEventListener("click", () => { document.getElementById("welcomeBack").style.display = "none"; });
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
+  document.getElementById("valoBtn").addEventListener("click", buyValo);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
   document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
   document.getElementById("heroesBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("objBackBtn").addEventListener("click", backToOverview);
   document.querySelectorAll(".navtab").forEach(b => b.addEventListener("click", () => {
     const nav = b.dataset.nav;
     if (nav === "gacha") openGacha();
     else if (nav === "heroes") openHeroes();
+    else if (nav === "objectives") openObjectives();
     else if (nav === "market") { currentModule = null; showScreen("market"); render(); }
     else backToOverview();
   }));
