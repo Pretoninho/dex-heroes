@@ -11,6 +11,23 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 - **Langue de travail : français.**
 - Jeu en ligne : `https://pretoninho.github.io/dex-heroes/`
 
+## ⭐ Cap polaire (décidé le 2026-06-24) : **100 % IDLE**
+
+Le projet **se recentre sur l'idle pur**. Tout système **actif/attentionnel/online**
+est **hors périmètre** et sera **retiré des fichiers à terme** (pas tout de suite —
+suppression délibérée, à confirmer avant chaque purge) :
+- **À retirer à terme** : terminal **Exchange** (cloud.js), **OTC** (`economy_otc.sql`),
+  **arbitrage**, achat de gems **au cours**/retail, **levier** (L5), et le **design $VOLT
+  *avec trading*** (le minage passif + staking pourront revenir en version idle-pure).
+- **On garde / on construit (idle-natif)** : cash flow, gacha, héros (passifs/synergies/
+  signatures), fusion + Éclats, **régime** (bonus prod passif), **gains hors-ligne**,
+  **automatisation** (managers), **prestige**, contenu de bras/modules.
+- **Règle d'or** : chaque système a un **chemin passif par défaut** ; l'endgame
+  **n'exige jamais** une action manuelle/online.
+- **Focus courant** : bloc **Hors-ligne + Automatisation** (1ᵉʳ bloc idle-natif).
+- ⚠️ Les sections « économie/Exchange/$VOLT » ci-dessous décrivent l'existant **en
+  sursis** : ne plus l'étendre ; le documenter sert surtout à savoir **quoi retirer**.
+
 ## Carte des fichiers
 
 | Fichier | Rôle |
