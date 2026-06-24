@@ -251,7 +251,12 @@
     market:     function (side, g) { return sb.rpc("economy_market_order", { p_side: side, p_gems: g }); },
     retailBuy:  function (g, budget) { return sb.rpc("economy_retail_buy_gems", { p_gems: g, p_budget: budget }); },
     cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); },
-    amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); }
+    amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); },
+    // --- Venue OTC (desk 🐋 Hedge Fund) : book séparé + écart d'arbitrage ----
+    tickerOtc:    function () { return sb.rpc("economy_ticker_otc"); },
+    orderbookOtc: function () { return sb.rpc("economy_orderbook_otc"); },
+    placeOtc:     function (side, g, p) { return sb.rpc("economy_place_order_otc", { p_side: side, p_gems: g, p_price: p }); },
+    marketOtc:    function (side, g) { return sb.rpc("economy_market_order_otc", { p_side: side, p_gems: g }); }
   };
 
   // ===== EXCHANGE (Bloc 1 : en-tête ticker + carnet + buy/sell + dépôt) =====
@@ -262,18 +267,39 @@
   };
   var mkMsg = null, mkSide = "buy", mkType = "limit", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
   var mkRefresh = null, mkEditing = false, mkTF = 15;   // minutes par bougie
+  var mkVenue = "retail";                               // 'retail' (📈 Bourse) | 'otc' (🐋 Hedge Fund)
+  var ARB_FEE_RT = 1.2;  // friction aller-retour ≈ retail taker 0,2 % + OTC taker 1,0 % → seuil d'opportunité
   function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
   function $id(i) { return document.getElementById(i); }
 
-  Cloud.marketOpen = function () {
-    if (!document.getElementById("xPrice")) return;   // UI pas encore montée
-    renderMarket();
+  function refreshFees() {
+    var el = document.getElementById("xFees"); if (!el) return;
+    var pct = function (x) { return (Number(x) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 3 }) + " %"; };
+    if (mkVenue === "otc") {
+      el.textContent = "Frais OTC : maker 0,20 % · taker 1,00 % · retrait 0,50 % · min 200 💎 (gros ordres)";
+      return;
+    }
     Cloud.economy.fees().then(function (r) {
-      var f = (r && r.data) || {}, el = document.getElementById("xFees"); if (!el) return;
-      var pct = function (x) { return (Number(x) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 3 }) + " %"; };
+      var f = (r && r.data) || {};
       el.textContent = "Frais : maker " + pct(f.maker || 0.001) + " · taker " + pct(f.taker || 0.002) + " · retrait " + pct(f.withdraw || 0.005);
     });
+  }
+  // Bascule de venue (Retail ⇄ OTC) : met à jour l'UI + relance le rendu
+  function setVenue(v) {
+    mkVenue = v === "otc" ? "otc" : "retail";
+    var c = document.getElementById("marketScreen"); if (!c) return;
+    c.querySelectorAll(".xch-venue button").forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-venue") === mkVenue); });
+    var pair = c.querySelector(".xch-pair");
+    if (pair) pair.innerHTML = mkVenue === "otc" ? '🐋 GEMS <span>/ $ · OTC (Hedge Fund)</span>' : '💎 GEMS <span>/ $ CASH</span>';
+    var pin = document.getElementById("xPriceIn"); if (pin) pin.value = "";
+    refreshFees();
+    renderMarket();
+  }
+
+  Cloud.marketOpen = function (venue) {
+    if (!document.getElementById("xPrice")) return;   // UI pas encore montée
+    setVenue(venue === "otc" ? "otc" : "retail");      // normalise la venue à l'ouverture (+ rend + frais)
     if (mkRefresh) clearInterval(mkRefresh);
     mkRefresh = setInterval(renderMarket, 5000);
   };
@@ -357,21 +383,45 @@
 
   function renderMarket() {
     renderChart();
-    // Ticker
+    // Ticker retail (régime global toujours ; prix/chg seulement en venue retail)
     Cloud.economy.ticker().then(function (r) {
       var t = (r && r.data) || {};
-      mkPrice = Number(t.price) || 0;
-      if ($id("xPrice")) $id("xPrice").textContent = mkPrice ? fmtP(mkPrice) : "—";
-      var chg = Number(t.change_pct) || 0, up = chg >= 0;
-      var ce = $id("xChg");
-      if (ce) { ce.textContent = (up ? "▲ +" : "▼ ") + fmtP(chg) + " %"; ce.style.color = up ? "#22c197" : "#e35d6a"; }
       var rg = XREG[t.regime] || XREG.CRABE, re = $id("xReg");
       if (re) { re.textContent = rg[0] + " " + rg[1]; re.style.color = rg[2]; }
-      if ($id("xHL")) $id("xHL").textContent = "H " + fmtP(t.high) + "  ·  B " + fmtP(t.low);
-      if (!$id("xPriceIn").value && mkPrice) $id("xPriceIn").value = mkPrice.toFixed(2);
+      if (mkVenue === "retail") {
+        mkPrice = Number(t.price) || 0;
+        if ($id("xPrice")) $id("xPrice").textContent = mkPrice ? fmtP(mkPrice) : "—";
+        var chg = Number(t.change_pct) || 0, up = chg >= 0;
+        var ce = $id("xChg");
+        if (ce) { ce.textContent = (up ? "▲ +" : "▼ ") + fmtP(chg) + " %"; ce.style.color = up ? "#22c197" : "#e35d6a"; }
+        if ($id("xHL")) $id("xHL").textContent = "H " + fmtP(t.high) + "  ·  B " + fmtP(t.low);
+        if (!$id("xPriceIn").value && mkPrice) $id("xPriceIn").value = mkPrice.toFixed(2);
+      }
     });
-    // Carnet
-    Cloud.economy.orderbook().then(function (r) {
+    // Widget d'arbitrage (toujours) + ticker OTC (si venue OTC)
+    Cloud.economy.tickerOtc().then(function (r) {
+      var t = (r && r.data) || {};
+      var otc = Number(t.otc_price) || 0, ret = Number(t.retail_price) || 0, sp = Number(t.spread) || 0, pct = sp * 100;
+      var el = $id("xArb");
+      if (el) {
+        if (otc > 0 && ret > 0) {
+          var opp = Math.abs(pct) > ARB_FEE_RT;
+          el.innerHTML = "Retail $<b>" + fmtP(ret) + "</b> · OTC $<b>" + fmtP(otc) + "</b> · écart <b>" + (pct >= 0 ? "+" : "") + fmtP(pct) + " %</b>"
+            + (opp ? ' · <span style="color:#22c197">🟢 arbitrage possible</span>' : ' · <span style="color:var(--muted)">sous le seuil de frais</span>');
+          el.style.color = "var(--muted)";
+        } else { el.textContent = "Écart retail ↔ OTC : en attente du cours OTC (le desk s'amorce au tick)…"; }
+      }
+      if (mkVenue === "otc") {
+        mkPrice = otc;
+        if ($id("xPrice")) $id("xPrice").textContent = otc ? fmtP(otc) : "—";
+        var ce = $id("xChg");
+        if (ce) { ce.textContent = (sp >= 0 ? "▲ +" : "▼ ") + fmtP(pct) + " % vs retail"; ce.style.color = sp >= 0 ? "#22c197" : "#e35d6a"; }
+        if ($id("xHL")) $id("xHL").textContent = "Book mince — impact de prix réel";
+        if (!$id("xPriceIn").value && otc) $id("xPriceIn").value = otc.toFixed(2);
+      }
+    });
+    // Carnet (venue courante)
+    (mkVenue === "otc" ? Cloud.economy.orderbookOtc() : Cloud.economy.orderbook()).then(function (r) {
       var ob = (r && r.data) || { bids: [], asks: [] };
       var bids = ob.bids || [], asks = ob.asks || [];
       var maxQ = 1;
@@ -512,13 +562,17 @@
       + ".xord .buy{color:var(--accent)}.xord .sell{color:#e06b6b}.xord-act{display:flex;gap:4px}.xord button{padding:5px 10px;border-radius:7px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);cursor:pointer;font-size:12px}"
       + ".xord-edit{display:flex;gap:4px;align-items:center}.xord-edit input{width:64px!important;padding:6px;font-size:13px}"
       + ".xch-fees{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}"
+      + ".xch-venue{display:flex;gap:6px;margin-bottom:8px}.xch-venue button{flex:1;padding:8px;border-radius:8px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}.xch-venue button.on{color:var(--text);border-color:var(--accent-2);background:var(--bg)}"
+      + ".xch-arb{font-size:12px;color:var(--muted);background:var(--panel-2);border:1px solid #2a4d3a;border-radius:8px;padding:6px 10px;margin-bottom:10px;text-align:center}.xch-arb b{color:var(--text)}"
       + ".xch-msg{font-size:12px;color:var(--accent-2);min-height:16px;margin-top:10px}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
     container.innerHTML = '<div class="xch">'
       + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div></div>'
+      + '<div class="xch-venue" id="xVenue"><button data-venue="retail" class="on">📈 Retail</button><button data-venue="otc">🐋 OTC</button></div>'
       + '<div class="xch-tick"><div class="xch-price" id="xPrice">—</div><div class="xch-chg" id="xChg">—</div><div class="xch-reg" id="xReg">🦀 Plat</div></div>'
       + '<div class="xch-hl" id="xHL">H — · B —</div>'
+      + '<div class="xch-arb" id="xArb">Écart retail ↔ OTC : …</div>'
       + '<div class="xch-tf" id="xTF"><button data-tf="15" class="on">15m</button><button data-tf="60">1H</button><button data-tf="240">4H</button><button data-tf="1440">D</button></div>'
       + '<div class="xch-chart" id="xChart"><div class="xempty">Chargement du graphique…</div></div>'
       + '<div class="xch-body">'
@@ -546,6 +600,9 @@
     mkMsg = container.querySelector("#xMsg");
 
     // Handlers buy/sell
+    container.querySelectorAll(".xch-venue button").forEach(function (b) {
+      b.onclick = function () { setVenue(b.getAttribute("data-venue")); };
+    });
     container.querySelector("#xBuyTab").onclick = function () { setSide("buy"); };
     container.querySelector("#xSellTab").onclick = function () { setSide("sell"); };
     container.querySelector("#xTypeLimit").onclick = function () { setType("limit"); };
@@ -574,12 +631,15 @@
           renderMarket();
         };
       };
+      var isOtc = mkVenue === "otc";
       if (mkType === "market") {
-        Cloud.economy.market(mkSide, g).then(done(mkSide === "buy" ? "Achat Market exécuté ✔" : "Vente Market exécutée ✔"));
+        (isOtc ? Cloud.economy.marketOtc(mkSide, g) : Cloud.economy.market(mkSide, g))
+          .then(done(mkSide === "buy" ? "Achat Market exécuté ✔" : "Vente Market exécutée ✔"));
       } else {
         var p = Math.round((parseFloat($id("xPriceIn").value) || 0) * 100) / 100;
         if (!p) { mkSay("Prix requis (ordre limite)."); return; }
-        Cloud.economy.place(mkSide, g, p).then(done(mkSide === "buy" ? "Ordre d'achat placé ✔" : "Ordre de vente placé ✔"));
+        (isOtc ? Cloud.economy.placeOtc(mkSide, g, p) : Cloud.economy.place(mkSide, g, p))
+          .then(done(mkSide === "buy" ? "Ordre d'achat placé ✔" : "Ordre de vente placé ✔"));
       }
     };
     // Dépôt / retrait (jeu <-> marché)

@@ -322,6 +322,27 @@
   .pull-card .ptag { font-size: 10px; margin-top: 2px; color: var(--muted); }
   .pull-card.r1 { border-color: #7ab8ff; }
   .pull-card.r2 { border-color: var(--accent-2); box-shadow: 0 0 12px rgba(255,210,77,.35); }
+  .pull-card.shard { border-style: dashed; opacity: .85; }
+
+  /* 🧩 Éclats (Codex) */
+  .shardbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+  .shardbar .shard {
+    font-size: 12px; padding: 5px 10px; border-radius: 999px;
+    border: 1px solid #2a4d3a; background: var(--panel-2); color: var(--muted);
+  }
+  .shardbar .shard b { color: var(--text); }
+  .shardbar .shard.s1 { border-color: #7ab8ff; }
+  .shardbar .shard.s2 { border-color: var(--accent-2); }
+
+  /* Surnoms de héros */
+  .hcname.nick { color: var(--accent); }
+  .fiche-canon { font-size: 11px; color: var(--muted); margin-top: 2px; font-style: italic; }
+  .nick-edit { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .nick-edit input {
+    flex: 1; min-width: 120px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid #2a4d3a; background: var(--panel-2); color: var(--text); font-size: 13px;
+  }
+  .nick-edit .btn { flex: 0 0 auto; }
 
   .collection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .col-cell {
@@ -527,6 +548,11 @@
         </div>
         <div id="heroList">
           <h2>📖 Codex des Héros</h2>
+          <div class="shardbar" id="shardBar" title="Éclats : doublons de héros déjà maxés. Fabrique une copie d'un héros de la même rareté.">
+            <span class="shard s0">🧩 <b id="shard0">0</b> Communs</span>
+            <span class="shard s1">🧩 <b id="shard1">0</b> Rares</span>
+            <span class="shard s2">🧩 <b id="shard2">0</b> Épiques</span>
+          </div>
           <div class="herogrid" id="heroGrid"></div>
         </div>
         <div id="heroFiche" style="display:none">
@@ -536,6 +562,7 @@
             <div>
               <div class="fiche-name" id="ficheName">—</div>
               <div class="fiche-sub"><span id="ficheRarity"></span></div>
+              <div class="fiche-canon" id="ficheCanon" style="display:none"></div>
             </div>
           </div>
           <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
@@ -543,7 +570,16 @@
           <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
           <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
           <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
+          <div class="fiche-block">
+            <div class="fiche-k">Surnom <span style="color:var(--muted);font-weight:400">(perso, le nom canonique reste la vérité)</span></div>
+            <div class="nick-edit">
+              <input id="ficheNickInput" maxlength="20" placeholder="Donne-lui un surnom…" autocomplete="off">
+              <button class="btn" id="ficheNickSave">Renommer</button>
+              <button class="btn" id="ficheNickClear">Effacer</button>
+            </div>
+          </div>
           <div class="fiche-status" id="ficheStatus"></div>
+          <button class="btn" id="ficheCraftBtn" style="display:none"></button>
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
@@ -559,7 +595,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=21"></script>
+<script src="cloud.js?v=22"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -599,6 +635,7 @@
   // Pour l'instant : le module Bourse = activité Exchange.
   const EXCHANGE_MODULE = (NODES.find(n => n.name === "Bourse") || {}).id;
   const TRADING_ARM = (NODES.find(n => n.name === "Bourse") || {}).arm;   // tout le bras Bourse = verticale Trading
+  let pendingMarketVenue = null;   // venue à ouvrir (Hedge Fund → 'otc', sinon retail)
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
@@ -610,6 +647,27 @@
   const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
   const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
   const HSYN = HMETA.synergies || [];   // synergies de collection
+
+  // 🧩 Éclats (fragments fongibles par rareté) — voir docs/economy-vision.md §3
+  // Faucet : doublon d'un héros DÉJÀ maxé → 1 Éclat de sa rareté (au lieu d'un doublon mort).
+  // Sink : fabriquer 1 copie d'un héros CHOISI (coût ci-dessous) — sert aussi de doublon de secours.
+  const SHARD_PER_COPY = { 0: 8, 1: 6, 2: 4 };   // Éclats pour 1 copie (Commun · Rare · Épique)
+  const SHARD_LABEL = { 0: "Communs", 1: "Rares", 2: "Épiques" };
+  function rarityName(r) { return (HMETA.rarities[r] || {}).name || ("rareté " + r); }
+  function shardsOf(r) { return (state.shards && state.shards[r]) || 0; }
+
+  // Surnoms de héros — voir docs/economy-vision.md §4. Le nom canonique reste la
+  // source de vérité ; le surnom est cosmétique et personnel (jamais public).
+  const NICK_MAX = 20;
+  function canonName(id) { const h = HDATA_BY_ID[id]; return h ? h.name : id; }
+  function heroNick(id) { const n = state.nicknames && state.nicknames[id]; return (typeof n === "string" && n.trim()) ? n.trim() : ""; }
+  function heroName(id) { return heroNick(id) || canonName(id); }                 // affichage compact
+  function heroNameFull(id) { const n = heroNick(id); return n ? `${n} (${canonName(id)})` : canonName(id); }  // « Surnom (Canonique) »
+  function setNickname(id, raw) {
+    const clean = String(raw || "").replace(/[\u0000-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim().slice(0, NICK_MAX);
+    if (clean) state.nicknames[id] = clean; else delete state.nicknames[id];
+    save();
+  }
 
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
@@ -642,6 +700,8 @@
       gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
       heroes: {},                  // { heroId(=moduleId): copies en inventaire (1 base + doublons) }
       lvl: {},                     // { heroId: niveau de fusion (>=1 si possédé) }
+      shards: { 0: 0, 1: 0, 2: 0 },// 🧩 Éclats fongibles par rareté (0 Commun · 1 Rare · 2 Épique)
+      nicknames: {},               // { heroId: surnom perso (le nom canonique reste la vérité) }
       pity: 0,                     // compteur de tirages depuis le dernier Épique
       buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
       cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
@@ -668,6 +728,17 @@
     if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
     if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
     Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
+    // Éclats : normalisation + balayage des doublons MORTS (héros au max → surplus = Éclats)
+    if (!state.shards || typeof state.shards !== "object") state.shards = { 0: 0, 1: 0, 2: 0 };
+    [0, 1, 2].forEach(r => { if (typeof state.shards[r] !== "number") state.shards[r] = 0; });
+    if (!state.nicknames || typeof state.nicknames !== "object") state.nicknames = {};
+    Object.keys(state.heroes).forEach(id => {
+      const h = HDATA_BY_ID[id]; if (!h) return;
+      if (state.heroes[id] > 1 && (state.lvl[id] || 1) >= maxLvl(id)) {   // maxé → doublons inutiles
+        state.shards[h.rarity] = (state.shards[h.rarity] || 0) + (state.heroes[id] - 1);
+        state.heroes[id] = 1;
+      }
+    });
     if (!Array.isArray(state.buffs)) state.buffs = [];
     state.buffs = state.buffs.filter(b => b && b.until > Date.now());
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
@@ -682,10 +753,15 @@
     else { state.pity++; tier = (Math.random() * (DROP[0] + DROP[1]) < DROP[0]) ? 0 : 1; }
     const pool = HEROES_BY_TIER[tier];
     const h = pool[Math.floor(Math.random() * pool.length)];
-    const isNew = !(state.heroes[h.id] > 0);
+    const owned = state.heroes[h.id] > 0;
+    // Héros déjà au max → le doublon est inutile : il se convertit en Éclat (faucet)
+    if (owned && heroLvl(h.id) >= maxLvl(h.id)) {
+      state.shards[tier] = (state.shards[tier] || 0) + 1;
+      return { hero: h, tier, isNew: false, shard: true };
+    }
     state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
-    if (isNew) state.lvl[h.id] = 1;
-    return { hero: h, tier, isNew };
+    if (!owned) state.lvl[h.id] = 1;
+    return { hero: h, tier, isNew: !owned };
   }
   function pull(times) {
     const free = globalHeroFx().freePull;
@@ -889,12 +965,37 @@
   function fuseCost(level) { return level + 1; }                 // 1→2 = 2 doublons, 2→3 = 3…
   function maxLvl(id) { const r = (HDATA_BY_ID[id] || {}).rarity; return (HMETA.rarities[r] || {}).fusionMax || 5; }
   function fuse(id) {
-    const lvl = heroLvl(id), cost = fuseCost(lvl);
+    const h = HDATA_BY_ID[id]; if (!h) return;
+    const lvl = heroLvl(id), cost = fuseCost(lvl), dup = dupesOf(id);
     if (lvl >= maxLvl(id)) { toast("Niveau max atteint"); return; }
-    if (dupesOf(id) < cost) { toast(`Il faut ${cost} doublons`); return; }
-    state.heroes[id] -= cost;
+    let note = "";
+    if (dup >= cost) {
+      state.heroes[id] -= cost;                          // doublons suffisants
+    } else {
+      // Éclats = doublons de secours : couvrent le manque (coût = manque × prix d'1 copie)
+      const missing = cost - dup, r = h.rarity, shardCost = missing * SHARD_PER_COPY[r];
+      if (shardsOf(r) < shardCost) {
+        toast(`Il faut ${cost} doublons (ou ${dup} + ${shardCost} 🧩 ${SHARD_LABEL[r]})`); return;
+      }
+      state.heroes[id] = Math.max(1, state.heroes[id] - dup);   // consomme tous les doublons
+      state.shards[r] -= shardCost;
+      note = ` (${missing} doublon${missing > 1 ? "s" : ""} couvert${missing > 1 ? "s" : ""} par 🧩)`;
+    }
     state.lvl[id] = lvl + 1;
-    toast(`⬆️ ${HDATA_BY_ID[id].name} → Niv.${lvl + 1}`);
+    toast(`⬆️ ${h.name} → Niv.${lvl + 1}${note}`);
+    render();
+    save();
+  }
+  // Sink : fabriquer 1 copie d'un héros CHOISI avec des Éclats de sa rareté.
+  function craftHero(id) {
+    const h = HDATA_BY_ID[id]; if (!h) return;
+    const r = h.rarity, cost = SHARD_PER_COPY[r];
+    if (shardsOf(r) < cost) { toast(`Il faut ${cost} 🧩 ${SHARD_LABEL[r]}`); return; }
+    state.shards[r] -= cost;
+    const wasNew = !(state.heroes[id] > 0);
+    state.heroes[id] = (state.heroes[id] || 0) + 1;
+    if (wasNew) state.lvl[id] = 1;
+    toast(wasNew ? `✨ ${h.name} fabriqué !` : `+1 doublon · ${h.name}`);
     render();
     save();
   }
@@ -910,7 +1011,7 @@
     const placed = dex(state.currentDex).placed;
     placed[node.id] = !placed[node.id];
     const h = HDATA_BY_ID[node.id];
-    toast(placed[node.id] ? `🦸 ${h ? h.name : node.name} déployé` : "Héros retiré");
+    toast(placed[node.id] ? `🦸 ${h ? heroName(node.id) : node.name} déployé` : "Héros retiré");
     render();
     save();
   }
@@ -1097,7 +1198,7 @@
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("marketScreen").style.display = name === "market" ? "block" : "none";
-    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(); }
+    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(pendingMarketVenue); pendingMarketVenue = null; }
     else { if (window.Cloud && window.Cloud.marketClose) window.Cloud.marketClose(); }
     setActiveNav();
   }
@@ -1170,7 +1271,12 @@
     ficheId = id;
     const meta = HMETA.rarities[h.rarity] || { stars: 3, name: "", color: "#fff" };
     document.getElementById("ficheEmoji").textContent = h.emoji;
-    document.getElementById("ficheName").textContent = h.name;
+    document.getElementById("ficheName").textContent = heroName(id);
+    const canon = document.getElementById("ficheCanon");
+    const nick = heroNick(id);
+    canon.style.display = nick ? "block" : "none";
+    canon.textContent = nick ? "alias de « " + h.name + " »" : "";
+    document.getElementById("ficheNickInput").value = nick;
     const rar = document.getElementById("ficheRarity");
     rar.textContent = "★".repeat(meta.stars) + " " + meta.name;
     rar.style.color = meta.color;
@@ -1207,7 +1313,7 @@
       cell.innerHTML =
         `<span class="hccopies" id="hgcopies-${h.id}"></span>` +
         `<div class="hcemoji">${h.emoji}</div>` +
-        `<div class="hcname">${h.name}</div>` +
+        `<div class="hcname" id="hgname-${h.id}">${h.name}</div>` +
         `<div class="hcstar">${"★".repeat(meta.stars)}</div>`;
       cell.addEventListener("click", () => openFiche(h.id));
       g.appendChild(cell);
@@ -1222,16 +1328,28 @@
       if (cell) {
         cell.classList.toggle("owned", copies > 0);
         document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "Niv." + heroLvl(h.id) : "";
+        const nm = document.getElementById("hgname-" + h.id);
+        if (nm) { nm.textContent = heroName(h.id); nm.classList.toggle("nick", !!heroNick(h.id)); }
       }
     });
     document.getElementById("heroesOwned").textContent = owned;
+    [0, 1, 2].forEach(r => { document.getElementById("shard" + r).textContent = shardsOf(r); });
     if (ficheId) {
       const copies = state.heroes[ficheId] || 0;
       const node = NODE[ficheId];
       const deployed = node && isDeployed(node);
+      const maxed = copies > 0 && heroLvl(ficheId) >= maxLvl(ficheId);
       document.getElementById("ficheStatus").innerHTML = copies > 0
         ? `Possédé · Niv.${heroLvl(ficheId)} · ${dupesOf(ficheId)} doublon(s)${deployed ? " · 🦸 déployé" : ""}`
-        : `Non obtenu — invoque-le au gacha 🎲`;
+        : `Non obtenu — fabrique-le 🧩 ou invoque-le au gacha 🎲`;
+      // Bouton de fabrication par Éclats (ciblé)
+      const cb = document.getElementById("ficheCraftBtn");
+      const h = HDATA_BY_ID[ficheId], r = h ? h.rarity : 0, cost = SHARD_PER_COPY[r];
+      cb.style.display = "inline-block";
+      cb.disabled = shardsOf(r) < cost;
+      cb.className = "btn" + (shardsOf(r) >= cost ? " can" : "");
+      cb.textContent = (copies > 0 ? "Fabriquer +1 doublon" : "Fabriquer ce héros")
+        + ` · ${cost} 🧩 ${SHARD_LABEL[r]} (${shardsOf(r)})`;
     }
   }
   function gotoSibling(delta) {
@@ -1361,7 +1479,7 @@
     const hbtn = document.getElementById("mpHeroBtn");
     const fbtn = document.getElementById("mpFuseBtn");
     const hd = HDATA_BY_ID[n.id];
-    const hname = hd ? hd.name : n.name;
+    const hname = hd ? heroName(n.id) : n.name;
     const eff = hd ? hd.passive.text : "";
     if (!owns) {
       info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque-le au gacha`;
@@ -1376,7 +1494,15 @@
       hbtn.className = "btn" + (deployed ? "" : " can");
       fbtn.style.display = "inline-block";
       if (lvl >= max) { fbtn.textContent = `Niveau max (${max})`; fbtn.className = "btn"; fbtn.disabled = true; }
-      else { fbtn.disabled = false; fbtn.textContent = `Fusionner → Niv.${lvl + 1} (${cost} doublons)`; fbtn.className = "btn" + (dup >= cost ? " can" : ""); }
+      else {
+        const r = hd ? hd.rarity : 0, missing = Math.max(0, cost - dup), shardCost = missing * SHARD_PER_COPY[r];
+        const canDup = dup >= cost, canShard = missing > 0 && shardsOf(r) >= shardCost;
+        fbtn.disabled = !(canDup || canShard);
+        fbtn.textContent = (canShard && !canDup)
+          ? `Fusionner → Niv.${lvl + 1} (${dup} + ${shardCost} 🧩)`
+          : `Fusionner → Niv.${lvl + 1} (${cost} doublons)`;
+        fbtn.className = "btn" + (canDup || canShard ? " can" : "");
+      }
     }
   }
 
@@ -1390,10 +1516,10 @@
   }
   function renderPullResults(results) {
     document.getElementById("pullResult").innerHTML = results.map(r =>
-      `<div class="pull-card r${r.tier}">
-        <div class="pemoji">${r.hero.emoji}</div>
+      `<div class="pull-card r${r.tier}${r.shard ? " shard" : ""}">
+        <div class="pemoji">${r.shard ? "🧩" : r.hero.emoji}</div>
         <div class="pname">${r.hero.name}</div>
-        <div class="ptag">${RARITY[r.tier]}${r.isNew ? " · NEW" : ""}</div>
+        <div class="ptag">${r.shard ? "+1 🧩 " + SHARD_LABEL[r.tier] : RARITY[r.tier] + (r.isNew ? " · NEW" : "")}</div>
       </div>`).join("");
   }
   function buildCollection() {
@@ -1490,7 +1616,20 @@
   }
   updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
+  document.getElementById("ficheCraftBtn").addEventListener("click", () => { if (ficheId) craftHero(ficheId); });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
+  function applyNick() {
+    if (!ficheId) return;
+    setNickname(ficheId, document.getElementById("ficheNickInput").value);
+    const h = HDATA_BY_ID[ficheId];
+    toast(heroNick(ficheId) ? `✏️ « ${heroNick(ficheId)} » (${h.name})` : `Surnom retiré · ${h.name}`);
+    openFiche(ficheId);   // ré-affiche titre + alias
+  }
+  document.getElementById("ficheNickSave").addEventListener("click", applyNick);
+  document.getElementById("ficheNickInput").addEventListener("keydown", e => { if (e.key === "Enter") applyNick(); });
+  document.getElementById("ficheNickClear").addEventListener("click", () => {
+    document.getElementById("ficheNickInput").value = ""; applyNick();
+  });
   document.getElementById("pull1").addEventListener("click", () => pull(1));
   document.getElementById("pull10").addEventListener("click", () => pull(10));
   document.getElementById("backBtn").addEventListener("click", backToOverview);
@@ -1499,7 +1638,10 @@
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
   document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
-  document.getElementById("mpExOpen").addEventListener("click", () => { currentModule = null; showScreen("market"); render(); });
+  document.getElementById("mpExOpen").addEventListener("click", () => {
+    pendingMarketVenue = (currentModule && NODE[currentModule] && NODE[currentModule].name === "Hedge Fund") ? "otc" : "retail";
+    currentModule = null; showScreen("market"); render();
+  });
   document.getElementById("mpExDep").addEventListener("click", () => exMove("dep"));
   document.getElementById("mpExWit").addEventListener("click", () => exMove("wit"));
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)

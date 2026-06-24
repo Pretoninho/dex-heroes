@@ -37,7 +37,7 @@ sink / décision créée**.
 |---|---|---|---|---|
 | 💎 Gems | exchange / passifs héros | gacha | spéculer vs tirer | en place |
 | $ Cash | production (cash flow) | achats / frais | — | en place |
-| 🧩 **Éclats** (fragments) | surplus de fusion | fabriquer un héros choisi | compléter SON héros vs vendre | **prochain** |
+| 🧩 **Éclats** (fragments) | surplus de fusion | fabriquer un héros choisi | compléter SON héros vs vendre | **Phase 1 ✅** (trade = Phase 2) |
 | ⚡ **$VOLT** | minage par le bras Énergie | carburant (levier/signatures) + staking | miner / trader / staker | **conçu** |
 | 📜 DEX-shares | « introduire » son DEX | dividende = part de prod | bourse d'actions entre joueurs | **cap lointain** |
 
@@ -48,26 +48,43 @@ On trade des **Éclats** (fongibles) — voir §3.
 
 ## 3. Éclats (fragments de héros) — *premier nouvel actif*
 
+> Statut : **Phase 1 codée** (faucet + sink + fusion de secours, 100 % côté save).
+> **Phase 2 à venir** : pont vers le ledger + marché secondaire sur l'Exchange.
+
 - **Mutualisés par rareté** : 3 types — Éclats **Commun / Rare / Épique** (pas 18
-  marchés illiquides).
-- **Production (faucet)** : un doublon **au-delà du niveau max** du héros se
-  convertit en Éclats de sa rareté. *(La fusion sert d'abord à monter le niveau ;
-  le surplus devient Éclats.)*
-- **Sink** : dépenser des Éclats pour **fabriquer un héros choisi** de cette rareté
-  (ou booster une fusion).
-- **Trade** : marché secondaire des héros **sans vendre les héros** eux-mêmes.
+  marchés illiquides). Stockés dans `state.shards = {0,1,2}` (clé = rareté).
+- **Production (faucet)** ✅ : un doublon tiré sur un héros **déjà au niveau max** se
+  convertit en **1 Éclat** de sa rareté (au lieu d'un doublon mort). *(La fusion sert
+  d'abord à monter le niveau ; le surplus devient Éclats.)* Migration au chargement :
+  les doublons morts des héros déjà maxés sont balayés en Éclats.
+- **Sink — fabrication ciblée** ✅ : dépenser des Éclats pour **fabriquer 1 copie d'un
+  héros choisi** de cette rareté (`SHARD_PER_COPY` : Commun **8** · Rare **6** · Épique
+  **4**, tunables). La copie débloque le héros **ou** sert de doublon.
+- **Fusion de secours** ✅ : si les doublons manquent pour fusionner, les Éclats
+  **couvrent le déficit** (manque × coût d'1 copie). Deux chemins, un seul taux.
+- **Trade** (Phase 2) : marché secondaire des héros **sans vendre les héros** eux-mêmes
+  (nécessite de ponter `state` ↔ ledger event-sourced).
 - **Démantèlement** (héros non désiré → Éclats) : **prévu plus tard**, pas en v1.
+
+**UI** : barre d'Éclats + bouton « Fabriquer » sur la fiche (Codex 📖) ; le bouton
+Fusionner du module bascule sur le coût en Éclats quand les doublons manquent.
 
 ---
 
-## 4. Héros nommables (surnom)
+## 4. Héros nommables (surnom) — ✅ IMPLÉMENTÉ
 
-- Le joueur peut donner un **surnom optionnel** à ses héros.
-- Affichage **« Surnom (Nom canonique) »** — le **nom canonique reste la source de
-  vérité** (identité parodique + docs préservées).
-- **Filtre anti-grossièretés** seulement si le surnom devient public (classement…).
+> Statut : **codé** (`state.nicknames = {heroId: surnom}`, helpers `heroName` /
+> `heroNameFull`, éditeur sur la fiche du Codex). Cosmétique et **personnel** (pas
+> public) → pas de filtre pour l'instant. Voyage au cloud via `Cloud.push(state)`.
+
+- Le joueur donne un **surnom optionnel** à ses héros (éditeur dans la fiche 📖,
+  max 20 car., caractères de contrôle filtrés).
+- Affichage : le **surnom** prime dans le Codex (en vert), le module et les toasts ;
+  la fiche montre « *alias de « Nom canonique »* ». Le **nom canonique reste la
+  source de vérité** (identité parodique + docs préservées).
+- **Filtre anti-grossièretés** : seulement si le surnom devient public (classement…) —
+  **pas nécessaire aujourd'hui** (surnoms personnels, le pseudo public est séparé).
 - Aucun conflit avec les marchés (on trade des Éclats par rareté, pas par héros).
-- Coût technique faible (un champ `nickname` dans la save). **En test.**
 
 ---
 
@@ -122,7 +139,13 @@ Jeton **volatil, à offre plafonnée**, **carburant de la verticale Trading**.
 
 ---
 
-## 6. Tiers d'Exchange : Retail vs OTC
+## 6. Tiers d'Exchange : Retail vs OTC — ✅ IMPLÉMENTÉ (`economy_otc.sql`)
+
+> Statut : **codé** (venue `otc` cloisonnée, 2 cours, MM mince, taker 1 %, taille
+> mini 200 💎, impact réel, NPC garde-fou d'arbitrage >5 %, widget d'écart côté UI).
+> L'**arbitragiste joueur** est l'activité visée ; les frais (round-trip ~1,2 %) sont
+> le gate, le garde-fou ne borne que les écarts extrêmes. **Reste** : outils
+> d'arbitrage avancés (raccourci 1-clic achète-retail→vends-OTC), graphique OTC dédié.
 
 Pour gérer la **manipulation** sans casser l'onboarding : deux tiers, mappés sur
 les modules.
@@ -134,7 +157,8 @@ les modules.
 
 - La **manipulation est confinée à l'OTC** (jeu entre gros) ; le **retail reste
   stable** pour les nouveaux.
-- **Écart de prix** retail/OTC → **arbitrage** (rôle possible d'un NPC arbitragiste).
+- **Écart de prix** retail/OTC → **arbitrage** : activité **joueur** (gate = frais
+  ~1,2 % aller-retour) ; un **NPC garde-fou** ne recolle que les écarts > 5 %.
 - C'est la base du design du **levier** (sur l'OTC).
 
 ---
@@ -173,9 +197,9 @@ les modules.
 
 ## 10. Ordre de construction suggéré (au « go »)
 
-1. **Éclats** (faucet fusion + sink fabrication + trade) — premier nouvel actif, sûr.
-2. **Surnoms de héros** — petit, isolé, sympa.
-3. **Tiers retail/OTC** + **achat de gems au cours** — restructure l'Exchange existant.
+1. ~~**Éclats** (faucet fusion + sink fabrication)~~ — ✅ **Phase 1 FAITE** (local). Reste : trade (Phase 2, pont ledger).
+2. ~~**Surnoms de héros**~~ — ✅ FAIT (local, `state.nicknames`, éditeur fiche Codex).
+3. ~~**Tiers retail/OTC** + **achat de gems au cours**~~ — ✅ FAIT (`economy_retail.sql` + `economy_otc.sql`).
 4. **$VOLT** : minage (Énergie) + module Spéculation + actif volatil + staking.
 5. **Levier (L5)** sur l'OTC, gated par le niveau du héros Bourse.
 6. **Endgame** : bascule frais → stakers (quand $VOLT plafonné).
