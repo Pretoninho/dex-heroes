@@ -27,7 +27,7 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=18**.
+  Version actuelle : **v=19**.
 - **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
   (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
