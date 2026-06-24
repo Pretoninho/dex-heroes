@@ -29,8 +29,14 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
   Version actuelle : **v=22**.
-- **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
-  (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
+- **Workflow git** : l'utilisateur push directement sur `main` ; **le jeu se déploie depuis `main`**.
+- **Déploiement (GitHub Pages via Actions `.github/workflows/pages.yml`)** : `build_type: workflow`, gardé par
+  l'**environnement `github-pages`** dont la *deployment-branch-policy* liste les branches autorisées.
+  ⚠️ **Gotcha (réglé le 24/06/2026)** : la policy n'autorisait que `claude/simple-idle-game-dg2zyb` → tout
+  push sur `main` **échouait au déploiement en ~3 s** (rien en ligne). On a **ajouté `main`** à la policy
+  (`gh api -X POST repos/:o/:r/environments/github-pages/deployment-branch-policies -f name=main -f type=branch`).
+  Vérifier qu'un push s'est bien déployé : `gh run list --workflow=pages.yml --branch main -L 1`. Forcer :
+  `gh workflow run pages.yml --ref main`.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
 - Ne **pas** créer de PR sans demande explicite — ici l'utilisateur veut systématiquement push sur main.
 
