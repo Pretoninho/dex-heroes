@@ -518,7 +518,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=12"></script>
+<script src="cloud.js?v=13"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -1351,7 +1351,8 @@
     getScore: () => Math.round(perSecond()),   // métrique du classement : production /s
     addGems: (n) => { state.gems = Math.max(0, (state.gems || 0) + n); render(); save(); },
     addCash: (n) => { state.cash = Math.max(0, (state.cash || 0) + n); render(); save(); },
-    applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); }
+    applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); },
+    resetState: () => { state = defaultState(); renderTabs(); render(); save(); }   // reset silencieux (changement de compte)
   };
   if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
 
