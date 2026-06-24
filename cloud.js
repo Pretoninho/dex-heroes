@@ -365,7 +365,7 @@
       var rg = XREG[t.regime] || XREG.CRABE, re = $id("xReg");
       if (re) { re.textContent = rg[0] + " " + rg[1]; re.style.color = rg[2]; }
       if ($id("xHL")) $id("xHL").textContent = "H " + fmtP(t.high) + "  ·  B " + fmtP(t.low);
-      if (!$id("xPriceIn").value && mkPrice) $id("xPriceIn").value = mkPrice;
+      if (!$id("xPriceIn").value && mkPrice) $id("xPriceIn").value = mkPrice.toFixed(2);
     });
     // Carnet
     Cloud.economy.orderbook().then(function (r) {
@@ -445,12 +445,12 @@
   function startEditOrder(id, gems, price) {
     mkEditing = true;
     var row = document.querySelector('.xord[data-id="' + id + '"]'); if (!row) { mkEditing = false; return; }
-    row.innerHTML = '<span class="xord-edit">$<input class="xeP" type="number" min="0" step="0.01" value="' + price + '">'
+    row.innerHTML = '<span class="xord-edit">$<input class="xeP" type="number" min="0" step="0.01" value="' + (Math.round((Number(price) || 0) * 100) / 100) + '">'
       + '💎<input class="xeG" type="number" min="0" value="' + Math.floor(gems) + '"></span>'
       + '<span class="xord-act"><button class="xeOk">✓</button><button class="xeNo">✗</button></span>';
     row.querySelector(".xeNo").onclick = function () { mkEditing = false; renderMarket(); };
     row.querySelector(".xeOk").onclick = function () {
-      var p = parseFloat(row.querySelector(".xeP").value) || 0, g = Math.floor(parseFloat(row.querySelector(".xeG").value) || 0);
+      var p = Math.round((parseFloat(row.querySelector(".xeP").value) || 0) * 100) / 100, g = Math.floor(parseFloat(row.querySelector(".xeG").value) || 0);
       if (!p || !g) { mkSay("Prix et quantité requis."); return; }
       mkEditing = false;
       Cloud.economy.amend(id, g, p).then(function (rr) {
@@ -574,7 +574,7 @@
       if (mkType === "market") {
         Cloud.economy.market(mkSide, g).then(done(mkSide === "buy" ? "Achat Market exécuté ✔" : "Vente Market exécutée ✔"));
       } else {
-        var p = parseFloat($id("xPriceIn").value) || 0;
+        var p = Math.round((parseFloat($id("xPriceIn").value) || 0) * 100) / 100;
         if (!p) { mkSay("Prix requis (ordre limite)."); return; }
         Cloud.economy.place(mkSide, g, p).then(done(mkSide === "buy" ? "Ordre d'achat placé ✔" : "Ordre de vente placé ✔"));
       }
