@@ -28,7 +28,7 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=20**.
+  Version actuelle : **v=21**.
 - **Workflow git** : développer sur `claude/simple-idle-game-dg2zyb`, puis **PR squash → `main`**
   (le jeu se déploie depuis `main`). Après merge : `git merge origin/main` sur la branche + push.
 - **Vérifier la syntaxe JS** : `node --check cloud.js` ; pour index.html, extraire le `<script>` inline et `node --check`.
@@ -69,17 +69,21 @@ Invariant santé : `select resource_id, sum(balance) from economy_balances group
 ```
 economy.sql → economy_l2.sql → economy_l3.sql → economy_l4.sql
 → economy_market_api.sql → economy_fees.sql → economy_market_order.sql → economy_l3b.sql
+→ economy_retail.sql
 ```
-⚠️ `economy_l3b.sql` doit être **le dernier** : il redéfinit `economy_tick_npcs` (MM + réactif +
-historique + régime) et `economy_market_order` (délègue à `economy_market_order_as`). Si on
-re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
+⚠️ `economy_l3b.sql` redéfinit `economy_tick_npcs` (MM + réactif + historique + régime) et
+`economy_market_order` (délègue à `economy_market_order_as`) → le passer **avant** `economy_retail.sql`
+(qui dépend de `economy_market_order_as`). Si on re-passe un fichier intermédiaire, re-passer la suite.
+`economy_retail.sql` = achat de gems au cours (tier retail, sous-acteur de passage).
 
 ## Le terminal Exchange (frontend, dans `cloud.js`)
 
 - Onglet **🫱🏻‍🫲🏻 Exchange** (barre du haut, `data-nav="market"`) → écran plein `#marketScreen` (pas une modale).
   `index.html` appelle `Cloud.marketOpen()/marketClose()` via `showScreen("market")`.
-- **Activité liée au module Bourse uniquement** (`EXCHANGE_MODULE`) : la page du module 📈 Bourse
-  a un accès Exchange + mini-wallet (dépôt/retrait). Vision : **1 module = 1 activité (18 à terme)**.
+- **Accès Exchange sur tout le bras Bourse** (`TRADING_ARM`) : chaque module du bras (Bourse / Crypto /
+  Hedge Fund) a un accès Exchange + mini-wallet (dépôt/retrait). Vision : bras = verticale Trading.
+- **Achat de gems au cours** : le bouton +100/+1000 fait un `economy_retail_buy_gems` (tier retail) si
+  connecté ; sinon formule indexée (fallback hors-ligne). Cours lu via `Cloud.economy.ticker()`.
 - Contenu : ticker (prix, **% var depuis 00:00 UTC**, régime nom+badge, H/B), **graphique chandeliers
   2 axes + timeframes 15m/1H/4H/D**, carnet (asks/bids + pression), buy/sell **Limite/Market**
   (slider + saisie), frais affichés, dépôt/retrait, mes ordres + **modification en ligne** (amend atomique).
@@ -104,7 +108,7 @@ re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
 
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** (fragments par rareté, faucet = surplus de fusion, trade) →
-(2) **surnoms de héros** → (3) **tiers retail/OTC** + **achat de gems au cours** →
+(2) **surnoms de héros** → (3) **tiers retail/OTC** (~~achat de gems au cours~~ ✅ fait ; **OTC = Hedge Fund** : book séparé + caps + impact = à faire) →
 (4) **$VOLT** (miné par le bras Énergie, plafond global, module 🎲 Spéculation, staking, ancre faible + NPC agité) →
 (5) **levier (L5)** sur l'OTC → (6) **endgame** frais→stakers → (cap lointain) **DEX-shares**.
 ⚠️ Le **protocole de halving du $VOLT** reste à concevoir.

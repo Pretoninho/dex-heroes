@@ -435,7 +435,7 @@
           <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
           <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
         </div>
-        <div class="gemhint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
+        <div class="gemhint" id="gemHint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
       </div>
 
       <div class="controls">
@@ -559,7 +559,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=20"></script>
+<script src="cloud.js?v=21"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -598,6 +598,7 @@
   // Chaque module portera à terme SA propre activité (18 au total).
   // Pour l'instant : le module Bourse = activité Exchange.
   const EXCHANGE_MODULE = (NODES.find(n => n.name === "Bourse") || {}).id;
+  const TRADING_ARM = (NODES.find(n => n.name === "Bourse") || {}).arm;   // tout le bras Bourse = verticale Trading
   // Ordre de navigation entre pages module : par rareté (palier) puis par valeur (coût croissant).
   const NAV = ASSETS.slice().sort((a, b) => a.tier - b.tier || a.baseCost - b.baseCost);
 
@@ -714,13 +715,30 @@
   // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
   const GEM_BASE = 1, GEM_T = 0.10;
   function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T * globalHeroFx().gemPriceMult)); }
+  // Achat de gems : au COURS du marché si connecté (tier retail), sinon formule (fallback hors-ligne).
+  function marketGemsOnline() {
+    return window.Cloud && window.Cloud.enabled && window.Cloud.user && window.Cloud.economy && window.Cloud.economy.retailBuy && currentCours > 0;
+  }
   function buyGems(qty) {
+    if (marketGemsOnline()) {
+      window.Cloud.economy.retailBuy(qty, Math.floor(state.cash)).then(function (r) {
+        if (r && r.data && r.data.success) {
+          state.cash = Math.max(0, state.cash - (Number(r.data.cost) || 0));
+          state.gems = (state.gems || 0) + Math.floor(Number(r.data.gems) || 0);
+          render(); save();
+          toast(`💎 +${Math.floor(r.data.gems)} au cours ($${fmt(r.data.cost)})`);
+        } else {
+          toast((r && r.data && r.data.error) === "no liquidity" ? "Marché illiquide, réessaie" : "Achat impossible");
+        }
+      }).catch(function () { toast("Achat impossible"); });
+      return;
+    }
+    // Fallback hors-ligne : formule indexée sur la production
     const cost = qty * gemPrice();
     if (state.cash < cost) { toast("Pas assez de cash pour des gemmes !"); return; }
     state.cash -= cost;
     state.gems = (state.gems || 0) + qty;
-    render();
-    save();
+    render(); save();
     toast(`💎 +${qty} gemme${qty > 1 ? "s" : ""}`);
   }
 
@@ -814,6 +832,7 @@
   const REGIME_STEP = 0.06;    // bonus de prod par héros ALIGNÉ
   const REGIME_CAP  = 0.40;    // plafond du bonus de régime
   let currentRegime = "CRABE";
+  let currentCours = 0;   // cours des gemmes (depuis l'Exchange) ; 0 = inconnu → fallback formule
   // Bonus GLOBAL de production : +STEP par héros déployé aligné, plafonné.
   // Modèle bonus-only : aucun malus (les héros à contre-emploi / Quant = neutres).
   function regimeProdMult() {
@@ -837,10 +856,13 @@
     el.title = "Régime de marché : " + info.n + ". Déploie des héros de la classe adaptée pour un bonus de production.";
   }
   function fetchRegime() {
-    if (!(window.Cloud && window.Cloud.enabled && window.Cloud.economy && window.Cloud.economy.regime)) return;
-    window.Cloud.economy.regime().then(function (r) {
-      if (r && r.data && r.data.regime && r.data.regime !== currentRegime) { currentRegime = r.data.regime; }
+    if (!(window.Cloud && window.Cloud.enabled && window.Cloud.economy && window.Cloud.economy.ticker)) return;
+    window.Cloud.economy.ticker().then(function (r) {
+      const t = (r && r.data) || {};
+      if (t.regime) currentRegime = t.regime;
+      currentCours = Number(t.price) || 0;     // cours des gemmes (pour l'achat au cours)
       renderRegimeBadge();
+      render();   // rafraîchit les libellés de prix des gemmes
     }).catch(function () {});
   }
 
@@ -1093,7 +1115,7 @@
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
     // Activité Exchange : uniquement sur le module Bourse
-    const isExchange = id === EXCHANGE_MODULE;
+    const isExchange = (n.arm === TRADING_ARM);   // accès Exchange sur tout le bras Bourse
     document.getElementById("mpExchange").style.display = isExchange ? "block" : "none";
     if (isExchange) refreshExWallet();
     showScreen("module");
@@ -1228,11 +1250,17 @@
     document.getElementById("connCount").textContent = connectedCount();
 
     document.getElementById("gemCount").textContent = Math.floor(state.gems || 0);
-    const gp = gemPrice();
-    document.getElementById("gemPrice100").textContent = "$" + fmt(gp * 100);
-    document.getElementById("gemPrice1000").textContent = "$" + fmt(gp * 1000);
+    // Prix affiché : cours du marché si en ligne, sinon formule
+    const online = marketGemsOnline();
+    const gp = online ? currentCours : gemPrice();
+    document.getElementById("gemPrice100").textContent = "≈$" + fmt(gp * 100);
+    document.getElementById("gemPrice1000").textContent = "≈$" + fmt(gp * 1000);
     document.getElementById("buyGem100").classList.toggle("can", state.cash >= gp * 100);
     document.getElementById("buyGem1000").classList.toggle("can", state.cash >= gp * 1000);
+    const gh = document.getElementById("gemHint");
+    if (gh) gh.textContent = online
+      ? "Prix au cours du marché (Exchange). Tirages dans l'onglet 🎲 Gacha."
+      : "Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.";
 
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
