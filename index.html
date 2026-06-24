@@ -386,6 +386,7 @@
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
+      <button class="navtab" data-nav="market">🏦<span>Bourse</span></button>
     </div>
   </nav>
 
@@ -498,6 +499,11 @@
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
+
+      <!-- Bourse aux gemmes (terminal) -->
+      <div id="marketScreen" style="display:none">
+        <div class="mk-fallback" style="color:var(--muted);text-align:center;padding:40px 16px">☁️ Connecte le cloud pour accéder à la Bourse aux gemmes.</div>
+      </div>
     </div>
   </div>
 
@@ -505,7 +511,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=10"></script>
+<script src="cloud.js?v=11"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -977,6 +983,9 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
+    document.getElementById("marketScreen").style.display = name === "market" ? "block" : "none";
+    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(); }
+    else { if (window.Cloud && window.Cloud.marketClose) window.Cloud.marketClose(); }
     setActiveNav();
   }
   function setActiveNav() {
@@ -1303,6 +1312,7 @@
     const nav = b.dataset.nav;
     if (nav === "gacha") openGacha();
     else if (nav === "heroes") openHeroes();
+    else if (nav === "market") { currentModule = null; showScreen("market"); render(); }
     else backToOverview();
   }));
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);

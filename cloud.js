@@ -18,7 +18,7 @@
   var SUPABASE_URL = "https://zfimirtznyjsvukpcoec.supabase.co";          // URL de base (sans /rest/v1/)
   var SUPABASE_ANON_KEY = "sb_publishable_j90seJWpkZU_uKWbGt9ZRg_rNfQ5ztf";
 
-  var Cloud = { enabled: false, push: function () {}, init: function () {} };
+  var Cloud = { enabled: false, push: function () {}, init: function () {}, marketOpen: function () {}, marketClose: function () {} };
   window.Cloud = Cloud;
 
   var configured = SUPABASE_URL.indexOf("http") === 0 && SUPABASE_ANON_KEY.length > 20;
@@ -212,19 +212,18 @@
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
   function $id(i) { return document.getElementById(i); }
 
-  function openMarket() {
-    $id("mkOv").classList.add("show");
+  Cloud.marketOpen = function () {
+    if (!document.getElementById("xPrice")) return;   // UI pas encore montée
     renderMarket();
     if (mkRefresh) clearInterval(mkRefresh);
     mkRefresh = setInterval(renderMarket, 5000);
     if (mkClock) clearInterval(mkClock);
     tickClock(); mkClock = setInterval(tickClock, 1000);
-  }
-  function closeMarket() {
-    $id("mkOv").classList.remove("show");
+  };
+  Cloud.marketClose = function () {
     if (mkRefresh) { clearInterval(mkRefresh); mkRefresh = null; }
     if (mkClock) { clearInterval(mkClock); mkClock = null; }
-  }
+  };
   function tickClock() {
     var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
     var el = $id("xClock");
@@ -351,57 +350,61 @@
   }
 
   function injectMarketUI() {
+    var container = document.getElementById("marketScreen");
+    if (!container) return;   // index.html sans l'écran marché
+
     var css = ""
-      + ".mk-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:flex-start;justify-content:center;z-index:210;padding:10px;overflow:auto}"
-      + ".mk-ov.show{display:flex}"
-      + ".xch{background:#0e1722;border:1px solid #1d2a3a;border-radius:16px;padding:14px;width:100%;max-width:460px;color:#e9eef5;margin:auto;font-size:14px}"
+      + ".xch{font-size:14px;color:var(--text)}"
       + ".xch-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}"
-      + ".xch-pair{font-weight:700;font-size:17px}.xch-pair span{color:#7d8ba0;font-weight:500;font-size:13px}"
-      + ".xch-clock{font-variant-numeric:tabular-nums;color:#9fb0c3;font-size:12px;background:#16212f;border:1px solid #243246;border-radius:8px;padding:4px 8px}"
+      + ".xch-pair{font-weight:700;font-size:18px}.xch-pair span{color:var(--muted);font-weight:500;font-size:13px}"
+      + ".xch-clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;background:var(--panel-2);border:1px solid #2a4d3a;border-radius:8px;padding:4px 8px}"
       + ".xch-tick{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}"
-      + ".xch-price{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}"
+      + ".xch-price{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}"
       + ".xch-chg{font-weight:600}.xch-reg{margin-left:auto;font-weight:600}"
-      + ".xch-hl{color:#7d8ba0;font-size:12px;margin:2px 0 10px}"
-      + ".xch-book{background:#111a26;border:1px solid #1d2a3a;border-radius:12px;padding:8px;margin-bottom:10px}"
-      + ".xch-bookhead{display:flex;justify-content:space-between;color:#7d8ba0;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;padding:0 4px}"
-      + ".xrow{position:relative;display:flex;justify-content:space-between;padding:2px 4px;font-variant-numeric:tabular-nums;font-size:13px;overflow:hidden;border-radius:4px}"
-      + ".xrow .xbar{position:absolute;top:0;bottom:0;right:0;opacity:.16}"
-      + ".xrow.ask .xbar{background:#e35d6a}.xrow.bid .xbar{background:#22c197}"
-      + ".xrow .xp{position:relative;z-index:1}.xrow.ask .xp{color:#e35d6a}.xrow.bid .xp{color:#22c197}"
-      + ".xrow .xq{position:relative;z-index:1;color:#cdd6e2}"
-      + ".xch-mid{text-align:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;padding:5px 0;color:#e9eef5}"
-      + ".xempty{text-align:center;color:#5e6b7e;padding:6px;font-size:12px}"
-      + ".xch-press{display:flex;height:6px;border-radius:4px;overflow:hidden;margin-top:6px;background:#1d2a3a}"
-      + ".xch-press-buy{background:#22c197}.xch-press-sell{background:#e35d6a}"
-      + ".xch-presslabel{display:flex;justify-content:space-between;font-size:11px;margin-top:3px}.xch-presslabel span:first-child{color:#22c197}.xch-presslabel span:last-child{color:#e35d6a}"
+      + ".xch-hl{color:var(--muted);font-size:12px;margin:2px 0 12px}"
+      + ".xch-body{display:flex;flex-direction:column;gap:14px}"
+      + "@media(min-width:640px){.xch-body{display:grid;grid-template-columns:1fr 1fr;align-items:start}}"
+      + ".xch-book{background:var(--bg);border:1px solid #1d3d2c;border-radius:12px;padding:8px}"
+      + ".xch-bookhead{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;padding:0 4px}"
+      + ".xrow{position:relative;display:flex;justify-content:space-between;padding:3px 4px;font-variant-numeric:tabular-nums;font-size:13px;overflow:hidden;border-radius:4px}"
+      + ".xrow .xbar{position:absolute;top:0;bottom:0;right:0;opacity:.18}"
+      + ".xrow.ask .xbar{background:#e06b6b}.xrow.bid .xbar{background:var(--accent)}"
+      + ".xrow .xp{position:relative;z-index:1}.xrow.ask .xp{color:#e06b6b}.xrow.bid .xp{color:var(--accent)}"
+      + ".xrow .xq{position:relative;z-index:1;color:#cfe9db}"
+      + ".xch-mid{text-align:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;padding:6px 0;color:var(--accent-2)}"
+      + ".xempty{text-align:center;color:var(--muted);padding:6px;font-size:12px;opacity:.7}"
+      + ".xch-press{display:flex;height:6px;border-radius:4px;overflow:hidden;margin-top:6px;background:#1d3d2c}"
+      + ".xch-press-buy{background:var(--accent)}.xch-press-sell{background:#e06b6b}"
+      + ".xch-presslabel{display:flex;justify-content:space-between;font-size:11px;margin-top:3px}.xch-presslabel span:first-child{color:var(--accent)}.xch-presslabel span:last-child{color:#e06b6b}"
       + ".xch-toggle{display:flex;gap:6px;margin-bottom:8px}"
-      + ".xch-toggle button{flex:1;padding:9px;border-radius:8px;border:1px solid #243246;background:#16212f;color:#9fb0c3;font-weight:600;cursor:pointer}"
-      + ".xch-toggle button.on{color:#fff}#xBuyTab.on{background:#1c7a5e;border-color:#22c197}#xSellTab.on{background:#8a3b44;border-color:#e35d6a}"
-      + ".xch-l{display:block;color:#7d8ba0;font-size:11px;margin:6px 0 3px}"
-      + ".xch input[type=number]{width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid #243246;background:#0b131d;color:#e9eef5;font-size:15px;font-variant-numeric:tabular-nums}"
-      + ".xch input[type=range]{width:100%;margin:8px 0}"
-      + ".xch-presets{display:flex;gap:6px;margin-bottom:6px}.xch-presets button{flex:1;padding:6px;border-radius:7px;border:1px solid #243246;background:#16212f;color:#9fb0c3;font-size:12px;cursor:pointer}"
-      + ".xch-total{font-size:13px;color:#cdd6e2;margin:2px 0}.xch-total b{color:#ffd24d}"
-      + ".xch-avbl{font-size:12px;color:#9fb0c3;margin-bottom:8px}.xch-avbl b{color:#e9eef5}"
-      + ".xch-go{width:100%;padding:12px;border-radius:10px;border:none;font-weight:700;font-size:15px;cursor:pointer;color:#fff}.xch-go.buy{background:#22c197}.xch-go.sell{background:#e35d6a}"
-      + ".xch-sub{color:#7d8ba0;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}"
+      + ".xch-toggle button{flex:1;padding:10px;border-radius:8px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-weight:600;cursor:pointer}"
+      + ".xch-toggle button.on{color:#fff}#xBuyTab.on{background:#1c7a4e;border-color:var(--accent)}#xSellTab.on{background:#7a2f37;border-color:#e06b6b}"
+      + ".xch-l{display:block;color:var(--muted);font-size:11px;margin:6px 0 3px}"
+      + ".xch input[type=number]{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #2a4d3a;background:var(--bg);color:var(--text);font-size:15px;font-variant-numeric:tabular-nums}"
+      + ".xch input[type=range]{width:100%;margin:8px 0;accent-color:var(--accent)}"
+      + ".xch-presets{display:flex;gap:6px;margin-bottom:6px}.xch-presets button{flex:1;padding:7px;border-radius:7px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-size:12px;cursor:pointer}"
+      + ".xch-total{font-size:13px;color:#cfe9db;margin:2px 0}.xch-total b{color:var(--accent-2)}"
+      + ".xch-avbl{font-size:12px;color:var(--muted);margin-bottom:8px}.xch-avbl b{color:var(--text)}"
+      + ".xch-go{width:100%;padding:13px;border-radius:10px;border:none;font-weight:700;font-size:15px;cursor:pointer}.xch-go.buy{background:var(--accent);color:#06231a}.xch-go.sell{background:#e06b6b;color:#fff}"
+      + ".xch-sub{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}"
       + ".xch-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.xch-row input{flex:1;min-width:70px}"
-      + ".xch-row button{padding:9px 12px;border-radius:8px;border:1px solid #243246;background:#16212f;color:#e9eef5;cursor:pointer}"
-      + ".xch-orders{max-height:140px;overflow:auto}.xord{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border-bottom:1px solid #1d2a3a;padding:6px 2px}"
-      + ".xord .buy{color:#22c197}.xord .sell{color:#e35d6a}.xord-act{display:flex;gap:4px}.xord button{padding:4px 9px;border-radius:7px;border:1px solid #243246;background:#16212f;color:#9fb0c3;cursor:pointer;font-size:12px}"
-      + ".xord-edit{display:flex;gap:4px;align-items:center}.xord-edit input{width:62px!important;padding:5px;font-size:13px}"
-      + ".xch-msg{font-size:12px;color:#ffd24d;min-height:16px;margin-top:8px}.xch-close{margin-top:10px;width:100%;padding:10px;border-radius:9px;border:1px solid #243246;background:#16212f;color:#9fb0c3;cursor:pointer}";
+      + ".xch-row button{padding:10px 12px;border-radius:8px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--text);cursor:pointer}"
+      + ".xch-orders{max-height:200px;overflow:auto}.xord{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border-bottom:1px solid #1d3d2c;padding:7px 2px}"
+      + ".xord .buy{color:var(--accent)}.xord .sell{color:#e06b6b}.xord-act{display:flex;gap:4px}.xord button{padding:5px 10px;border-radius:7px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);cursor:pointer;font-size:12px}"
+      + ".xord-edit{display:flex;gap:4px;align-items:center}.xord-edit input{width:64px!important;padding:6px;font-size:13px}"
+      + ".xch-msg{font-size:12px;color:var(--accent-2);min-height:16px;margin-top:10px}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
-    var ov = document.createElement("div"); ov.className = "mk-ov"; ov.id = "mkOv";
-    ov.innerHTML = '<div class="xch">'
+    container.innerHTML = '<div class="xch">'
       + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div><div class="xch-clock" id="xClock">--:--:-- UTC</div></div>'
       + '<div class="xch-tick"><div class="xch-price" id="xPrice">—</div><div class="xch-chg" id="xChg">—</div><div class="xch-reg" id="xReg">🦀 Plat</div></div>'
       + '<div class="xch-hl" id="xHL">H — · B —</div>'
-      + '<div class="xch-book"><div class="xch-bookhead"><span>Prix ($)</span><span>Qté 💎</span></div>'
+      + '<div class="xch-body">'
+      + '<div class="xch-col-book"><div class="xch-book"><div class="xch-bookhead"><span>Prix ($)</span><span>Qté 💎</span></div>'
       + '<div id="xAsks"></div><div class="xch-mid" id="xMid">—</div><div id="xBids"></div>'
       + '<div class="xch-press"><div class="xch-press-buy" id="xPbuy" style="width:50%"></div><div class="xch-press-sell" id="xPsell" style="width:50%"></div></div>'
-      + '<div class="xch-presslabel"><span id="xPbl">—</span><span id="xPsl">—</span></div></div>'
+      + '<div class="xch-presslabel"><span id="xPbl">—</span><span id="xPsl">—</span></div></div></div>'
+      + '<div class="xch-col-trade">'
       + '<div class="xch-toggle"><button id="xBuyTab" class="on">Acheter</button><button id="xSellTab">Vendre</button></div>'
       + '<label class="xch-l">Prix ($ / 💎)</label><input id="xPriceIn" type="number" min="0" step="0.01">'
       + '<label class="xch-l">Quantité 💎</label><input id="xAmtIn" type="number" min="0" placeholder="0">'
@@ -414,34 +417,20 @@
       + '<div class="xch-row">💎<input id="xMg" type="number" min="0" placeholder="gemmes"> $<input id="xMc" type="number" min="0" placeholder="cash">'
       + '<button id="xDep">Déposer</button><button id="xWit">Retirer</button></div>'
       + '<div class="xch-sub">Mes ordres</div><div class="xch-orders" id="xMyOrders">…</div>'
-      + '<div class="xch-msg" id="xMsg"></div>'
-      + '<button class="xch-close" id="xClose">Fermer</button></div>';
-    document.body.appendChild(ov);
-    ov.addEventListener("click", function (e) { if (e.target === ov) closeMarket(); });
-    mkMsg = ov.querySelector("#xMsg");
-    ov.querySelector("#xClose").onclick = closeMarket;
-
-    // Onglet 🏦 dans le menu du haut
-    var tabs = document.querySelector(".navtabs");
-    if (tabs) {
-      var mtab = document.createElement("button");
-      mtab.className = "cloudtab"; mtab.id = "marketTab"; mtab.textContent = "🏦";
-      mtab.title = "Bourse aux gemmes";
-      mtab.addEventListener("click", openMarket);   // visible même déconnecté (lecture)
-      var cloudTab = $id("cloudTab");
-      if (cloudTab) tabs.insertBefore(mtab, cloudTab); else tabs.appendChild(mtab);
-    }
+      + '</div></div>'
+      + '<div class="xch-msg" id="xMsg"></div></div>';
+    mkMsg = container.querySelector("#xMsg");
 
     // Handlers buy/sell
-    ov.querySelector("#xBuyTab").onclick = function () { setSide("buy"); };
-    ov.querySelector("#xSellTab").onclick = function () { setSide("sell"); };
-    ov.querySelector("#xSlider").oninput = function () { setAmtFromPct(parseInt(this.value, 10) || 0); };
-    ov.querySelector("#xAmtIn").oninput = syncSliderFromAmt;
-    ov.querySelector("#xPriceIn").oninput = function () { syncSliderFromAmt(); };
-    ov.querySelectorAll(".xch-presets button").forEach(function (b) {
+    container.querySelector("#xBuyTab").onclick = function () { setSide("buy"); };
+    container.querySelector("#xSellTab").onclick = function () { setSide("sell"); };
+    container.querySelector("#xSlider").oninput = function () { setAmtFromPct(parseInt(this.value, 10) || 0); };
+    container.querySelector("#xAmtIn").oninput = syncSliderFromAmt;
+    container.querySelector("#xPriceIn").oninput = function () { syncSliderFromAmt(); };
+    container.querySelectorAll(".xch-presets button").forEach(function (b) {
       b.onclick = function () { setAmtFromPct(parseInt(b.getAttribute("data-pct"), 10)); };
     });
-    ov.querySelector("#xGo").onclick = function () {
+    container.querySelector("#xGo").onclick = function () {
       if (!user) { mkSay("Connecte-toi pour trader."); return; }
       var g = Math.floor(parseFloat($id("xAmtIn").value) || 0), p = parseFloat($id("xPriceIn").value) || 0;
       if (!g || !p) { mkSay("Quantité et prix requis."); return; }
@@ -452,14 +441,14 @@
       });
     };
     // Dépôt / retrait (jeu <-> marché)
-    ov.querySelector("#xDep").onclick = function () {
+    container.querySelector("#xDep").onclick = function () {
       if (!user) { mkSay("Connecte-toi d'abord."); return; }
       var g = Math.floor(parseFloat($id("xMg").value) || 0), c = Math.floor(parseFloat($id("xMc").value) || 0), s = bridge.getState();
       if (!g && !c) { mkSay("Indique un montant."); return; }
       if (g > (s.gems || 0) || c > (s.cash || 0)) { mkSay("Pas assez dans le jeu."); return; }
       Cloud.economy.deposit(g, c).then(function (r) { mkSay(r && r.data && r.data.success ? "Déposé ✔" : ((r && r.data && r.data.error) || "Erreur.")); $id("xMg").value = ""; $id("xMc").value = ""; renderMarket(); });
     };
-    ov.querySelector("#xWit").onclick = function () {
+    container.querySelector("#xWit").onclick = function () {
       if (!user) { mkSay("Connecte-toi d'abord."); return; }
       var g = Math.floor(parseFloat($id("xMg").value) || 0), c = Math.floor(parseFloat($id("xMc").value) || 0);
       if (!g && !c) { mkSay("Indique un montant."); return; }
