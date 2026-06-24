@@ -811,21 +811,22 @@
     CRASH: { e: "💥", n: "Krach" },    CRABE:{ e: "🦀", n: "Plat" },
     HYPE:  { e: "🚀", n: "Euphorie" }
   };
-  const REGIME_ALIGN = 1.08;   // héros adapté au régime courant
-  const REGIME_MIS   = 0.96;   // héros à contre-emploi
+  const REGIME_STEP = 0.06;    // bonus de prod par héros ALIGNÉ
+  const REGIME_CAP  = 0.40;    // plafond du bonus de régime
   let currentRegime = "CRABE";
-  // Multiplicateur GLOBAL de production selon l'adéquation des héros déployés.
+  // Bonus GLOBAL de production : +STEP par héros déployé aligné, plafonné.
+  // Modèle bonus-only : aucun malus (les héros à contre-emploi / Quant = neutres).
   function regimeProdMult() {
-    let m = 1;
+    let aligned = 0;
     state.dexes.forEach(d => {
       if (!d.placed) return;
       ASSETS.forEach(n => {
         if (!d.placed[n.id]) return;
-        const h = HDATA_BY_ID[n.id]; if (!h || h.regime == null) return;   // Quant = polyvalent
-        m *= (h.regime === currentRegime) ? REGIME_ALIGN : REGIME_MIS;
+        const h = HDATA_BY_ID[n.id];
+        if (h && h.regime != null && h.regime === currentRegime) aligned++;
       });
     });
-    return m;
+    return 1 + Math.min(REGIME_CAP, aligned * REGIME_STEP);
   }
   function renderRegimeBadge() {
     const el = document.getElementById("regimeBadge"); if (!el) return;
@@ -1159,8 +1160,8 @@
     } else {
       const ri = REGIME_INFO[h.regime] || { e: "", n: h.regime };
       let txt = (h.klass || "—") + " — fort en " + ri.e + " " + ri.n;
-      if (h.regime === currentRegime) txt += ' <span style="color:var(--accent)">· adapté au marché actuel (+' + Math.round((REGIME_ALIGN - 1) * 100) + '%)</span>';
-      else txt += ' <span style="color:var(--muted)">· à contre-emploi (−' + Math.round((1 - REGIME_MIS) * 100) + '%)</span>';
+      if (h.regime === currentRegime) txt += ' <span style="color:var(--accent)">· adapté au marché actuel (+' + Math.round(REGIME_STEP * 100) + '%)</span>';
+      else txt += ' <span style="color:var(--muted)">· inactif (pas de pénalité)</span>';
       fr.innerHTML = txt;
     }
     document.getElementById("fichePassive").textContent = h.passive.text;
