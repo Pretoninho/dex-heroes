@@ -74,6 +74,11 @@
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
+  .topnav { flex-wrap: wrap; }
+  .clock {
+    font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap; letter-spacing: .2px;
+  }
   .navtabs { display: flex; gap: 6px; }
   .navtab {
     display: inline-flex; align-items: center; gap: 6px;
@@ -86,6 +91,7 @@
     .brand { font-size: 15px; }
     .navtab span { display: none; }          /* mobile : icônes seules */
     .navtab { padding: 8px 12px; font-size: 18px; }
+    .clock { order: 3; flex-basis: 100%; text-align: center; }  /* sa propre ligne */
   }
 
   .layout {
@@ -382,10 +388,12 @@
 <body>
   <nav class="topnav">
     <div class="brand">💵 Dex Heroes</div>
+    <div class="clock" id="topClock">—</div>
     <div class="navtabs">
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
+      <button class="navtab" data-nav="market">🏦<span>Bourse</span></button>
     </div>
   </nav>
 
@@ -498,6 +506,11 @@
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
+
+      <!-- Bourse aux gemmes (terminal) -->
+      <div id="marketScreen" style="display:none">
+        <div class="mk-fallback" style="color:var(--muted);text-align:center;padding:40px 16px">☁️ Connecte le cloud pour accéder à la Bourse aux gemmes.</div>
+      </div>
     </div>
   </div>
 
@@ -505,7 +518,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=8"></script>
+<script src="cloud.js?v=12"></script>
 <script src="heroes.data.js?v=8"></script>
 <script>
 (() => {
@@ -977,6 +990,9 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
+    document.getElementById("marketScreen").style.display = name === "market" ? "block" : "none";
+    if (name === "market") { if (window.Cloud && window.Cloud.marketOpen) window.Cloud.marketOpen(); }
+    else { if (window.Cloud && window.Cloud.marketClose) window.Cloud.marketClose(); }
     setActiveNav();
   }
   function setActiveNav() {
@@ -1303,8 +1319,22 @@
     const nav = b.dataset.nav;
     if (nav === "gacha") openGacha();
     else if (nav === "heroes") openHeroes();
+    else if (nav === "market") { currentModule = null; showScreen("market"); render(); }
     else backToOverview();
   }));
+
+  // Horloge UTC (heure du jeu) — barre du haut : Jour - JJ/MM/AAAA : HH:MM:SS UTC
+  const JOURS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function updateClock() {
+    const el = document.getElementById("topClock"); if (!el) return;
+    const d = new Date();
+    const jour = JOURS_FR[d.getUTCDay()];
+    const date = pad2(d.getUTCDate()) + "/" + pad2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear();
+    const heure = pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()) + ":" + pad2(d.getUTCSeconds());
+    el.textContent = jour + " - " + date + " : " + heure + " UTC";
+  }
+  updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   document.getElementById("pull1").addEventListener("click", () => pull(1));
