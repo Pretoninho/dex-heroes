@@ -76,24 +76,60 @@ Construction **étape par étape** : 1) structure 3 paliers + pages module *(fai
 2) économie de gemmes + **gacha** *(fait)* · 3) **placement** des héros *(fait)* ·
 4) **fusion** des doublons (les copies renforceront le multiplicateur).
 
+## Multijoueur & économie (Supabase)
+
+Le jeu peut se synchroniser entre appareils et faire tourner une **économie de
+marché complète** via **Supabase**. Désactivé par défaut : sans clés dans
+`cloud.js`, tout reste local (`localStorage`). Mise en place dans
+[`backend/README.md`](./backend/README.md).
+
+- **Comptes + cloud save** : synchro multi-appareils, suivi du propriétaire de la
+  partie (un compte ≠ un autre sur le même navigateur), pseudo persistant.
+- **Classement** : production /s, lu depuis la table `scores`.
+- **Bourse aux gemmes (Exchange)** : un vrai **terminal de trading** in-game,
+  100 % monnaie de jeu (gemmes ↔ cash).
+
+### L'Exchange 🫱🏻‍🫲🏻
+
+Onglet **Exchange** (et accès depuis la page du module 📈 **Bourse** — *1 module =
+1 activité, 18 à terme*). Terminal façon plateforme d'échange :
+
+- **Ticker** : prix, **variation depuis 00:00 UTC**, **régime de marché** (nom + badge).
+- **Graphique en chandeliers** (2 axes) avec **timeframes 15m / 1H / 4H / D**.
+- **Carnet d'ordres** (achats/ventes + barre de pression).
+- **Achat/Vente** en ordre **Limite** ou **Market**, avec slider + saisie, et
+  **modification d'ordre** en ligne.
+- **Frais** maker / taker / retrait (configurables).
+- **Dépôt / retrait** entre le jeu et le marché.
+
+### Économie event-sourced (inspirée d'AXIOM)
+
+Sous le capot, une architecture en couches sur un **grand livre immuable** :
+
+| Couche | Contenu |
+|---|---|
+| **L1** | Ledger append-only + soldes (projection) + conservation (toute opération somme à 0) |
+| **L2** | Marché : carnet, matching, faits de trade, index de prix |
+| **L3** | **NPC teneur de marché** (liquidité permanente, tick `pg_cron`) |
+| **L4** | **Régime de marché émergent** (BULL/BEAR/CRASH/CRABE/HYPE), lu du cours, non aléatoire, avec hystérésis |
+| **L5** | *(à venir)* contrats & **levier** (gated par le niveau du héros Bourse) |
+
+Détails : [`docs/economy.md`](./docs/economy.md). Ordre de déploiement SQL et
+notes d'architecture dans [`CLAUDE.md`](./CLAUDE.md).
+
 ## À venir (roadmap)
 
-- 🦸 Système de héros (gacha / fusion / slots) — voir ci-dessus.
-- 🔒 Déblocage du Dex suivant conditionné aux **héros** (en plus du cash).
-- 🏆 Succès / objectifs, améliorations de clic.
-
-## Multijoueur (optionnel) — Phase A : sauvegarde cloud
-
-Le jeu peut se synchroniser entre appareils via **Supabase** (comptes + cloud
-save). C'est **désactivé par défaut** : tant que les clés ne sont pas renseignées
-dans `cloud.js`, tout reste en local (`localStorage`). Mise en place dans
-[`backend/README.md`](./backend/README.md). Suite prévue : classement (Phase B),
-puis marché de gemmes **100 % in-game** (Phase C).
+- 🤖 **NPC réactif** — fait *bouger* le cours tout seul (marché vivant sans joueurs).
+- 🦸 **Régime → héros** : le régime du jour modifiera la production selon la classe du héros.
+- 📈 **Levier** (L5) : trading à effet de levier, débloqué par le niveau du héros Bourse.
+- 🔒 Déblocage du Dex suivant conditionné aux **héros**.
+- 🏆 Succès / objectifs.
 
 ## Structure du code
 
-L'essentiel tient dans `index.html`. Les données des héros sont dans
-`heroes.data.js`, l'intégration cloud (optionnelle) dans `cloud.js`.
+L'essentiel tient dans `index.html`. Données des héros dans `heroes.data.js`,
+intégration cloud + terminal Exchange dans `cloud.js`, économie SQL dans
+`backend/`. Mémoire technique du projet : [`CLAUDE.md`](./CLAUDE.md).
 
 ## Déploiement GitHub Pages
 
