@@ -242,7 +242,7 @@
     myBalances: function () { return sb.rpc("economy_my_balances"); },
     myOrders:   function () { return sb.rpc("economy_my_orders"); },
     fees:       function () { return sb.rpc("economy_get_fees"); },
-    history:    function () { return sb.from("economy_price_history").select("price,captured_at").order("captured_at", { ascending: false }).limit(180); },
+    history:    function () { return sb.from("economy_price_history").select("price,captured_at").order("captured_at", { ascending: false }).limit(1500); },
     deposit:    function (g, c) { return sb.rpc("economy_deposit", { d_gems: g, d_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(-g); if (c) bridge.addCash(-c); } return r; }); },
     withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { var ng = r.data.net_gems != null ? r.data.net_gems : g, nc = r.data.net_cash != null ? r.data.net_cash : c; if (ng) bridge.addGems(ng); if (nc) bridge.addCash(nc); } return r; }); },
     place:      function (side, g, p) { return sb.rpc("economy_place_order", { p_side: side, p_gems: g, p_price: p }); },
@@ -258,7 +258,7 @@
     HYPE:  ["🚀", "Euphorie", "#22c197"]
   };
   var mkMsg = null, mkSide = "buy", mkType = "limit", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
-  var mkRefresh = null, mkEditing = false;
+  var mkRefresh = null, mkEditing = false, mkTF = 15;   // minutes par bougie
   function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
   function $id(i) { return document.getElementById(i); }
@@ -299,30 +299,53 @@
     syncTotal();
   }
 
-  // Graphique en chandeliers (lecture de l'historique de prix)
+  // Graphique en chandeliers, 2 axes (prix à droite, temps en bas) + timeframe
   function renderChart() {
     var el = document.getElementById("xChart"); if (!el) return;
     Cloud.economy.history().then(function (r) {
       var rows = (r && r.data) || [];
-      var pts = rows.slice().reverse().map(function (x) { return Number(x.price) || 0; }).filter(function (p) { return p > 0; });
-      if (pts.length < 2) { el.innerHTML = '<div class="xempty">Pas encore d\'historique — le marché démarre (1 point/minute).</div>'; return; }
-      // Regrouper en bougies (OHLC)
-      var nC = Math.min(30, pts.length), per = Math.ceil(pts.length / nC), candles = [];
-      for (var i = 0; i < pts.length; i += per) {
-        var seg = pts.slice(i, i + per); if (!seg.length) continue;
-        candles.push({ o: seg[0], c: seg[seg.length - 1], hi: Math.max.apply(null, seg), lo: Math.min.apply(null, seg) });
+      var data = rows.slice().reverse()
+        .map(function (x) { return { p: Number(x.price) || 0, t: new Date(x.captured_at) }; })
+        .filter(function (d) { return d.p > 0; });
+      if (data.length < 2) { el.innerHTML = '<div class="xempty">Pas encore d\'historique — le marché démarre (1 point/minute).</div>'; return; }
+
+      // Regrouper en bougies selon le timeframe (1 point ≈ 1 min)
+      var per = mkTF, candles = [];
+      for (var i = 0; i < data.length; i += per) {
+        var seg = data.slice(i, i + per); if (!seg.length) continue;
+        var pr = seg.map(function (d) { return d.p; });
+        candles.push({ o: pr[0], c: pr[pr.length - 1], hi: Math.max.apply(null, pr), lo: Math.min.apply(null, pr), t: seg[0].t });
       }
+      var maxC = 48; if (candles.length > maxC) candles = candles.slice(candles.length - maxC);
+
+      var W = el.clientWidth || 320, H = 200, mT = 6, mR = 54, mB = 18, mL = 4;
+      var pw = W - mL - mR, ph = H - mT - mB;
       var hi = Math.max.apply(null, candles.map(function (k) { return k.hi; }));
       var lo = Math.min.apply(null, candles.map(function (k) { return k.lo; }));
-      var pad = (hi - lo) * 0.08 || (hi * 0.05) || 1; hi += pad; lo -= pad;
-      var cw = 10, w = candles.length * cw, h = 100;
-      var y = function (p) { return (h - (p - lo) / (hi - lo) * h).toFixed(2); };
-      var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">';
+      var pad = (hi - lo) * 0.08 || hi * 0.02 || 1; hi += pad; lo -= pad;
+      var py = function (p) { return mT + (1 - (p - lo) / (hi - lo)) * ph; };
+      var cw = pw / candles.length;
+      var tl = function (d) { var z = function (n) { return (n < 10 ? "0" : "") + n; }; return z(d.getUTCDate()) + "/" + z(d.getUTCMonth() + 1) + " " + z(d.getUTCHours()) + ":" + z(d.getUTCMinutes()); };
+
+      var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '">';
+      // Axe Y : grille + prix à droite
+      for (var g = 0; g <= 4; g++) {
+        var pv = lo + (hi - lo) * g / 4, yy = py(pv).toFixed(1);
+        svg += '<line x1="' + mL + '" x2="' + (mL + pw) + '" y1="' + yy + '" y2="' + yy + '" stroke="#1d3d2c" stroke-width="1"/>';
+        svg += '<text x="' + (W - mR + 5) + '" y="' + (parseFloat(yy) + 3).toFixed(1) + '" fill="#8fb7a3" font-size="10">' + fmtP(pv) + '</text>';
+      }
+      // Bougies
       candles.forEach(function (k, i) {
-        var x = (i * cw + cw / 2).toFixed(2), up = k.c >= k.o, col = up ? "#34d17a" : "#e06b6b";
-        var yo = +y(k.o), yc = +y(k.c), top = Math.min(yo, yc), bh = Math.max(0.6, Math.abs(yc - yo));
-        svg += '<line x1="' + x + '" x2="' + x + '" y1="' + y(k.hi) + '" y2="' + y(k.lo) + '" stroke="' + col + '" stroke-width="0.7"/>';
-        svg += '<rect x="' + (i * cw + 2) + '" y="' + top.toFixed(2) + '" width="' + (cw - 4) + '" height="' + bh.toFixed(2) + '" fill="' + col + '"/>';
+        var cx = mL + i * cw + cw / 2, up = k.c >= k.o, col = up ? "#34d17a" : "#e06b6b", bw = Math.max(1.5, cw * 0.6);
+        var yo = py(k.o), yc = py(k.c), top = Math.min(yo, yc), bh = Math.max(1, Math.abs(yc - yo));
+        svg += '<line x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + py(k.hi).toFixed(1) + '" y2="' + py(k.lo).toFixed(1) + '" stroke="' + col + '" stroke-width="1"/>';
+        svg += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col + '"/>';
+      });
+      // Axe X : quelques horodatages
+      [0, Math.floor(candles.length / 2), candles.length - 1].forEach(function (idx, j) {
+        if (idx < 0 || idx >= candles.length) return;
+        var cx = mL + idx * cw + cw / 2, anc = j === 0 ? "start" : (j === 2 ? "end" : "middle");
+        svg += '<text x="' + cx.toFixed(1) + '" y="' + (H - 5) + '" fill="#8fb7a3" font-size="10" text-anchor="' + anc + '">' + tl(candles[idx].t) + '</text>';
       });
       svg += '</svg>';
       el.innerHTML = svg;
@@ -451,8 +474,9 @@
       + ".xch-price{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}"
       + ".xch-chg{font-weight:600}.xch-reg{margin-left:auto;font-weight:600}"
       + ".xch-hl{color:var(--muted);font-size:12px;margin:2px 0 12px}"
+      + ".xch-tf{display:flex;gap:6px;margin-bottom:6px}.xch-tf button{padding:4px 12px;border-radius:7px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-size:12px;cursor:pointer}.xch-tf button.on{color:var(--text);border-color:var(--accent-2)}"
       + ".xch-chart{background:var(--bg);border:1px solid #1d3d2c;border-radius:12px;padding:6px;margin-bottom:12px}"
-      + ".xch-chart svg{display:block;width:100%;height:150px}"
+      + ".xch-chart svg{display:block;width:100%}"
       + ".xch-body{display:flex;flex-direction:column;gap:14px}"
       + "@media(min-width:640px){.xch-body{display:grid;grid-template-columns:1fr 1fr;align-items:start}}"
       + ".xch-book{background:var(--bg);border:1px solid #1d3d2c;border-radius:12px;padding:8px}"
@@ -492,6 +516,7 @@
       + '<div class="xch-head"><div class="xch-pair">💎 GEMS <span>/ $ CASH</span></div></div>'
       + '<div class="xch-tick"><div class="xch-price" id="xPrice">—</div><div class="xch-chg" id="xChg">—</div><div class="xch-reg" id="xReg">🦀 Plat</div></div>'
       + '<div class="xch-hl" id="xHL">H — · B —</div>'
+      + '<div class="xch-tf" id="xTF"><button data-tf="15" class="on">15m</button><button data-tf="60">1H</button><button data-tf="240">4H</button><button data-tf="1440">D</button></div>'
       + '<div class="xch-chart" id="xChart"><div class="xempty">Chargement du graphique…</div></div>'
       + '<div class="xch-body">'
       + '<div class="xch-col-book"><div class="xch-book"><div class="xch-bookhead"><span>Prix ($)</span><span>Qté 💎</span></div>'
@@ -522,6 +547,13 @@
     container.querySelector("#xSellTab").onclick = function () { setSide("sell"); };
     container.querySelector("#xTypeLimit").onclick = function () { setType("limit"); };
     container.querySelector("#xTypeMarket").onclick = function () { setType("market"); };
+    container.querySelectorAll(".xch-tf button").forEach(function (b) {
+      b.onclick = function () {
+        mkTF = parseInt(b.getAttribute("data-tf"), 10) || 15;
+        container.querySelectorAll(".xch-tf button").forEach(function (x) { x.classList.toggle("on", x === b); });
+        renderChart();
+      };
+    });
     container.querySelector("#xSlider").oninput = function () { setAmtFromPct(parseInt(this.value, 10) || 0); };
     container.querySelector("#xAmtIn").oninput = syncSliderFromAmt;
     container.querySelector("#xPriceIn").oninput = function () { syncSliderFromAmt(); };
