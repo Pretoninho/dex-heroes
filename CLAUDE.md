@@ -15,7 +15,7 @@ déployé en statique sur **GitHub Pages** depuis `main`. Backend optionnel **Su
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), horloge UTC, écran Exchange (conteneur), pont `window.DEX` |
+| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), horloge UTC, écran Exchange (conteneur), pont `window.DEX` |
 | `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, regime) |
 | `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo, **et tout le terminal Exchange** (`Cloud.economy.*`, rendu du carnet/graphique/trade) |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
@@ -134,7 +134,7 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 Ordre suggéré : (1) **Éclats** ~~Phase 1~~ ✅ FAIT (local : faucet surplus→Éclats, fabrication ciblée,
 fusion de secours ; `state.shards`, `SHARD_PER_COPY`=8/6/4, `craftHero`, UI Codex). Reste **Phase 2** :
 pont ledger + **trade** secondaire sur l'Exchange →
-(2) **surnoms de héros** → (3) ~~**tiers retail/OTC**~~ ✅ FAIT (`economy_otc.sql` : achat de gems au cours + **OTC = Hedge Fund** book séparé, taille mini, taker 1 %, impact, garde-fou d'arbitrage + widget d'écart) →
+(2) ~~**surnoms de héros**~~ ✅ FAIT (local : `state.nicknames`, éditeur fiche Codex, perso/non-public) → (3) ~~**tiers retail/OTC**~~ ✅ FAIT (`economy_otc.sql` : achat de gems au cours + **OTC = Hedge Fund** book séparé, taille mini, taker 1 %, impact, garde-fou d'arbitrage + widget d'écart) →
 (4) **$VOLT** (miné par le bras Énergie, plafond global, module 🎲 Spéculation, staking, ancre faible + NPC agité) →
 (5) **levier (L5)** sur l'OTC → (6) **endgame** frais→stakers → (cap lointain) **DEX-shares**.
 ⚠️ Le **protocole de halving du $VOLT** reste à concevoir.

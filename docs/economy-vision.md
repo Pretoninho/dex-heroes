@@ -71,14 +71,20 @@ Fusionner du module bascule sur le coût en Éclats quand les doublons manquent.
 
 ---
 
-## 4. Héros nommables (surnom)
+## 4. Héros nommables (surnom) — ✅ IMPLÉMENTÉ
 
-- Le joueur peut donner un **surnom optionnel** à ses héros.
-- Affichage **« Surnom (Nom canonique) »** — le **nom canonique reste la source de
-  vérité** (identité parodique + docs préservées).
-- **Filtre anti-grossièretés** seulement si le surnom devient public (classement…).
+> Statut : **codé** (`state.nicknames = {heroId: surnom}`, helpers `heroName` /
+> `heroNameFull`, éditeur sur la fiche du Codex). Cosmétique et **personnel** (pas
+> public) → pas de filtre pour l'instant. Voyage au cloud via `Cloud.push(state)`.
+
+- Le joueur donne un **surnom optionnel** à ses héros (éditeur dans la fiche 📖,
+  max 20 car., caractères de contrôle filtrés).
+- Affichage : le **surnom** prime dans le Codex (en vert), le module et les toasts ;
+  la fiche montre « *alias de « Nom canonique »* ». Le **nom canonique reste la
+  source de vérité** (identité parodique + docs préservées).
+- **Filtre anti-grossièretés** : seulement si le surnom devient public (classement…) —
+  **pas nécessaire aujourd'hui** (surnoms personnels, le pseudo public est séparé).
 - Aucun conflit avec les marchés (on trade des Éclats par rareté, pas par héros).
-- Coût technique faible (un champ `nickname` dans la save). **En test.**
 
 ---
 
@@ -192,7 +198,7 @@ les modules.
 ## 10. Ordre de construction suggéré (au « go »)
 
 1. ~~**Éclats** (faucet fusion + sink fabrication)~~ — ✅ **Phase 1 FAITE** (local). Reste : trade (Phase 2, pont ledger).
-2. **Surnoms de héros** — petit, isolé, sympa.
+2. ~~**Surnoms de héros**~~ — ✅ FAIT (local, `state.nicknames`, éditeur fiche Codex).
 3. ~~**Tiers retail/OTC** + **achat de gems au cours**~~ — ✅ FAIT (`economy_retail.sql` + `economy_otc.sql`).
 4. **$VOLT** : minage (Énergie) + module Spéculation + actif volatil + staking.
 5. **Levier (L5)** sur l'OTC, gated par le niveau du héros Bourse.
