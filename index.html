@@ -407,6 +407,11 @@
   .gembal b { color: var(--accent-2); }
   .gembuy { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .gemhint { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .valo { margin-top: 16px; border-top: 1px solid rgba(255,255,255,.07); padding-top: 14px; }
+  .valobal { font-size: 15px; margin-bottom: 8px; }
+  .valobal b { color: var(--accent); }
+  .valobal .vmult { color: var(--accent-2); font-weight: 700; }
+  .valohint { color: var(--muted); font-size: 11px; margin-top: 8px; }
 
   .toast {
     position: fixed;
@@ -457,6 +462,12 @@
           <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
         </div>
         <div class="gemhint" id="gemHint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
+      </div>
+
+      <div class="valo" id="valoBox">
+        <div class="valobal">🏛️ <b id="valoRank">Stagiaire</b> · prod globale <span class="vmult" id="valoMult">×1.00</span></div>
+        <button class="btn" id="valoBtn">📈 Promotion · <span id="valoCost">$100k</span></button>
+        <div class="valohint">Dépense du cash pour un rang permanent (+10 % prod globale). Aucun reset.</div>
       </div>
 
       <div class="controls">
@@ -607,7 +618,11 @@
   // héros (étape gacha). parent = module amont requis pour se connecter.
   // baseCost : coût de connexion | rate : +$/sec par niveau | growth : ×coût.
   const SOURCE = { id: "source", name: "Source", emoji: "💵", source: true };
-  const GROWTH = 1.21;
+  const GROWTH = 1.28;          // ×coût par niveau de module (durci de 1.21 → 1.28 : mid-game plus exigeant)
+  // Gains hors-ligne : PLAFONNÉS + taux réduit. Les héros « hors-ligne » (offlineMult/offlineCap)
+  // étendent désormais le PLAFOND (heures), ils ne multiplient plus le gain par seconde.
+  const OFFLINE_CAP_H = 4;      // plafond de base des gains hors-ligne (heures)
+  const OFFLINE_RATE  = 0.5;    // les gains hors-ligne valent 50 % du taux en ligne
   const RARITY = ["Commun", "Rare", "Épique"];   // index = palier (tier)
   const ARMS = [
     { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:2250,    rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:60000,    rate:120  } ] },
@@ -686,8 +701,9 @@
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
   // par canBuyDex() (plus tard : exiger aussi tous les héros).
   const DEX_DEFS = [
-    { name: "Dex 1", costMult: 1,  rateMult: 1,  buyCost: 0 },
-    { name: "Dex 2", costMult: 50, rateMult: 25, buyCost: 250000 },
+    { name: "Dex 1", costMult: 1,    rateMult: 1,    buyCost: 0 },
+    { name: "Dex 2", costMult: 50,   rateMult: 25,   buyCost: 250000 },
+    { name: "Dex 3", costMult: 2500, rateMult: 1000, buyCost: 50000000 },   // puits de cash endgame (efficience ~0,4× → réservé au capital tardif)
   ];
 
   const SAVE_KEY = "dexHeroesSave";
@@ -709,6 +725,7 @@
       freePullNext: false,         // signature Lancement : prochain tirage gratuit
       dexes: [ { levels: {}, placed: {} } ],   // par Dex : { levels:{id:niv}, placed:{id:héros déployé} }
       currentDex: 0,               // Dex affiché
+      valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
       lastSeen: Date.now()
     };
   }
@@ -744,6 +761,7 @@
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
     if (typeof state.freePullNext !== "boolean") state.freePullNext = false;
     if (typeof state.currentDex !== "number" || state.currentDex >= state.dexes.length) state.currentDex = 0;
+    if (typeof state.valoRank !== "number" || state.valoRank < 0) state.valoRank = 0;
   }
 
   // --- Gacha : tirage avec pity -----------------------------------------
@@ -942,6 +960,27 @@
     }).catch(function () {});
   }
 
+  // --- 🏛️ Valorisation (rang d'entreprise) : niveau permanent + puits de cash ---
+  // On monte de rang en DÉPENSANT du cash (coût ×VALO_GROWTH par rang). Chaque rang
+  // donne +VALO_STEP de prod GLOBALE (multiplicatif, permanent). Pas de reset : c'est
+  // un « soft-prestige » qui rend le cash de fin de partie utile sans rien effacer.
+  const VALO_BASE = 100000;   // coût du 1er rang ($)
+  const VALO_GROWTH = 8;      // ×coût par rang
+  const VALO_STEP = 0.10;     // +10 % prod globale par rang (multiplicatif)
+  const VALO_RANKS = ["Stagiaire", "Analyste", "Trader", "Gérant", "Directeur", "Associé", "Magnat", "Oligarque", "Baron", "Légende"];
+  function valoRankNum() { return state.valoRank || 0; }
+  function valoMult() { return Math.pow(1 + VALO_STEP, valoRankNum()); }
+  function valoCost(r) { return Math.floor(VALO_BASE * Math.pow(VALO_GROWTH, r == null ? valoRankNum() : r)); }
+  function valoName(r) { r = (r == null ? valoRankNum() : r); return r < VALO_RANKS.length ? VALO_RANKS[r] : VALO_RANKS[VALO_RANKS.length - 1] + " ★" + (r - VALO_RANKS.length + 2); }
+  function buyValo() {
+    const cost = valoCost();
+    if (state.cash < cost) { toast("Pas assez de cash pour la promotion !"); return; }
+    state.cash -= cost;
+    state.valoRank = valoRankNum() + 1;
+    toast(`📈 Promotion : ${valoName()} · +${Math.round(VALO_STEP * 100)} % prod globale`);
+    render(); save();
+  }
+
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
@@ -950,7 +989,7 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
-    return total * regimeProdMult();   // famille G : bonus/malus de régime
+    return total * regimeProdMult() * valoMult();   // régime (famille G) × rang de Valorisation
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1078,10 +1117,13 @@
       adopt(saved);
       const elapsed = (Date.now() - (prevSeen || Date.now())) / 1000;
       if (elapsed > 1) {
-        const gained = perSecond() * elapsed * globalHeroFx().offlineMult;
+        const capSec = OFFLINE_CAP_H * 3600 * globalHeroFx().offlineMult;   // héros « hors-ligne » → +heures de plafond
+        const eff = Math.min(elapsed, capSec);
+        const gained = perSecond() * eff * OFFLINE_RATE;
         if (gained > 0) {
           state.cash += gained;
-          setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} gagnés hors-ligne`), 400);
+          const capped = elapsed > capSec;
+          setTimeout(() => toast(`Bon retour ! +$${fmt(gained)} hors-ligne${capped ? ` (plafonné à ${Math.round(capSec / 3600)} h)` : ""}`), 400);
         }
       }
     } catch (e) { console.warn("Sauvegarde illisible", e); }
@@ -1380,6 +1422,12 @@
       ? "Prix au cours du marché (Exchange). Tirages dans l'onglet 🎲 Gacha."
       : "Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.";
 
+    const vr = valoRankNum(), vc = valoCost(vr);
+    document.getElementById("valoRank").textContent = valoName(vr);
+    document.getElementById("valoMult").textContent = "×" + valoMult().toFixed(2);
+    document.getElementById("valoCost").textContent = "$" + fmt(vc);
+    document.getElementById("valoBtn").classList.toggle("can", state.cash >= vc);
+
     const bd = document.getElementById("buyDexBtn");
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
 
@@ -1591,6 +1639,7 @@
   document.getElementById("billBtn").addEventListener("click", click);
   document.getElementById("saveBtn").addEventListener("click", () => { save(); toast("Sauvegardé 💾"); });
   document.getElementById("resetBtn").addEventListener("click", reset);
+  document.getElementById("valoBtn").addEventListener("click", buyValo);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
   document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
