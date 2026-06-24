@@ -246,6 +246,7 @@
     deposit:    function (g, c) { return sb.rpc("economy_deposit", { d_gems: g, d_cash: c }).then(function (r) { if (r && r.data && r.data.success) { if (g) bridge.addGems(-g); if (c) bridge.addCash(-c); } return r; }); },
     withdraw:   function (g, c) { return sb.rpc("economy_withdraw", { w_gems: g, w_cash: c }).then(function (r) { if (r && r.data && r.data.success) { var ng = r.data.net_gems != null ? r.data.net_gems : g, nc = r.data.net_cash != null ? r.data.net_cash : c; if (ng) bridge.addGems(ng); if (nc) bridge.addCash(nc); } return r; }); },
     place:      function (side, g, p) { return sb.rpc("economy_place_order", { p_side: side, p_gems: g, p_price: p }); },
+    market:     function (side, g) { return sb.rpc("economy_market_order", { p_side: side, p_gems: g }); },
     cancel:     function (id) { return sb.rpc("economy_cancel_order", { p_order_id: id }); },
     amend:      function (id, g, p) { return sb.rpc("economy_amend_order", { p_order_id: id, p_gems: g, p_price: p }); }
   };
@@ -256,7 +257,7 @@
     CRASH: ["💥", "Krach", "#e35d6a"],     CRABE:["🦀", "Plat", "#9fb0c3"],
     HYPE:  ["🚀", "Euphorie", "#22c197"]
   };
-  var mkMsg = null, mkSide = "buy", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
+  var mkMsg = null, mkSide = "buy", mkType = "limit", mkBal = { gems: 0, cash: 0 }, mkPrice = 0;
   var mkRefresh = null, mkEditing = false;
   function mkSay(t) { if (mkMsg) mkMsg.textContent = t || ""; }
   function fmtP(x) { x = Number(x) || 0; return x.toLocaleString("fr-FR", { maximumFractionDigits: 2 }); }
@@ -406,6 +407,16 @@
     go.className = "xch-go " + side;
     setAmtFromPct(0);
   }
+  // Type d'ordre : Limite (prix saisi) ou Market (au meilleur prix du carnet)
+  function setType(t) {
+    mkType = t;
+    $id("xTypeLimit").classList.toggle("on", t === "limit");
+    $id("xTypeMarket").classList.toggle("on", t === "market");
+    var isMkt = t === "market";
+    $id("xPriceIn").style.display = isMkt ? "none" : "";
+    $id("xPriceLbl").style.display = isMkt ? "none" : "";
+    syncSliderFromAmt();
+  }
 
   // Édition en ligne d'un ordre (annuler + replacer atomique côté serveur)
   function startEditOrder(id, gems, price) {
@@ -459,6 +470,7 @@
       + ".xch-toggle{display:flex;gap:6px;margin-bottom:8px}"
       + ".xch-toggle button{flex:1;padding:10px;border-radius:8px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-weight:600;cursor:pointer}"
       + ".xch-toggle button.on{color:#fff}#xBuyTab.on{background:#1c7a4e;border-color:var(--accent)}#xSellTab.on{background:#7a2f37;border-color:#e06b6b}"
+      + ".xch-type{display:flex;gap:6px;margin-bottom:8px}.xch-type button{flex:1;padding:7px;border-radius:8px;border:1px solid #2a4d3a;background:var(--panel-2);color:var(--muted);font-size:13px;cursor:pointer}.xch-type button.on{color:var(--text);border-color:var(--accent-2)}"
       + ".xch-l{display:block;color:var(--muted);font-size:11px;margin:6px 0 3px}"
       + ".xch input[type=number]{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #2a4d3a;background:var(--bg);color:var(--text);font-size:15px;font-variant-numeric:tabular-nums}"
       + ".xch input[type=range]{width:100%;margin:8px 0;accent-color:var(--accent)}"
@@ -488,7 +500,8 @@
       + '<div class="xch-presslabel"><span id="xPbl">—</span><span id="xPsl">—</span></div></div></div>'
       + '<div class="xch-col-trade">'
       + '<div class="xch-toggle"><button id="xBuyTab" class="on">Acheter</button><button id="xSellTab">Vendre</button></div>'
-      + '<label class="xch-l">Prix ($ / 💎)</label><input id="xPriceIn" type="number" min="0" step="0.01">'
+      + '<div class="xch-type"><button id="xTypeLimit" class="on">Limite</button><button id="xTypeMarket">Market</button></div>'
+      + '<label class="xch-l" id="xPriceLbl">Prix ($ / 💎)</label><input id="xPriceIn" type="number" min="0" step="0.01">'
       + '<label class="xch-l">Quantité 💎</label><input id="xAmtIn" type="number" min="0" placeholder="0">'
       + '<input id="xSlider" type="range" min="0" max="100" value="0">'
       + '<div class="xch-presets"><button data-pct="25">25%</button><button data-pct="50">50%</button><button data-pct="75">75%</button><button data-pct="100">Max</button></div>'
@@ -507,6 +520,8 @@
     // Handlers buy/sell
     container.querySelector("#xBuyTab").onclick = function () { setSide("buy"); };
     container.querySelector("#xSellTab").onclick = function () { setSide("sell"); };
+    container.querySelector("#xTypeLimit").onclick = function () { setType("limit"); };
+    container.querySelector("#xTypeMarket").onclick = function () { setType("market"); };
     container.querySelector("#xSlider").oninput = function () { setAmtFromPct(parseInt(this.value, 10) || 0); };
     container.querySelector("#xAmtIn").oninput = syncSliderFromAmt;
     container.querySelector("#xPriceIn").oninput = function () { syncSliderFromAmt(); };
@@ -515,13 +530,22 @@
     });
     container.querySelector("#xGo").onclick = function () {
       if (!user) { mkSay("Connecte-toi pour trader."); return; }
-      var g = Math.floor(parseFloat($id("xAmtIn").value) || 0), p = parseFloat($id("xPriceIn").value) || 0;
-      if (!g || !p) { mkSay("Quantité et prix requis."); return; }
-      Cloud.economy.place(mkSide, g, p).then(function (r) {
-        if (r && r.data && r.data.success) { mkSay(mkSide === "buy" ? "Ordre d'achat placé ✔" : "Ordre de vente placé ✔"); $id("xAmtIn").value = ""; $id("xSlider").value = 0; syncTotal(); }
-        else { mkSay((r && r.data && r.data.error) || (r && r.error && r.error.message) || "Erreur."); }
-        renderMarket();
-      });
+      var g = Math.floor(parseFloat($id("xAmtIn").value) || 0);
+      if (!g) { mkSay("Quantité requise."); return; }
+      var done = function (okMsg) {
+        return function (r) {
+          if (r && r.data && r.data.success) { mkSay(okMsg); $id("xAmtIn").value = ""; $id("xSlider").value = 0; syncTotal(); }
+          else { mkSay((r && r.data && r.data.error) || (r && r.error && r.error.message) || "Erreur."); }
+          renderMarket();
+        };
+      };
+      if (mkType === "market") {
+        Cloud.economy.market(mkSide, g).then(done(mkSide === "buy" ? "Achat Market exécuté ✔" : "Vente Market exécutée ✔"));
+      } else {
+        var p = parseFloat($id("xPriceIn").value) || 0;
+        if (!p) { mkSay("Prix requis (ordre limite)."); return; }
+        Cloud.economy.place(mkSide, g, p).then(done(mkSide === "buy" ? "Ordre d'achat placé ✔" : "Ordre de vente placé ✔"));
+      }
     };
     // Dépôt / retrait (jeu <-> marché)
     container.querySelector("#xDep").onclick = function () {
