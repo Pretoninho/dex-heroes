@@ -322,6 +322,17 @@
   .pull-card .ptag { font-size: 10px; margin-top: 2px; color: var(--muted); }
   .pull-card.r1 { border-color: #7ab8ff; }
   .pull-card.r2 { border-color: var(--accent-2); box-shadow: 0 0 12px rgba(255,210,77,.35); }
+  .pull-card.shard { border-style: dashed; opacity: .85; }
+
+  /* 🧩 Éclats (Codex) */
+  .shardbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+  .shardbar .shard {
+    font-size: 12px; padding: 5px 10px; border-radius: 999px;
+    border: 1px solid #2a4d3a; background: var(--panel-2); color: var(--muted);
+  }
+  .shardbar .shard b { color: var(--text); }
+  .shardbar .shard.s1 { border-color: #7ab8ff; }
+  .shardbar .shard.s2 { border-color: var(--accent-2); }
 
   .collection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .col-cell {
@@ -527,6 +538,11 @@
         </div>
         <div id="heroList">
           <h2>📖 Codex des Héros</h2>
+          <div class="shardbar" id="shardBar" title="Éclats : doublons de héros déjà maxés. Fabrique une copie d'un héros de la même rareté.">
+            <span class="shard s0">🧩 <b id="shard0">0</b> Communs</span>
+            <span class="shard s1">🧩 <b id="shard1">0</b> Rares</span>
+            <span class="shard s2">🧩 <b id="shard2">0</b> Épiques</span>
+          </div>
           <div class="herogrid" id="heroGrid"></div>
         </div>
         <div id="heroFiche" style="display:none">
@@ -544,6 +560,7 @@
           <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
           <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
           <div class="fiche-status" id="ficheStatus"></div>
+          <button class="btn" id="ficheCraftBtn" style="display:none"></button>
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
@@ -612,6 +629,14 @@
   const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
   const HSYN = HMETA.synergies || [];   // synergies de collection
 
+  // 🧩 Éclats (fragments fongibles par rareté) — voir docs/economy-vision.md §3
+  // Faucet : doublon d'un héros DÉJÀ maxé → 1 Éclat de sa rareté (au lieu d'un doublon mort).
+  // Sink : fabriquer 1 copie d'un héros CHOISI (coût ci-dessous) — sert aussi de doublon de secours.
+  const SHARD_PER_COPY = { 0: 8, 1: 6, 2: 4 };   // Éclats pour 1 copie (Commun · Rare · Épique)
+  const SHARD_LABEL = { 0: "Communs", 1: "Rares", 2: "Épiques" };
+  function rarityName(r) { return (HMETA.rarities[r] || {}).name || ("rareté " + r); }
+  function shardsOf(r) { return (state.shards && state.shards[r]) || 0; }
+
   // Gacha (réglages issus du GDD Desk Heroes)
   const PULL_COST = 200;            // gemmes par tirage
   const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
@@ -643,6 +668,7 @@
       gems: 0,                     // monnaie premium du gacha (achetée avec du cash)
       heroes: {},                  // { heroId(=moduleId): copies en inventaire (1 base + doublons) }
       lvl: {},                     // { heroId: niveau de fusion (>=1 si possédé) }
+      shards: { 0: 0, 1: 0, 2: 0 },// 🧩 Éclats fongibles par rareté (0 Commun · 1 Rare · 2 Épique)
       pity: 0,                     // compteur de tirages depuis le dernier Épique
       buffs: [],                   // buffs temporaires actifs (signatures) : {kind,...,until}
       cd: {},                      // cooldowns des signatures : { heroId: timestamp prêt }
@@ -669,6 +695,16 @@
     if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
     if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
     Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
+    // Éclats : normalisation + balayage des doublons MORTS (héros au max → surplus = Éclats)
+    if (!state.shards || typeof state.shards !== "object") state.shards = { 0: 0, 1: 0, 2: 0 };
+    [0, 1, 2].forEach(r => { if (typeof state.shards[r] !== "number") state.shards[r] = 0; });
+    Object.keys(state.heroes).forEach(id => {
+      const h = HDATA_BY_ID[id]; if (!h) return;
+      if (state.heroes[id] > 1 && (state.lvl[id] || 1) >= maxLvl(id)) {   // maxé → doublons inutiles
+        state.shards[h.rarity] = (state.shards[h.rarity] || 0) + (state.heroes[id] - 1);
+        state.heroes[id] = 1;
+      }
+    });
     if (!Array.isArray(state.buffs)) state.buffs = [];
     state.buffs = state.buffs.filter(b => b && b.until > Date.now());
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
@@ -683,10 +719,15 @@
     else { state.pity++; tier = (Math.random() * (DROP[0] + DROP[1]) < DROP[0]) ? 0 : 1; }
     const pool = HEROES_BY_TIER[tier];
     const h = pool[Math.floor(Math.random() * pool.length)];
-    const isNew = !(state.heroes[h.id] > 0);
+    const owned = state.heroes[h.id] > 0;
+    // Héros déjà au max → le doublon est inutile : il se convertit en Éclat (faucet)
+    if (owned && heroLvl(h.id) >= maxLvl(h.id)) {
+      state.shards[tier] = (state.shards[tier] || 0) + 1;
+      return { hero: h, tier, isNew: false, shard: true };
+    }
     state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
-    if (isNew) state.lvl[h.id] = 1;
-    return { hero: h, tier, isNew };
+    if (!owned) state.lvl[h.id] = 1;
+    return { hero: h, tier, isNew: !owned };
   }
   function pull(times) {
     const free = globalHeroFx().freePull;
@@ -890,12 +931,37 @@
   function fuseCost(level) { return level + 1; }                 // 1→2 = 2 doublons, 2→3 = 3…
   function maxLvl(id) { const r = (HDATA_BY_ID[id] || {}).rarity; return (HMETA.rarities[r] || {}).fusionMax || 5; }
   function fuse(id) {
-    const lvl = heroLvl(id), cost = fuseCost(lvl);
+    const h = HDATA_BY_ID[id]; if (!h) return;
+    const lvl = heroLvl(id), cost = fuseCost(lvl), dup = dupesOf(id);
     if (lvl >= maxLvl(id)) { toast("Niveau max atteint"); return; }
-    if (dupesOf(id) < cost) { toast(`Il faut ${cost} doublons`); return; }
-    state.heroes[id] -= cost;
+    let note = "";
+    if (dup >= cost) {
+      state.heroes[id] -= cost;                          // doublons suffisants
+    } else {
+      // Éclats = doublons de secours : couvrent le manque (coût = manque × prix d'1 copie)
+      const missing = cost - dup, r = h.rarity, shardCost = missing * SHARD_PER_COPY[r];
+      if (shardsOf(r) < shardCost) {
+        toast(`Il faut ${cost} doublons (ou ${dup} + ${shardCost} 🧩 ${SHARD_LABEL[r]})`); return;
+      }
+      state.heroes[id] = Math.max(1, state.heroes[id] - dup);   // consomme tous les doublons
+      state.shards[r] -= shardCost;
+      note = ` (${missing} doublon${missing > 1 ? "s" : ""} couvert${missing > 1 ? "s" : ""} par 🧩)`;
+    }
     state.lvl[id] = lvl + 1;
-    toast(`⬆️ ${HDATA_BY_ID[id].name} → Niv.${lvl + 1}`);
+    toast(`⬆️ ${h.name} → Niv.${lvl + 1}${note}`);
+    render();
+    save();
+  }
+  // Sink : fabriquer 1 copie d'un héros CHOISI avec des Éclats de sa rareté.
+  function craftHero(id) {
+    const h = HDATA_BY_ID[id]; if (!h) return;
+    const r = h.rarity, cost = SHARD_PER_COPY[r];
+    if (shardsOf(r) < cost) { toast(`Il faut ${cost} 🧩 ${SHARD_LABEL[r]}`); return; }
+    state.shards[r] -= cost;
+    const wasNew = !(state.heroes[id] > 0);
+    state.heroes[id] = (state.heroes[id] || 0) + 1;
+    if (wasNew) state.lvl[id] = 1;
+    toast(wasNew ? `✨ ${h.name} fabriqué !` : `+1 doublon · ${h.name}`);
     render();
     save();
   }
@@ -1226,13 +1292,23 @@
       }
     });
     document.getElementById("heroesOwned").textContent = owned;
+    [0, 1, 2].forEach(r => { document.getElementById("shard" + r).textContent = shardsOf(r); });
     if (ficheId) {
       const copies = state.heroes[ficheId] || 0;
       const node = NODE[ficheId];
       const deployed = node && isDeployed(node);
+      const maxed = copies > 0 && heroLvl(ficheId) >= maxLvl(ficheId);
       document.getElementById("ficheStatus").innerHTML = copies > 0
         ? `Possédé · Niv.${heroLvl(ficheId)} · ${dupesOf(ficheId)} doublon(s)${deployed ? " · 🦸 déployé" : ""}`
-        : `Non obtenu — invoque-le au gacha 🎲`;
+        : `Non obtenu — fabrique-le 🧩 ou invoque-le au gacha 🎲`;
+      // Bouton de fabrication par Éclats (ciblé)
+      const cb = document.getElementById("ficheCraftBtn");
+      const h = HDATA_BY_ID[ficheId], r = h ? h.rarity : 0, cost = SHARD_PER_COPY[r];
+      cb.style.display = "inline-block";
+      cb.disabled = shardsOf(r) < cost;
+      cb.className = "btn" + (shardsOf(r) >= cost ? " can" : "");
+      cb.textContent = (copies > 0 ? "Fabriquer +1 doublon" : "Fabriquer ce héros")
+        + ` · ${cost} 🧩 ${SHARD_LABEL[r]} (${shardsOf(r)})`;
     }
   }
   function gotoSibling(delta) {
@@ -1377,7 +1453,15 @@
       hbtn.className = "btn" + (deployed ? "" : " can");
       fbtn.style.display = "inline-block";
       if (lvl >= max) { fbtn.textContent = `Niveau max (${max})`; fbtn.className = "btn"; fbtn.disabled = true; }
-      else { fbtn.disabled = false; fbtn.textContent = `Fusionner → Niv.${lvl + 1} (${cost} doublons)`; fbtn.className = "btn" + (dup >= cost ? " can" : ""); }
+      else {
+        const r = hd ? hd.rarity : 0, missing = Math.max(0, cost - dup), shardCost = missing * SHARD_PER_COPY[r];
+        const canDup = dup >= cost, canShard = missing > 0 && shardsOf(r) >= shardCost;
+        fbtn.disabled = !(canDup || canShard);
+        fbtn.textContent = (canShard && !canDup)
+          ? `Fusionner → Niv.${lvl + 1} (${dup} + ${shardCost} 🧩)`
+          : `Fusionner → Niv.${lvl + 1} (${cost} doublons)`;
+        fbtn.className = "btn" + (canDup || canShard ? " can" : "");
+      }
     }
   }
 
@@ -1391,10 +1475,10 @@
   }
   function renderPullResults(results) {
     document.getElementById("pullResult").innerHTML = results.map(r =>
-      `<div class="pull-card r${r.tier}">
-        <div class="pemoji">${r.hero.emoji}</div>
+      `<div class="pull-card r${r.tier}${r.shard ? " shard" : ""}">
+        <div class="pemoji">${r.shard ? "🧩" : r.hero.emoji}</div>
         <div class="pname">${r.hero.name}</div>
-        <div class="ptag">${RARITY[r.tier]}${r.isNew ? " · NEW" : ""}</div>
+        <div class="ptag">${r.shard ? "+1 🧩 " + SHARD_LABEL[r.tier] : RARITY[r.tier] + (r.isNew ? " · NEW" : "")}</div>
       </div>`).join("");
   }
   function buildCollection() {
@@ -1491,6 +1575,7 @@
   }
   updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
+  document.getElementById("ficheCraftBtn").addEventListener("click", () => { if (ficheId) craftHero(ficheId); });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   document.getElementById("pull1").addEventListener("click", () => pull(1));
   document.getElementById("pull10").addEventListener("click", () => pull(10));
