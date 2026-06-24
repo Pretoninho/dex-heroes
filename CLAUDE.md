@@ -97,7 +97,7 @@ re-passe un fichier intermédiaire, re-passer `economy_l3b.sql` ensuite.
 ## Tâches en attente / roadmap
 
 1. ~~**NPC réactif (L3b)**~~ — ✅ FAIT (`economy_l3b.sql`). Le cours bouge tout seul.
-2. ~~**Régime → effet héros (famille G)**~~ — ✅ FAIT. `regimeProdMult()` dans index.html (aligné ×1.08 / contre-emploi ×0.96 / Quant neutre), badge régime en jeu, fetch via `Cloud.economy.regime()` toutes les 60 s.
+2. ~~**Régime → effet héros (famille G)**~~ — ✅ FAIT. `regimeProdMult()` dans index.html : **bonus-only additif plafonné** (+6 %/héros aligné, plafond +40 %, aucun malus). Badge régime en jeu + affinité sur la fiche, fetch via `Cloud.economy.regime()` toutes les 60 s. ⚠️ À prévoir : **rééquilibrer la répartition des affinités** dans `heroes.data.js` (BULL 6 / CRASH 3 / CRABE 3 / HYPE 3 / BEAR 1 / Quant 2 — BEAR trop faible).
 3. **Levier (L5)** — positions, marge, moteur de liquidation au tick, funding. Attend design liquidation + « go ».
 4. **Frais custody + funding** (différés).
 5. **Les 17 autres activités de module**.
