@@ -176,6 +176,9 @@ Tout le design est **le même geste vu à une autre résolution** :
 - répartir ↔ bifurquer : la pente continue ↔ le commit discret ;
 - civ ↔ galaxie : complémentarité *dans* la galaxie ↔ complémentarité *entre* galaxies ;
 - mémoire ↔ fédération : tes traces ↔ les traces des autres.
+- **onboarding ↔ thème** : on *apprend* le jeu par dézooms successifs (graduation → galaxie → mémoire
+  → gravité → fédération), c.-à-d. par le **saut d'échelle** dont le jeu *parle* (Kardashev). La façon
+  de comprendre le jeu épouse ce que le jeu est. (Voir §11.)
 
 C'est rare et c'est précieux. Toute extension future devrait **prolonger ce motif**, pas le contredire.
 
@@ -192,15 +195,37 @@ C'est rare et c'est précieux. Toute extension future devrait **prolonger ce mot
 
 ---
 
-## 11. La première heure (cold start) — *à concevoir*
+## 11. La première heure (cold start) — *verrouillé : une rampe*
 
-⚠️ Tout ce qui précède décrit le **régime permanent**. Un nouvel Architecte a **une** civ, **zéro**
+Tout ce qui précède décrit le **régime permanent**. Un nouvel Architecte a **une** civ, **zéro**
 mémoire/savoir/gravité/voisin, une galaxie **vide**. La plupart des verbes **n'existent pas encore**
 pour lui (rien à placer, rien à fédérer). Minute un = **répartir** vers un premier filtre.
 
-**Question ouverte (la prochaine pierre) :** dans quel **ordre** la machine se révèle-t-elle ?
-Qu'est-ce qui doit accrocher dès la minute un, *avant* toute couche méta ? C'est là que meurent la
-plupart des beaux idle. À résoudre avant de construire.
+**L'ordre de révélation est *dicté*, pas conçu.** Chaque couche a besoin que celle d'en dessous ait
+*déjà produit quelque chose* : on ne place qu'après une graduation, la mémoire n'existe qu'après une
+première civ, le savoir lit dans la mémoire, la gravité câble une galaxie non vide, la fédération
+irradie depuis la gravité. Donc la séquence **s'écrit elle-même** : civ 1 ne peut *que*
+répartir→bifurquer → sa graduation **ouvre la galaxie** → civ 2 fait naître la mémoire → etc.
+On n'invente pas un tutoriel : on **expose le graphe de dépendances** dans son ordre nécessaire.
+
+**La première session est une *rampe*, pas une destination.** La boucle nue (un curseur, un mur) est
+trop mince pour accrocher seule ; le crochet est la **première graduation**. Conséquences verrouillées :
+
+- **Civ 1 est courte** (~3-5 min) et son filtre est **transparent** (tutoriel honnête qui *enseigne*
+  le verbe). Le **voile ne descend qu'*après*** la première graduation — non comme de l'info cachée,
+  mais comme l'**obscurité naturelle de la frontière** où l'on vient d'aller (cohérent §3, gauntlet qui recule).
+- **Le crochet de la minute un n'est pas mécanique** mais le **devenir visible** : la civ se
+  *transforme à l'œil* selon la répartition (haute ≠ large). On sculpte une créature qui devient,
+  pas un chiffre. + la **promesse de permanence**.
+- **Risque assumé : fusil à un coup.** La rampe concentre tout le risque de crochet dans *un* instant.
+  La première graduation = **les dix secondes les plus importantes du jeu**. Elle doit être éblouissante.
+
+**Ce que ce moment *est* (et pourquoi il porte le thème) :** la première graduation, c'est la **caméra
+qui recule** — tu élevais *une* civ, et elle n'est qu'**une étoile dans un ciel que tu possèdes**. Le
+sentiment Kardashev (le saut d'échelle) livré **en miniature à la minute 5**. Et chaque révélation
+suivante est un **autre dézoom** (mémoire → ton histoire ; gravité → tes constellations ; fédération →
+le ciel partagé). **Le joueur apprend le jeu par le geste même dont le jeu parle : monter l'échelle.**
+L'onboarding *est* le thème, à petite dose, répété à chaque palier. (Voir §9.)
 
 ---
 
@@ -222,8 +247,11 @@ Plomberie réutilisable de Dex Heroes : moteur énergie×temps, hors-ligne, sauv
 
 ## 13. Fils ouverts (non tranchés)
 
-- **§11 — la première heure / ordre de révélation** (prochaine décision de design).
-- **Qu'y a-t-il *après* le triomphe solo**, si ce n'est pas un prestige répété ?
+> **Le squelette (§1–§11) est complet.** Ce qui reste ci-dessous est soit *prématuré* (à valider par
+> le prototype, pas par plus de design abstrait), soit *différé* (l'endgame, à concevoir après le début).
+
+- **Qu'y a-t-il *après* le triomphe solo**, si ce n'est pas un prestige répété ? (Différé : concevoir
+  la fin *après* avoir prototypé le début.)
 - Tout le **chiffrage** (taux, coûts, courbes, calibrage du « sous la ligne de base », % de chaleur,
   taille du bassin d'appariement, bandes d'échelle). Aucun nombre n'est verrouillé.
 - Garde-fous d'implémentation : monoculture (§6), farming de galaxie bancale (§8), dégradation
