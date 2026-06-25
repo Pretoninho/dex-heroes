@@ -206,8 +206,12 @@ function render(){
   const w = 40 + Math.min(large,400)*0.5;
   const h = 40 + Math.min(haut ,400)*0.55;
   const c=$('civ'); c.style.width=w+'px'; c.style.height=h+'px';
-  const tall = haut/(haut+large+1);
-  c.style.background = `linear-gradient(180deg, hsl(${220-tall*40} 90% ${72-tall*8}%), hsl(${225-tall*30} 55% 52%))`;
+  // la civ vire vers son identité EN DIRECT (même mélange ambre↔bleu que l'étoile finale)
+  const t = haut/(haut+large+1e-9);
+  const r=Math.round(255*(1-t)+92*t), g=Math.round(150*(1-t)+158*t), b=Math.round(60*(1-t)+255*t);
+  const lr=Math.min(255,r+45), lg=Math.min(255,g+45), lb=Math.min(255,b+45);
+  c.style.background = `linear-gradient(180deg, rgb(${lr} ${lg} ${lb}), rgb(${r} ${g} ${b}))`;
+  c.style.boxShadow = `0 0 42px rgba(${r},${g},${b},.42), inset 0 0 20px rgba(255,255,255,.16)`;
 
   const f=curFilter();
   if(phase==='grow'||phase==='push'){
