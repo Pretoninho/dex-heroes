@@ -9,54 +9,77 @@
 
 ---
 
-## 0. Boucle de jeu (état actuel) — pourquoi le $VOLT
+## 0. Boucle de jeu (état actuel, **100 % Idle**)
 
-> Section **descriptive** : le cycle du joueur tel qu'il tourne **aujourd'hui**
-> (implémenté), ses trous, et où les blocs à venir se branchent. Sert de
-> motivation au reste du document.
+> Section **descriptive** : le cycle du joueur tel qu'il tourne **aujourd'hui**, après
+> le pivot 100 % Idle (Exchange + régime retirés le 2026-06-24). Sert de cadre au reste
+> du document — les blocs « trading » ci-dessous sont **en sursis** (cf. `CLAUDE.md`).
 
-### Le cycle
+### Boucle cœur (minute par minute)
 
 ```
-  ① IDLE / CASH FLOW ──$──► acheter des 💎 (cours retail, ou formule de repli)
-     (connecter/améliorer modules → $/sec)            │
-        ▲                                             ▼
-        │                                   ② GACHA (200💎, pity 80) → héros
-        │                                             │
-        │                          doublon d'un héros maxé ─► 🧩 Éclats ─┐
-   ④ +PRODUCTION                                      ▼                  │
-   (passifs + synergies + signatures)      ③ HÉROS : fusion (doublons → │
-        ▲                                   niveau) · Éclats → héros     │
-        │                                   ciblé ◄──────────────────────┘
-        └───────────── déployer dans le Dex ─────────┘
-
-  ⑤ MÉTA  ⟳ Régime de marché → +prod des héros déployés alignés (adapter sa compo)
-  ⑥ EXCHANGE (cloud) : déposer 💎/$ ⇄ trader · Retail⇄OTC arbitrage → multiplier
-     💎/$ → retirer → relance le gacha
+   ┌────────────────────────────────────────────────────────┐
+   │                                                        │
+   ▼                                                        │
+① PRODUCTION (cash/s)  ──passive, tourne même hors-ligne     │
+   │                                                        │
+   ▼                                                        │
+② CASH ──► améliore/connecte les MODULES (graphe Dex)        │
+   │        → ↑ production    (🤖 auto-amélioration le fait) │
+   │                                                        │
+   ├──► achète des GEMMES (prix-formule indexé sur la prod)  │
+   │                                                        │
+   ▼                                                        │
+③ GACHA (200 💎/tirage, pity Épique) ──► HÉROS              │
+   │                                                        │
+   ▼                                                        │
+④ HÉROS déployés sur modules (passifs · synergies ·         │
+   │   signatures) ──► ↑ production ─────────────────────────┘
+   │
+   └─► doublons ─► FUSION (niveau du héros)
+       doublon d'un héros maxé ─► 🧩 ÉCLAT
+       Éclats ─► craft ciblé / fusion de secours
 ```
+
+Moteur : **+ production → + cash → + modules & + gemmes → + héros → + production**.
 
 - **Boucle primaire (idle, solide)** : `$ → 💎 → gacha → héros → +prod → $`. Tourne
   hors-ligne, sans cloud. ✅
-- **Boucle de collection (solide)** : doublons → fusion ; surplus → Éclats →
+- **Boucle de collection (solide)** : doublons → fusion ; doublon maxé → Éclats →
   fabrication ciblée (ferme la malchance gacha). ✅
-- **Boucle de marché (optionnelle, cloud)** : déposer → trader/arbitrer retail⇄OTC →
-  multiplier 💎/$ → re-tirer. Seul espace **actif/compétitif**. ✅
-- **Méta ambiante** : le régime (global, piloté par le marché interne) module la prod
-  des héros alignés → plus **subi** qu'agi pour le joueur lambda. ⚠️
+
+### Boucle méta (par session / long terme)
+
+Quand la boucle cœur sature, le cash et les gains se convertissent en **progression permanente** :
+
+| Levier | Rôle | Effet |
+|---|---|---|
+| 🏛️ **Valorisation** | Soft-prestige **sans reset** (rangs au cash, ×8/rang) | **+10 % prod globale/rang**, permanent → puits de cash **et** niveau joueur |
+| 🎯 **Objectifs** | Jalons one-shot franchis **passivement** | Récompense 💎/🧩 → réinjectée dans le gacha |
+| 🗃️ **Dex 2 / 3** | Paliers d'échelle (gros achats cash) | Multiplient coûts **et** gains → relancent la boucle cœur plus haut |
+| 💤 **Hors-ligne** | Récompense de retour (plafond 4 h, taux 0,5 ; héros étendent le plafond) | Démarrage de session boosté → modale « Bon retour » |
+
+### Garantie idle
+
+Chaque étape a un **chemin passif par défaut** : la production tourne seule, l'**auto-amélioration
+(🤖)** dépense le cash sans clic, les **objectifs** se valident en jouant, les **gains hors-ligne**
+récompensent l'absence. **Aucune étape de l'endgame n'exige une action manuelle ou d'être en ligne**
+(règle d'or du cap polaire).
 
 ### Les trous (état actuel)
 
-1. **Pas de vrai endgame** : héros maxés + Dex achetés → ne reste que « +$/sec » → plafonne.
-2. **Le bras Énergie n'a aucun rôle propre** : il ne fait que du cash, comme les autres.
-3. **Les frais du marché sont un puits pur** (restent chez SYSTÈME) → valeur dormante.
-4. **L'Exchange est cloisonné** : trader multiplie 💎/$ mais ne crée pas d'actif nouveau.
+1. **Pas de vrai endgame / prestige dur** : héros maxés + Dex achetés → ne reste que
+   « +$/sec ». La Valorisation joue ce rôle en plus doux (sans reset) → **prochain bloc logique**.
+2. **Les 17 autres activités de module ne sont pas codées** : tous les modules ne font que
+   du cash, aucun n'a d'identité propre (le seul qui en avait une, la Bourse/Exchange, a été retiré).
+3. **Le bras Énergie n'a aucun rôle propre** (héritage : il devait miner le $VOLT).
 
 ### Où ça se branche
 
-Le **$VOLT** (§5) vise exactement ces 4 trous : Énergie **mine** (#2) → le jeton se
-**trade** (#4) → le **staking** transforme les frais dormants en **rendement** (#1, #3),
-le **halving** entretient la tension d'offre. Le **levier** (L5) puis l'**endgame
-frais→stakers** referment la boucle économique de fin de partie.
+Les prochains blocs idle-natifs visent ces trous : une **couche prestige/ascension** (#1),
+puis des **identités de module** (#2) — passifs spécifiques, mini-systèmes idle par bras.
+Le **$VOLT** (§5) et les sections trading ci-dessous ne reviendront **que** sous une forme
+**idle-pure** (minage passif + staking, sans terminal à surveiller), ou pas du tout.
 
 ---
 
