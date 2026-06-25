@@ -632,13 +632,15 @@
   const OFFLINE_CAP_H = 4;      // plafond de base des gains hors-ligne (heures)
   const OFFLINE_RATE  = 0.5;    // les gains hors-ligne valent 50 % du taux en ligne
   const RARITY = ["Commun", "Rare", "Épique"];   // index = palier (tier)
+  // Durcissement « murs de palier » (tempo Cookie Clicker) : baseCost des Rare/Épique ×1,6
+  // (Commun inchangé pour laisser le tout début respirer). GROWTH et rate intacts.
   const ARMS = [
-    { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:2250,    rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:60000,    rate:120  } ] },
-    { tiers: [ { name:"Bourse",     emoji:"📈", cost:120,  rate:1   }, { name:"Crypto",      emoji:"🪙", cost:6000,    rate:18  }, { name:"Hedge Fund",  emoji:"🐋", cost:160000,   rate:220  } ] },
-    { tiers: [ { name:"Immobilier", emoji:"🏠", cost:300,  rate:2   }, { name:"Promotion",   emoji:"🏗️", cost:13500,   rate:35  }, { name:"Gratte-ciel", emoji:"🌆", cost:360000,   rate:420  } ] },
-    { tiers: [ { name:"Industrie",  emoji:"🏭", cost:700,  rate:3.5 }, { name:"Commerce",    emoji:"🚢", cost:30000,   rate:70  }, { name:"Aérospatial", emoji:"🛰️", cost:800000,   rate:850  } ] },
-    { tiers: [ { name:"Startup",    emoji:"💼", cost:1600, rate:6   }, { name:"Licorne",     emoji:"🦄", cost:67500,   rate:140 }, { name:"Conglomérat", emoji:"🌍", cost:1800000,  rate:1700 } ] },
-    { tiers: [ { name:"Énergie",    emoji:"🛢️", cost:4000, rate:12  }, { name:"Renouvelable",emoji:"⚡", cost:150000,  rate:280 }, { name:"Fusion",      emoji:"☢️", cost:4000000, rate:3500 } ] },
+    { tiers: [ { name:"Banque",     emoji:"🏦", cost:50,   rate:0.5 }, { name:"Crédit",      emoji:"💳", cost:3600,    rate:9   }, { name:"Trésorerie",  emoji:"🏛️", cost:96000,    rate:120  } ] },
+    { tiers: [ { name:"Bourse",     emoji:"📈", cost:120,  rate:1   }, { name:"Crypto",      emoji:"🪙", cost:9600,    rate:18  }, { name:"Hedge Fund",  emoji:"🐋", cost:256000,   rate:220  } ] },
+    { tiers: [ { name:"Immobilier", emoji:"🏠", cost:300,  rate:2   }, { name:"Promotion",   emoji:"🏗️", cost:21600,   rate:35  }, { name:"Gratte-ciel", emoji:"🌆", cost:576000,   rate:420  } ] },
+    { tiers: [ { name:"Industrie",  emoji:"🏭", cost:700,  rate:3.5 }, { name:"Commerce",    emoji:"🚢", cost:48000,   rate:70  }, { name:"Aérospatial", emoji:"🛰️", cost:1280000,  rate:850  } ] },
+    { tiers: [ { name:"Startup",    emoji:"💼", cost:1600, rate:6   }, { name:"Licorne",     emoji:"🦄", cost:108000,  rate:140 }, { name:"Conglomérat", emoji:"🌍", cost:2880000,  rate:1700 } ] },
+    { tiers: [ { name:"Énergie",    emoji:"🛢️", cost:4000, rate:12  }, { name:"Renouvelable",emoji:"⚡", cost:240000,  rate:280 }, { name:"Fusion",      emoji:"☢️", cost:6400000, rate:3500 } ] },
   ];
 
   const NODES = [ Object.assign({}, SOURCE) ];
