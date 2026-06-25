@@ -198,18 +198,22 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   6 exemplaires. **Tension profondeur (fusionner) vs largeur (garder pour étaler).**
 - **Gacha tire des fragments** (ciblés par héros) **au lieu de héros**. Fusion **base-3** (Commun/Rare) /
   **base-4** (Épique) : niveau L = `b^L` fragments. Objets : même système (classes C/R/É, fusion).
+- **Chiffrage prod — VERROUILLÉ par simulation (2026-06-25)** :
+  - **Buffeur** = **+1 %/niveau, max +10 %** (niv 10 = objectif *lointain/baleine*, coût **×3 conservé** : le
+    haut de courbe est **décoratif** assumé — le dernier +1 % coûte ~39 k frags). 12 slots buff/rareté →
+    plafond **+120 %/rareté**, soit **+20 %/module** au max absolu et **~+10 %/module** en jeu normal ;
+    **multiplicatif** avec Valo (+10 %/rang) et `moduleMult`.
+  - **Signature = effet FIXE** (indépendant du niveau) : **réutilise les `passive`/`signature` existants**
+    de `heroes.data.js` → accessible **tôt** (poser le héros = effet immédiat) + **pas de runaway** sur les
+    effets qualitatifs (`costReduce`…). Monter un héros paie quand même via son **rôle de buffeur** sur les
+    5 autres modules de sa rareté. Plafond module **+30 %** (sig +10 fixe + 2 buffeurs +10). Couche **buff =
+    quantitatif grindé** / **signature = qualitatif stratégique**.
 
-**Ouvert / à trancher (challengé par simulation de l'économie de fragments, 2026-06-25) :**
-1. **Courbe non bornée** : ×3-4/niveau sans plafond (Commun niv10 = 59 k frags, Épique niv10 = 1 M).
-   → **plafond, ou treadmill assumé ?** (structure, pas réglage).
-2. **Formule de prod = INDÉTERMINÉE et elle décide tout** : à budget égal, 243 frags = 1 héros niv5 *ou*
-   81 héros niv1 ; l'optimal dépend **entièrement** de la courbe de prod, qui n'existe pas.
-   **Reco : prod LINÉAIRE (+%plat/niveau) contre coût GÉOMÉTRIQUE** → ROI décroissant → la tension
-   profondeur/largeur **reste vivante** (même principe que le calibrage Cookie Clicker).
-3. **Robinet** (fragments/tirage + fréquence) à caler contre l'ancre « tout à niv5 ≈ 27 k frags ».
-4. **Gear = la vraie pénurie** (exclusif à un exemplaire) ; **réutiliser les `synergies` existantes** ;
-   **auto-pilote** (auto-équipe/placement suggéré) pour garder la gestion *légère*.
-5. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
+**Ouvert / à trancher :**
+1. **Robinet** (fragments/tirage + fréquence) à caler contre l'ancre « tout à niv5 ≈ 27 k frags ».
+2. **Gear** (3 objets/héros, **la vraie pénurie** — exclusif à un exemplaire) : effet + scaling **à définir** ;
+   **réutiliser les `synergies` existantes** ; **auto-pilote** (auto-équipe/placement suggéré) pour garder la gestion *légère*.
+3. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
    `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
 
 ## Tâches en attente / roadmap
