@@ -49,6 +49,13 @@
   .star{ position:absolute; width:2px; height:2px; background:#fff; border-radius:50%; opacity:.5; }
   .myStar{ width:14px; height:14px; border-radius:50%; background:radial-gradient(circle,#cfe0ff,#6ea8ff); box-shadow:0 0 24px 6px rgba(110,168,255,.7); }
   .big{ font-size:26px; font-weight:700; } .em{ color:var(--haut); }
+  /* ── barreau 2 : le plateau galactique ── */
+  #edges{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .ghostStar{ position:absolute; transform:translate(-50%,-50%); border-radius:50%; pointer-events:none; display:none; z-index:3; }
+  #skyTop{ position:absolute; top:7%; width:100%; text-align:center; z-index:4; padding:0 16px; }
+  #skyBottom{ position:absolute; bottom:7%; width:100%; text-align:center; z-index:4; display:none; flex-direction:column; align-items:center; gap:8px; padding:0 16px; }
+  #sky.placing{ cursor:crosshair; }
+  #radLive{ margin-top:8px; min-height:1.2em; }
 </style>
 </head>
 <body>
@@ -79,14 +86,20 @@
   </div>
 
   <div id="sky">
+    <svg id="edges" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
     <div class="starfield" id="starfield"></div>
-    <div class="big" style="z-index:1">Elle n'était qu'<span class="em">une étoile</span>.</div>
-    <div style="z-index:1" class="hint" id="skyLine">Et voilà le ciel que tu possèdes maintenant.</div>
-    <div class="myStar" id="myStar" style="z-index:1; margin:8px 0"></div>
-    <div style="z-index:1" id="memLine" class="hint"></div>
-    <div style="z-index:1" id="skyTotal" class="hint"></div>
-    <button class="ghost" style="z-index:1; margin-top:10px" onclick="location.reload()">Élever une nouvelle civilisation</button>
-    <div style="z-index:1; margin-top:2px"><a href="#" id="wipe" class="hint" style="color:var(--dim)">effacer le ciel (test)</a></div>
+    <div class="ghostStar" id="ghost"></div>
+    <div id="skyTop">
+      <div class="big" id="skyLine">Elle n'était qu'<span class="em">une étoile</span>.</div>
+      <div class="hint" id="placeHint" style="display:none">Place-la dans ton ciel — cherche <span class="em">ce qui lui manque</span>.</div>
+      <div class="hint" id="radLive" style="display:none"></div>
+    </div>
+    <div id="skyBottom">
+      <div id="memLine" class="hint"></div>
+      <div id="skyTotal" class="hint"></div>
+      <button class="ghost" id="newCiv" style="margin-top:6px">Élever une nouvelle civilisation</button>
+      <a href="#" id="wipe" class="hint" style="color:var(--dim)">effacer le ciel (test)</a>
+    </div>
   </div>
 </div>
 
@@ -113,9 +126,10 @@ const SKY_KEY='kardashev_proto_sky_v1';
 let sky = JSON.parse(localStorage.getItem(SKY_KEY) || '[]');
 function saveSky(){ localStorage.setItem(SKY_KEY, JSON.stringify(sky)); }
 function updateSkyCount(){
-  $('skyCount').textContent = sky.length
-    ? `ton ciel : ${sky.length} civilisation${sky.length>1?'s':''} déjà — celle-ci les rejoindra`
-    : 'ton ciel est vide — voici ta première';
+  const b=galaxyBonus();
+  $('skyCount').innerHTML = (sky.length ? `ton ciel : ${sky.length} civ. — ` : 'ton ciel est vide — ')
+    + (b>1.001 ? `il rayonne, production <b class="em">×${b.toFixed(2)}</b>`
+               : (sky.length?'pas encore de liens (place mieux !)':'voici ta première'));
 }
 /* identité visuelle = signature de la civ (haute/large + ampleur) */
 function starStyle(s){
@@ -127,13 +141,33 @@ function starStyle(s){
   return { w, h, glow:`hsl(${hue} 82% ${lig}%)`, dim:(s.kind==='pushFail'?.55:1) };
 }
 
+/* ─────────── PLATEAU : arêtes auto par complémentarité + rayonnement ─────────── */
+const GRAV_R=27, COMP_MIN=.28, BONUS_K=0.05, BONUS_CAP=8;
+let pendingStar=null, pendingLine='', bonusMult=1;
+function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
+/* arête entre 2 étoiles si PROCHES et COMPLÉMENTAIRES (identités opposées) ; poids = compl × proximité */
+function edgeWeight(a,b){
+  const d=dist(a,b); if(d>GRAV_R) return 0;
+  const c=Math.abs(a.tall-b.tall); if(c<COMP_MIN) return 0;
+  return c*(1 - d/GRAV_R);
+}
+function allEdges(stars){
+  const E=[]; let tot=0;
+  for(let i=0;i<stars.length;i++) for(let j=i+1;j<stars.length;j++){
+    if(stars[i].x==null||stars[j].x==null) continue;
+    const w=edgeWeight(stars[i],stars[j]); if(w>0){ E.push([stars[i],stars[j],w]); tot+=w; }
+  }
+  return { E, tot };
+}
+function galaxyBonus(){ return 1 + Math.min(allEdges(sky).tot, BONUS_CAP)*BONUS_K; }
+
 $('split').oninput = e => split = e.target.value/100;
 
 function tick(){
   if(phase==='grow' || phase==='push'){
     const dt=TICK_MS/1000;
-    haut  += E_RATE*dt*split*hMult;
-    large += E_RATE*dt*(1-split)*lMult;
+    haut  += E_RATE*dt*split*hMult*bonusMult;
+    large += E_RATE*dt*(1-split)*lMult*bonusMult;
     render();
   }
 }
@@ -230,51 +264,92 @@ function graduate(kind){
   phase='done';
   const total = haut+large, tall = haut/(haut+large+1e-9);
   let mem, line;
-  if(kind==='safe'){      mem=Math.round(total*MEM.safeK);     line='Diplômée, intacte. Une lumière nette dans ton ciel.'; }
+  if(kind==='safe'){      mem=Math.round(total*MEM.safeK);     line='Diplômée, intacte.'; }
   else if(kind==='pushWin'){ mem=Math.round(total*MEM.pushWinK); line='Tu l\'as poussée et elle a tenu. Une étoile rare.'; }
   else {                  mem=Math.round(total*MEM.pushFailK);  line='Tu l\'as poussée trop loin. Elle s\'est brisée — il n\'en reste qu\'une lueur. <span class="em">Même ça enseigne.</span>'; }
 
-  // la civ devient une étoile qui PORTE son identité, et REJOINT le ciel
-  const star = { tall, mem, kind, x:8+Math.random()*84, y:14+Math.random()*60, t:Date.now() };
-  sky.push(star); saveSky();
+  pendingStar = { tall, mem, kind, x:null, y:null, t:Date.now() };
+  pendingLine = line;
 
-  const st = starStyle(star), ms=$('myStar');
-  ms.style.width=st.w*1.7+'px'; ms.style.height=st.h*1.7+'px'; ms.style.borderRadius='50%';
-  ms.style.background=`radial-gradient(circle,#fff,${st.glow})`;
-  ms.style.boxShadow=`0 0 30px 9px ${st.glow}`; ms.style.opacity=st.dim;
-
-  // ── le dézoom ──
+  // ── le dézoom : la civ rétrécit, le ciel existant se révèle ──
   $('stage').style.transform='scale(.04)'; $('stage').style.opacity='0';
-  buildStarfield(star);
-  setTimeout(()=>{
-    $('sky').classList.add('show');
-    $('skyLine').innerHTML = line;
-    $('memLine').innerHTML = `Mémoire laissée : <b>${mem}</b>` + (kind==='pushFail'?' &nbsp;(sous la ligne de base — le prix du risque)':'');
-    const kinds = new Set(sky.map(s=> s.tall>.6?'haute' : s.tall<.4?'large' : 'mixte'));
-    $('skyTotal').innerHTML = `Ton ciel — <b>${sky.length}</b> civilisation${sky.length>1?'s':''}`
-      + (sky.length>1 ? (kinds.size>1 ? ` · ciel <span class="em">bariolé</span> (${[...kinds].join(', ')})`
-                                      : ` · ciel monochrome (${[...kinds][0]})`) : '');
-  }, 1100);
+  drawSky(null);
+  setTimeout(()=>{ $('sky').classList.add('show'); }, 1100);
+  setTimeout(beginPlacement, 2500);
 }
 
-function buildStarfield(newStar){
+/* dessine le ciel : fond + tes étoiles placées + la toile d'arêtes */
+function drawSky(newStar){
   const sf=$('starfield'); let html='';
-  for(let i=0;i<140;i++){
-    const x=Math.random()*100, y=Math.random()*100, o=.15+Math.random()*.45, s=Math.random()<.1?2:1;
-    html+=`<div class="star" style="left:${x}%;top:${y}%;opacity:${o};width:${s}px;height:${s}px"></div>`;
-  }
-  // tes civilisations passées (la nouvelle trône au centre, pas ici)
-  sky.forEach(s=>{
-    if(newStar && s.t===newStar.t) return;
-    const st=starStyle(s);
-    html+=`<div style="position:absolute;left:${s.x}%;top:${s.y}%;width:${st.w}px;height:${st.h}px;`
-        +`border-radius:50%;background:radial-gradient(circle,#fff,${st.glow});`
-        +`box-shadow:0 0 10px 2px ${st.glow};opacity:${st.dim};transform:translate(-50%,-50%)"></div>`;
-  });
+  for(let i=0;i<120;i++){ const x=Math.random()*100,y=Math.random()*100,o=.12+Math.random()*.4,s=Math.random()<.1?2:1;
+    html+=`<div class="star" style="left:${x}%;top:${y}%;opacity:${o};width:${s}px;height:${s}px"></div>`; }
+  sky.forEach(s=>{ if(s.x==null) return; const st=starStyle(s); const nw=newStar&&s.t===newStar.t;
+    html+=`<div style="position:absolute;left:${s.x}%;top:${s.y}%;width:${st.w}px;height:${st.h}px;border-radius:50%;`
+        +`background:radial-gradient(circle,#fff,${st.glow});box-shadow:0 0 ${nw?20:10}px ${nw?6:2}px ${st.glow};`
+        +`opacity:${st.dim};transform:translate(-50%,-50%)"></div>`; });
   sf.innerHTML=html;
+  drawEdges(allEdges(sky).E, []);
+}
+function drawEdges(edges, highlight){
+  const hk=new Set(highlight.map(e=>`${e[0].x},${e[0].y}|${e[1].x},${e[1].y}`));
+  let s='';
+  edges.forEach(([a,b,w])=>{
+    const hl=hk.has(`${a.x},${a.y}|${b.x},${b.y}`);
+    s+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${hl?'#fff':'#6ea8ff'}" `
+      +`stroke-opacity="${(0.18+Math.min(w,1)*0.6).toFixed(2)}" stroke-width="${(0.4+w*1.3).toFixed(2)}" vector-effect="non-scaling-stroke"/>`;
+  });
+  $('edges').innerHTML=s;
+}
+
+/* ── placement interactif ── */
+function pct(e){ const r=$('sky').getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width*100, y:(e.clientY-r.top)/r.height*100 }; }
+function beginPlacement(){
+  $('skyLine').style.display='none';
+  $('placeHint').style.display=''; $('radLive').style.display='';
+  const g=$('ghost'), st=starStyle(pendingStar);
+  g.style.width=st.w*1.6+'px'; g.style.height=st.h*1.6+'px';
+  g.style.background=`radial-gradient(circle,#fff,${st.glow})`;
+  g.style.boxShadow=`0 0 26px 8px ${st.glow}`; g.style.opacity='.9'; g.style.left='50%'; g.style.top='50%'; g.style.display='block';
+  $('sky').classList.add('placing');
+  $('sky').addEventListener('mousemove', onPlaceMove);
+  $('sky').addEventListener('click', onPlaceClick);
+}
+function onPlaceMove(e){
+  const p=pct(e); const g=$('ghost'); g.style.left=p.x+'%'; g.style.top=p.y+'%';
+  const probe={ tall:pendingStar.tall, x:p.x, y:p.y };
+  let gain=0, n=0; const prev=[];
+  sky.forEach(s=>{ if(s.x==null) return; const w=edgeWeight(probe,s); if(w>0){ gain+=w; n++; prev.push([probe,s,w]); } });
+  drawEdges(allEdges(sky).E.concat(prev), prev);
+  $('radLive').innerHTML = n
+    ? `${n} lien${n>1?'s':''} complémentaire${n>1?'s':''} · rayonnement <b class="em">+${gain.toFixed(1)}</b>`
+    : `aucun lien ici — <span style="color:var(--dim)">trop loin, ou trop semblable</span>`;
+}
+function onPlaceClick(e){
+  if(e.target.closest('#skyBottom')) return;
+  const p=pct(e); pendingStar.x=p.x; pendingStar.y=p.y;
+  sky.push(pendingStar); saveSky();
+  $('sky').removeEventListener('mousemove', onPlaceMove);
+  $('sky').removeEventListener('click', onPlaceClick);
+  $('sky').classList.remove('placing');
+  $('ghost').style.display='none'; $('placeHint').style.display='none'; $('radLive').style.display='none';
+  finishReveal();
+}
+function finishReveal(){
+  drawSky(pendingStar);
+  const tot=allEdges(sky).tot, b=1+Math.min(tot,BONUS_CAP)*BONUS_K;
+  bonusMult=b;
+  $('skyBottom').style.display='flex';
+  $('memLine').innerHTML = pendingLine + `<br>Mémoire : <b>${pendingStar.mem}</b>`
+    + (pendingStar.kind==='pushFail'?' (sous la ligne de base — le prix du risque)':'');
+  const kinds=new Set(sky.map(s=> s.tall>.6?'haute':s.tall<.4?'large':'mixte'));
+  $('skyTotal').innerHTML = `Ciel — <b>${sky.length}</b> civ. · `
+    + (sky.length>1 ? (kinds.size>1?'<span class="em">bariolé</span>':'monochrome') : 'naissant')
+    + ` · rayonnement total <b>${tot.toFixed(1)}</b> → prochaine civ <b class="em">×${b.toFixed(2)}</b>`;
 }
 
 $('wipe').onclick = e => { e.preventDefault(); localStorage.removeItem(SKY_KEY); sky=[]; location.reload(); };
+$('newCiv').onclick = () => location.reload();
+bonusMult = galaxyBonus();   // ta galaxie rayonne sur la civ qui démarre
 updateSkyCount();
 render();
 setInterval(tick, TICK_MS);
