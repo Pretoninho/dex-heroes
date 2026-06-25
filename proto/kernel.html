@@ -55,6 +55,7 @@
 <div id="app">
   <div class="stage" id="stage">
     <div class="label" id="era">Civilisation naissante</div>
+    <div class="hint" id="skyCount"></div>
     <div class="civWrap"><div class="civ" id="civ"></div></div>
     <div class="stats">
       <div class="stat">HAUTEUR <b class="h" id="vHaut">0</b></div>
@@ -81,9 +82,11 @@
     <div class="starfield" id="starfield"></div>
     <div class="big" style="z-index:1">Elle n'était qu'<span class="em">une étoile</span>.</div>
     <div style="z-index:1" class="hint" id="skyLine">Et voilà le ciel que tu possèdes maintenant.</div>
-    <div class="myStar" style="z-index:1; margin:8px 0"></div>
+    <div class="myStar" id="myStar" style="z-index:1; margin:8px 0"></div>
     <div style="z-index:1" id="memLine" class="hint"></div>
-    <button class="ghost" style="z-index:1; margin-top:10px" onclick="location.reload()">Recommencer</button>
+    <div style="z-index:1" id="skyTotal" class="hint"></div>
+    <button class="ghost" style="z-index:1; margin-top:10px" onclick="location.reload()">Élever une nouvelle civilisation</button>
+    <div style="z-index:1; margin-top:2px"><a href="#" id="wipe" class="hint" style="color:var(--dim)">effacer le ciel (test)</a></div>
   </div>
 </div>
 
@@ -104,6 +107,25 @@ const MEM = { safeK:1.0, pushWinK:1.6, pushFailK:0.5 }; // mémoire : casser = S
 let haut=0, large=0, split=0.5, hMult=1, lMult=1;
 let fi=0, phase='grow', pushing=false;
 const $=id=>document.getElementById(id);
+
+/* ─────────── LE CIEL (mémoire persistante — 1ère couche méta) ─────────── */
+const SKY_KEY='kardashev_proto_sky_v1';
+let sky = JSON.parse(localStorage.getItem(SKY_KEY) || '[]');
+function saveSky(){ localStorage.setItem(SKY_KEY, JSON.stringify(sky)); }
+function updateSkyCount(){
+  $('skyCount').textContent = sky.length
+    ? `ton ciel : ${sky.length} civilisation${sky.length>1?'s':''} déjà — celle-ci les rejoindra`
+    : 'ton ciel est vide — voici ta première';
+}
+/* identité visuelle = signature de la civ (haute/large + ampleur) */
+function starStyle(s){
+  const hue = 35 + s.tall*180;                 // large → ambre (35) · haute → bleu (215)
+  const lig = 62 + (s.kind==='pushFail'?-16:0);
+  const base = 8 + Math.min(s.mem,600)/600*16; // mémoire → taille
+  const w = base*(0.5 + (1-s.tall)*1.1);       // haute = étroite · large = ample
+  const h = base*(0.5 + s.tall*1.4);           // haute = haute · large = plate
+  return { w, h, glow:`hsl(${hue} 82% ${lig}%)`, dim:(s.kind==='pushFail'?.55:1) };
+}
 
 $('split').oninput = e => split = e.target.value/100;
 
@@ -206,31 +228,54 @@ function resolvePush(pass){
 
 function graduate(kind){
   phase='done';
-  const base = haut+large;
+  const total = haut+large, tall = haut/(haut+large+1e-9);
   let mem, line;
-  if(kind==='safe'){      mem=Math.round(base*MEM.safeK);     line='Diplômée, intacte. Une lumière nette dans ton ciel.'; }
-  else if(kind==='pushWin'){ mem=Math.round(base*MEM.pushWinK); line='Tu l\'as poussée et elle a tenu. Une étoile rare.'; }
-  else {                  mem=Math.round(base*MEM.pushFailK);  line='Tu l\'as poussée trop loin. Elle s\'est brisée — il n\'en reste qu\'une lueur. <span class="em">Même ça enseigne.</span>'; }
+  if(kind==='safe'){      mem=Math.round(total*MEM.safeK);     line='Diplômée, intacte. Une lumière nette dans ton ciel.'; }
+  else if(kind==='pushWin'){ mem=Math.round(total*MEM.pushWinK); line='Tu l\'as poussée et elle a tenu. Une étoile rare.'; }
+  else {                  mem=Math.round(total*MEM.pushFailK);  line='Tu l\'as poussée trop loin. Elle s\'est brisée — il n\'en reste qu\'une lueur. <span class="em">Même ça enseigne.</span>'; }
 
-  // ── le dézoom : la civ devient une étoile, le ciel se révèle ──
+  // la civ devient une étoile qui PORTE son identité, et REJOINT le ciel
+  const star = { tall, mem, kind, x:8+Math.random()*84, y:14+Math.random()*60, t:Date.now() };
+  sky.push(star); saveSky();
+
+  const st = starStyle(star), ms=$('myStar');
+  ms.style.width=st.w*1.7+'px'; ms.style.height=st.h*1.7+'px'; ms.style.borderRadius='50%';
+  ms.style.background=`radial-gradient(circle,#fff,${st.glow})`;
+  ms.style.boxShadow=`0 0 30px 9px ${st.glow}`; ms.style.opacity=st.dim;
+
+  // ── le dézoom ──
   $('stage').style.transform='scale(.04)'; $('stage').style.opacity='0';
-  buildStarfield();
+  buildStarfield(star);
   setTimeout(()=>{
     $('sky').classList.add('show');
     $('skyLine').innerHTML = line;
     $('memLine').innerHTML = `Mémoire laissée : <b>${mem}</b>` + (kind==='pushFail'?' &nbsp;(sous la ligne de base — le prix du risque)':'');
+    const kinds = new Set(sky.map(s=> s.tall>.6?'haute' : s.tall<.4?'large' : 'mixte'));
+    $('skyTotal').innerHTML = `Ton ciel — <b>${sky.length}</b> civilisation${sky.length>1?'s':''}`
+      + (sky.length>1 ? (kinds.size>1 ? ` · ciel <span class="em">bariolé</span> (${[...kinds].join(', ')})`
+                                      : ` · ciel monochrome (${[...kinds][0]})`) : '');
   }, 1100);
 }
 
-function buildStarfield(){
+function buildStarfield(newStar){
   const sf=$('starfield'); let html='';
   for(let i=0;i<140;i++){
-    const x=Math.random()*100, y=Math.random()*100, o=.2+Math.random()*.6, s=Math.random()<.1?2:1;
+    const x=Math.random()*100, y=Math.random()*100, o=.15+Math.random()*.45, s=Math.random()<.1?2:1;
     html+=`<div class="star" style="left:${x}%;top:${y}%;opacity:${o};width:${s}px;height:${s}px"></div>`;
   }
+  // tes civilisations passées (la nouvelle trône au centre, pas ici)
+  sky.forEach(s=>{
+    if(newStar && s.t===newStar.t) return;
+    const st=starStyle(s);
+    html+=`<div style="position:absolute;left:${s.x}%;top:${s.y}%;width:${st.w}px;height:${st.h}px;`
+        +`border-radius:50%;background:radial-gradient(circle,#fff,${st.glow});`
+        +`box-shadow:0 0 10px 2px ${st.glow};opacity:${st.dim};transform:translate(-50%,-50%)"></div>`;
+  });
   sf.innerHTML=html;
 }
 
+$('wipe').onclick = e => { e.preventDefault(); localStorage.removeItem(SKY_KEY); sky=[]; location.reload(); };
+updateSkyCount();
 render();
 setInterval(tick, TICK_MS);
 </script>
