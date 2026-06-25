@@ -133,16 +133,17 @@ function updateSkyCount(){
 }
 /* identité visuelle = signature de la civ (haute/large + ampleur) */
 function starStyle(s){
-  const hue = 35 + s.tall*180;                 // large → ambre (35) · haute → bleu (215)
-  const lig = 62 + (s.kind==='pushFail'?-16:0);
+  const t=s.tall;
+  // identité par COULEUR : large = braise ambrée · haute = bleu froid (mélange RGB direct, pas de vert au milieu)
+  const r=Math.round(255*(1-t)+ 92*t), g=Math.round(150*(1-t)+158*t), b=Math.round(60*(1-t)+255*t);
   const base = 8 + Math.min(s.mem,600)/600*16; // mémoire → taille
-  const w = base*(0.5 + (1-s.tall)*1.1);       // haute = étroite · large = ample
-  const h = base*(0.5 + s.tall*1.4);           // haute = haute · large = plate
-  return { w, h, glow:`hsl(${hue} 82% ${lig}%)`, dim:(s.kind==='pushFail'?.55:1) };
+  const w = base*(0.5 + (1-t)*1.1);            // haute = étroite · large = ample
+  const h = base*(0.5 + t*1.4);                // haute = haute · large = plate
+  return { w, h, glow:`rgb(${r} ${g} ${b})`, dim:(s.kind==='pushFail'?.55:1) };
 }
 
 /* ─────────── PLATEAU : arêtes auto par complémentarité + rayonnement ─────────── */
-const GRAV_R=27, COMP_MIN=.28, BONUS_K=0.05, BONUS_CAP=8;
+const GRAV_R=33, COMP_MIN=.26, BONUS_K=0.22, BONUS_CAP=24;
 let pendingStar=null, pendingLine='', bonusMult=1;
 function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
 /* arête entre 2 étoiles si PROCHES et COMPLÉMENTAIRES (identités opposées) ; poids = compl × proximité */
