@@ -56,10 +56,21 @@
   #skyBottom{ position:absolute; bottom:7%; width:100%; text-align:center; z-index:4; display:none; flex-direction:column; align-items:center; gap:8px; padding:0 16px; }
   #sky.placing{ cursor:crosshair; }
   #radLive{ margin-top:8px; min-height:1.2em; }
+  /* ── barreau 3 : colonne vertébrale de l'Architecte ── */
+  #archBar{ position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:12px; justify-content:center;
+    padding:9px 14px; font-size:12px; color:var(--dim); background:linear-gradient(#0c1020ee,rgba(12,16,32,0)); z-index:10; }
+  #archBar b{ color:var(--ink); }
+  .abar{ width:170px; height:6px; border-radius:6px; background:#1c2236; overflow:hidden; }
+  .abar > i{ display:block; height:100%; width:0; background:linear-gradient(90deg,var(--large),var(--haut)); transition:width .5s; }
 </style>
 </head>
 <body>
 <div id="app">
+  <div id="archBar">
+    <span id="archLabel">Architecte — niveau 1</span>
+    <div class="abar"><i id="archFill"></i></div>
+    <span id="archNext"></span>
+  </div>
   <div class="stage" id="stage">
     <div class="label" id="era">Civilisation naissante</div>
     <div class="hint" id="skyCount"></div>
@@ -143,14 +154,26 @@ function starStyle(s){
 }
 
 /* ─────────── PLATEAU : arêtes auto par complémentarité + rayonnement ─────────── */
-const GRAV_R=33, COMP_MIN=.26, BONUS_K=0.22, BONUS_CAP=24;
-let pendingStar=null, pendingLine='', bonusMult=1;
+const BASE_R=33, COMP_MIN=.26, BONUS_K=0.22, BONUS_CAP=24;
+const LVL=[0,300,800,1700,3200,5600,9500,16000,26000]; // mémoire totale cumulée par palier
+let pendingStar=null, pendingLine='', bonusMult=1, levelBefore=1;
+/* ── Architecte : mémoire totale → niveau → portée de gravité croissante ── */
+function totalMem(){ return sky.reduce((a,s)=>a+(s.mem||0),0); }
+function archLevel(){ const m=totalMem(); let lv=1; for(let i=1;i<LVL.length;i++) if(m>=LVL[i]) lv=i+1; return lv; }
+function gravR(){ return BASE_R*(1+(archLevel()-1)*0.14); }
 function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
-/* arête entre 2 étoiles si PROCHES et COMPLÉMENTAIRES (identités opposées) ; poids = compl × proximité */
+/* arête entre 2 étoiles si PROCHES (portée actuelle) et COMPLÉMENTAIRES ; poids = compl × proximité */
 function edgeWeight(a,b){
-  const d=dist(a,b); if(d>GRAV_R) return 0;
+  const R=gravR(), d=dist(a,b); if(d>R) return 0;
   const c=Math.abs(a.tall-b.tall); if(c<COMP_MIN) return 0;
-  return c*(1 - d/GRAV_R);
+  return c*(1 - d/R);
+}
+function updateArch(){
+  const m=totalMem(), lv=archLevel(), cur=LVL[lv-1]||0, next=LVL[lv];
+  $('archLabel').innerHTML=`Architecte — niveau <b>${lv}</b> · portée <b>${Math.round(gravR())}</b>`;
+  if(next!=null){ $('archFill').style.width=Math.max(0,Math.min(100,(m-cur)/(next-cur)*100))+'%';
+    $('archNext').textContent=`palier ${lv+1} dans ${Math.max(0,Math.round(next-m))} mémoire`; }
+  else { $('archFill').style.width='100%'; $('archNext').textContent='influence maximale'; }
 }
 function allEdges(stars){
   const E=[]; let tot=0;
@@ -263,6 +286,7 @@ function resolvePush(pass){
 
 function graduate(kind){
   phase='done';
+  levelBefore = archLevel();
   const total = haut+large, tall = haut/(haut+large+1e-9);
   let mem, line;
   if(kind==='safe'){      mem=Math.round(total*MEM.safeK);     line='Diplômée, intacte.'; }
@@ -346,12 +370,18 @@ function finishReveal(){
   $('skyTotal').innerHTML = `Ciel — <b>${sky.length}</b> civ. · `
     + (sky.length>1 ? (kinds.size>1?'<span class="em">bariolé</span>':'monochrome') : 'naissant')
     + ` · rayonnement total <b>${tot.toFixed(1)}</b> → prochaine civ <b class="em">×${b.toFixed(2)}</b>`;
+  const lvAfter=archLevel();
+  if(lvAfter>levelBefore){
+    $('skyTotal').innerHTML = `<span class="em">✦ Ton influence grandit — Architecte niveau ${lvAfter}, portée étendue.</span><br>` + $('skyTotal').innerHTML;
+  }
+  updateArch();
 }
 
 $('wipe').onclick = e => { e.preventDefault(); localStorage.removeItem(SKY_KEY); sky=[]; location.reload(); };
 $('newCiv').onclick = () => location.reload();
 bonusMult = galaxyBonus();   // ta galaxie rayonne sur la civ qui démarre
 updateSkyCount();
+updateArch();
 render();
 setInterval(tick, TICK_MS);
 </script>
