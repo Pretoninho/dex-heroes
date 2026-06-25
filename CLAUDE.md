@@ -167,7 +167,9 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   couvrir une fusion (Éclats = doublons de secours) · faucet = **1 Éclat par doublon-surplus** d'un
   héros déjà maxé. **On ne trade JAMAIS les héros entiers** (anti-pay-to-win) — le trade portera sur
   les Éclats (fongibles par rareté) en Phase 2.
-- **Difficulté (calibre modéré)** : `GROWTH` = **1,28** (×coût/niveau) · gains **hors-ligne plafonnés**
+- **Difficulté (calibre modéré)** : `GROWTH` = **1,15** (×coût/niveau — *calibré sur le tempo Cookie Clicker*
+  le 2026-06-25 : 1,28→1,15, courbe douce = goutte-à-goutte, l'arc s'allonge tout seul ; les murs de palier
+  ×1,6 testés puis retirés) · gains **hors-ligne plafonnés**
   (`OFFLINE_CAP_H`=4 h, `OFFLINE_RATE`=0,5 ; les héros `offlineMult`/`offlineCap` étendent le **plafond**
   en heures, plus le taux) · **Dex 3** (puits de cash endgame, 50 M, efficience ~0,4×). Leviers tunables :
   `GROWTH`, `OFFLINE_CAP_H`/`OFFLINE_RATE`, `DEX_DEFS`.
@@ -179,6 +181,36 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   héros possédés/maxés, rang Valo, Dex), donc **pas de compteur cumulatif**. Récompense (💎/🧩) versée
   **une fois** (latch `state.objectives`). Saves d'avant la feature **amorcées en silence** (`seedObjectives`
   marque l'acquis sans payer). C'est l'ancrage des futures **quêtes** (récurrentes, reset UTC).
+
+## Refonte méta héros / gear / fragments — **EN CONCEPTION** (2026-06-25)
+
+> Direction décidée en sparring, **pas encore codée**, et **assume un écart au cap 100 % idle**
+> (« on laisse un peu de gestion »). Réf. d'ambiance : idle-RPG gacha façon AFK Arena (captures fournies)
+> — **exemples d'ambiance, pas spec** (le jeu n'a **pas de combat** : tout effet héros/gear porte sur la **prod $/s**).
+
+**Verrouillé :**
+- **Effet héros + gear = production** (pas de combat ; ❤️/⚔️/🛡️ de la réf → buffs de prod $/s).
+- **Placement par module** : 3 slots = **1 signature** (le héros propre du module → *effet spécial*) +
+  **2 héros de même rareté** que le module (→ *buff*). La rareté est **équilibrée 6/6/6** (≠ les `klass`
+  finance, déséquilibrées 6/3/3/3/2/1 — donc **gating par rareté, pas par classe**).
+- **Inventaire à doublons** : on possède **plusieurs exemplaires** d'un même héros, **chacun équipé
+  séparément** (jusqu'à 3 objets). Un exemplaire couvre **un** slot → couvrir 6 modules d'une rareté = jusqu'à
+  6 exemplaires. **Tension profondeur (fusionner) vs largeur (garder pour étaler).**
+- **Gacha tire des fragments** (ciblés par héros) **au lieu de héros**. Fusion **base-3** (Commun/Rare) /
+  **base-4** (Épique) : niveau L = `b^L` fragments. Objets : même système (classes C/R/É, fusion).
+
+**Ouvert / à trancher (challengé par simulation de l'économie de fragments, 2026-06-25) :**
+1. **Courbe non bornée** : ×3-4/niveau sans plafond (Commun niv10 = 59 k frags, Épique niv10 = 1 M).
+   → **plafond, ou treadmill assumé ?** (structure, pas réglage).
+2. **Formule de prod = INDÉTERMINÉE et elle décide tout** : à budget égal, 243 frags = 1 héros niv5 *ou*
+   81 héros niv1 ; l'optimal dépend **entièrement** de la courbe de prod, qui n'existe pas.
+   **Reco : prod LINÉAIRE (+%plat/niveau) contre coût GÉOMÉTRIQUE** → ROI décroissant → la tension
+   profondeur/largeur **reste vivante** (même principe que le calibrage Cookie Clicker).
+3. **Robinet** (fragments/tirage + fréquence) à caler contre l'ancre « tout à niv5 ≈ 27 k frags ».
+4. **Gear = la vraie pénurie** (exclusif à un exemplaire) ; **réutiliser les `synergies` existantes** ;
+   **auto-pilote** (auto-équipe/placement suggéré) pour garder la gestion *légère*.
+5. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
+   `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
 
 ## Tâches en attente / roadmap
 
