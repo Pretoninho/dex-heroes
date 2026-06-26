@@ -1079,7 +1079,7 @@
       if (!d.placed[src.id]) return;
       const h = HDATA_BY_ID[src.id]; if (!h) return;
       const e = h.passive.effect || {};
-      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += scaleVal("costReduce", e.value, heroLvl(src.id));
+      if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += scaleVal("costReduce", e.value, 1);   // effet FIXE (méta V2 : plus de scaling par niveau)
     });
     return Math.ceil(c * (1 - Math.min(reduce, 0.8)));
   }
@@ -1091,7 +1091,7 @@
       ASSETS.forEach(n => {
         if (!(d.placed && d.placed[n.id])) return;
         const h = HDATA_BY_ID[n.id]; if (!h) return;
-        const e = h.passive.effect || {}, lvl = heroLvl(n.id);
+        const e = h.passive.effect || {}, lvl = 1;   // effet FIXE (méta V2 : plus de scaling par niveau)
         switch (e.type) {
           case "clickMult":      fx.clickMult *= scaleVal("clickMult", e.value, lvl); break;
           case "autoClick":      fx.autoClick += scaleVal("autoClick", e.value, lvl); break;
@@ -1124,7 +1124,7 @@
     ASSETS.forEach(src => {
       if (!(d.placed && d.placed[src.id])) return;
       const h = HDATA_BY_ID[src.id]; if (!h) return;
-      const e = h.passive.effect || {}, lvl = heroLvl(src.id);
+      const e = h.passive.effect || {}, lvl = 1;   // effet FIXE (méta V2 : plus de scaling par niveau)
       if (e.type === "mult" && e.scope === "module" && src.id === n.id) m *= scaleVal("mult", e.value, lvl);
       else if (e.type === "mult" && e.scope === "arm" && src.arm === n.arm) m *= scaleVal("mult", e.value, lvl);
       else if (e.type === "rarityMult" && n.tier === e.rarity) m *= scaleVal("rarityMult", e.value, lvl);
@@ -1388,7 +1388,7 @@
     if (!isDeployed(node)) return;
     const h = HDATA_BY_ID[node.id]; if (!h || !h.signature || !h.signature.effect) return;
     if (!sigReady(node.id)) { toast(`⏳ ${h.signature.name} : ${sigRemain(node.id)} s`); return; }
-    const e = h.signature.effect, until = Date.now() + (e.duration || 0) * 1000, f = lvlFactor(heroLvl(node.id));
+    const e = h.signature.effect, until = Date.now() + (e.duration || 0) * 1000, f = lvlFactor(1);   // compétence FIXE (méta V2)
     if (e.kind === "prod") {
       const v = 1 + (e.value - 1) * f;
       state.buffs.push({ kind: "prod", value: v, scope: e.scope, moduleId: node.id, arm: node.arm, tier: node.tier, rarity: e.rarity, dexIndex: state.currentDex, until });
