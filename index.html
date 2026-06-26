@@ -1264,8 +1264,8 @@
       + `<div class="atl-btnrow" style="margin-top:8px"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button></div>`
       + `<div class="sub" id="atlHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Pas assez de gemmes — achète-en ci-dessus (avec ton cash) pour pouvoir invoquer.</div></div>`
       + `<div class="atl-step"><h3>2️⃣ ⚒️ Renforcer</h3><div class="sub">Le choix : dépense tes fragments en <b>force</b> (niveau) ou en <b>largeur</b> (copies).</div>`
-      + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv" id="atlFortVal"></div><button class="btn" id="atlFuse" data-atl="fuse"></button></div>`
-      + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv" id="atlLargeVal"></div><button class="btn" id="atlMint" data-atl="mint"></button></div></div></div>`
+      + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv" id="atlFortVal"></div><div class="ct" id="atlFortFrags" style="margin-bottom:8px"></div><button class="btn" id="atlFuse" data-atl="fuse"></button></div>`
+      + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv" id="atlLargeVal"></div><div class="ct" id="atlLargeFrags" style="margin-bottom:8px"></div><button class="btn" id="atlMint" data-atl="mint"></button></div></div></div>`
       + `<div class="atl-step"><h3>3️⃣ 📍 Placer</h3><div class="sub">Occupe un slot buffeur d'un module de même rareté (1 copie libre par slot).</div>${rows}`
       + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`;
   }
@@ -1284,8 +1284,13 @@
     able("atlPull10", gems >= PULL_COST * 10);
     const hint = document.getElementById("atlHint"); if (hint) hint.style.display = gems < PULL_COST ? "block" : "none";
     set("atlFortVal", `niv ${L}/${BUFFER_MAX_LVL} · +${L}%`);
+    set("atlFortFrags", atMax ? "niveau max atteint"
+      : (frags >= step ? `<span style="color:var(--accent)">🧬 ${frags} / ${step} · prêt ✓</span>`
+                       : `🧬 ${frags} / ${step} · <span style="color:var(--accent-2)">manque ${step - frags}</span>`));
     set("atlFuse", atMax ? "Niveau max" : `Fusionner +1% · ${step} 🧬`); able("atlFuse", !atMax && frags >= step);
     set("atlLargeVal", `${owned} copie(s) · ${free} libre(s)`);
+    set("atlLargeFrags", frags >= cc ? `<span style="color:var(--accent)">🧬 ${frags} / ${cc} · prêt ✓</span>`
+                                     : `🧬 ${frags} / ${cc} · <span style="color:var(--accent-2)">manque ${cc - frags}</span>`);
     set("atlMint", `Forger une copie · ${cc} 🧬`); able("atlMint", frags >= cc);
     ASSETS.filter(x => x.tier === R).forEach(x => {
       const on = isPlacedOn(id, x.id), used = slotsOf(x.id).length, dis = !on && ((used >= 2) || free <= 0);
