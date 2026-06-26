@@ -1052,7 +1052,9 @@
   // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
   // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
   const GEM_BASE = 1, GEM_T = 0.10;
-  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond() * GEM_T * globalHeroFx().gemPriceMult)); }
+  // Prix des gemmes : indexé sur la prod de BASE (perSecond(true) = hors buffs de compétences
+  // temporaires) → activer une compétence ne fait plus grimper le prix des gemmes.
+  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond(true) * GEM_T * globalHeroFx().gemPriceMult)); }
   // Achat de gems : prix indexé sur la production (formule idle pure).
   function buyGems(qty) {
     const cost = qty * gemPrice();
@@ -1116,7 +1118,7 @@
     return HSYN.filter(s => s.members.every(id => d.placed[id]));
   }
   // Multiplicateur de PRODUCTION d'un module n dans le Dex d (héros de prod déployés)
-  function moduleMult(n, d) {
+  function moduleMult(n, d, noBuffs) {
     let m = 1;
     const syns = activeSynergies(d);
     ASSETS.forEach(src => {
@@ -1131,17 +1133,20 @@
       else if (e.type === "synergyMult") m *= Math.pow(scaleVal("synergyMult", e.value, lvl), syns.length);   // Geoff
     });
     syns.forEach(s => { if (s.members.indexOf(n.id) !== -1) m *= (s.mult || 1); });
-    // Buffs de signature actifs (production) dans ce Dex
-    const di = state.dexes.indexOf(d), tnow = Date.now();
-    state.buffs.forEach(b => {
-      if (b.kind !== "prod" || b.until <= tnow || b.dexIndex !== di) return;
-      if (b.scope === "global") m *= b.value;
-      else if (b.scope === "module" && b.moduleId === n.id) m *= b.value;
-      else if (b.scope === "arm" && b.arm === n.arm) m *= b.value;
-      else if (b.scope === "downstream" && b.arm === n.arm && n.tier > b.tier) m *= b.value;
-      else if (b.scope === "rarity" && n.tier === b.rarity) m *= b.value;
-    });
-    m *= moduleBuffMult(n.id);   // buffeurs méta V2 placés dans les 2 slots du module
+    // Buffs de signature actifs (production) dans ce Dex — TEMPORAIRES (compétences).
+    // Exclus si noBuffs (ex. prix des gemmes : indexé sur la prod de BASE, pas sur les buffs éphémères).
+    if (!noBuffs) {
+      const di = state.dexes.indexOf(d), tnow = Date.now();
+      state.buffs.forEach(b => {
+        if (b.kind !== "prod" || b.until <= tnow || b.dexIndex !== di) return;
+        if (b.scope === "global") m *= b.value;
+        else if (b.scope === "module" && b.moduleId === n.id) m *= b.value;
+        else if (b.scope === "arm" && b.arm === n.arm) m *= b.value;
+        else if (b.scope === "downstream" && b.arm === n.arm && n.tier > b.tier) m *= b.value;
+        else if (b.scope === "rarity" && n.tier === b.rarity) m *= b.value;
+      });
+    }
+    m *= moduleBuffMult(n.id);   // buffeurs méta V2 placés dans les 2 slots du module (permanent)
     return m;
   }
   // Note : le régime de marché (effet héros famille G) a été retiré avec l'Exchange
@@ -1301,12 +1306,12 @@
     const ph = document.getElementById("atlPlaceHint"); if (ph) ph.style.display = free <= 0 ? "block" : "none";
   }
 
-  function perSecond() {
+  function perSecond(noBuffs) {
     let total = 0;
     state.dexes.forEach((d, di) => {
       ASSETS.forEach(n => {
         const lvl = d.levels[n.id] || 0;
-        if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
+        if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d, noBuffs);
       });
     });
     return total * valoMult();   // × rang de Valorisation (buffeurs méta V2 = localisés dans moduleMult)
