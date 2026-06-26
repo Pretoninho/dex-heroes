@@ -1252,7 +1252,8 @@
     if (!atelierHero) { ws.innerHTML = '<div class="atl-empty">Sélectionne un héros ci-dessus pour ouvrir l\'atelier.</div>'; return; }
     const id = atelierHero, h = HDATA_BY_ID[id], R = rarityOf(id);
     const meta = HMETA.rarities[R] || { name: "", stars: 3, color: "#fff" };
-    const gems = Math.floor(state.gems || 0), frags = heroFragsOf(id);
+    const gems = Math.floor(state.gems || 0), frags = heroFragsOf(id), gp = gemPrice();
+    const buy1 = gp * PULL_COST, buy10 = gp * PULL_COST * 10;
     const L = bufferLvl(id), atMax = L >= BUFFER_MAX_LVL, step = bufferStepCost(id);
     const owned = copiesOwned(id), free = copiesFree(id), cc = copyCost(id);
     const mods = ASSETS.filter(x => x.tier === R).map(x => {
@@ -1267,13 +1268,16 @@
       `<div class="atl-step" style="border-color:${meta.color}55"><div class="atl-hero-head"><div class="hh-main">`
       + `<h3>${h.emoji} ${heroName(id)} <span style="color:${meta.color};font-size:12px">${"★".repeat(meta.stars)}</span></h3>`
       + `<div class="sub">${h.module || ""} · ${meta.name}</div>`
-      + `<div class="atl-stat">💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)</div>`
+      + `<div class="atl-stat">💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)</div>`
       + `</div><button class="atl-menu-btn${mo}" data-atl="menu" title="Afficher / masquer les actions">☰<span class="lbl">Actions</span></button></div></div>`
       // Menu déployable : tous les boutons d'action
       + `<div class="atl-menu${mo}">`
-      + `<div class="atl-step"><h3>1️⃣ 🧬 Invoquer</h3><div class="sub">Tes gemmes deviennent des fragments ciblés (déterministe, zéro hasard).</div>`
-      + `<div class="atl-btnrow"><button class="btn ${gems >= PULL_COST ? "can" : ""}" data-atl="pull1"${gems < PULL_COST ? " disabled" : ""}>Invoquer ×1 · 200💎</button>`
-      + `<button class="btn ${gems >= PULL_COST * 10 ? "can" : ""}" data-atl="pull10"${gems < PULL_COST * 10 ? " disabled" : ""}>×10 · 2000💎</button></div></div>`
+      + `<div class="atl-step"><h3>1️⃣ 🧬 Invoquer</h3><div class="sub">Étape A : achète des gemmes avec ton cash. Étape B : transforme-les en fragments ciblés.</div>`
+      + `<div class="atl-btnrow"><button class="btn ${state.cash >= buy1 ? "can" : ""}" data-atl="buy200"${state.cash < buy1 ? " disabled" : ""}>Acheter 200💎 · ≈$${fmt(buy1)}</button>`
+      + `<button class="btn ${state.cash >= buy10 ? "can" : ""}" data-atl="buy2000"${state.cash < buy10 ? " disabled" : ""}>2000💎 · ≈$${fmt(buy10)}</button></div>`
+      + `<div class="atl-btnrow" style="margin-top:8px"><button class="btn ${gems >= PULL_COST ? "can" : ""}" data-atl="pull1"${gems < PULL_COST ? " disabled" : ""}>Invoquer ×1 · 200💎</button>`
+      + `<button class="btn ${gems >= PULL_COST * 10 ? "can" : ""}" data-atl="pull10"${gems < PULL_COST * 10 ? " disabled" : ""}>×10 · 2000💎</button></div>`
+      + `${gems < PULL_COST ? '<div class="sub" style="margin-top:6px;color:var(--accent-2)">💡 Pas assez de gemmes — achète-en ci-dessus (avec ton cash) pour pouvoir invoquer.</div>' : ""}</div>`
       + `<div class="atl-step"><h3>2️⃣ ⚒️ Renforcer</h3><div class="sub">Le choix : dépense tes fragments en <b>force</b> (niveau) ou en <b>largeur</b> (copies).</div>`
       + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv">niv ${L}/${BUFFER_MAX_LVL} · +${L}%</div>`
       + `<button class="btn ${(!atMax && frags >= step) ? "can" : ""}" data-atl="fuse"${(atMax || frags < step) ? " disabled" : ""}>${atMax ? "Niveau max" : `Fusionner +1% · ${step} 🧬`}</button></div>`
@@ -2029,7 +2033,9 @@
     const btn = ev.target.closest("[data-atl]"); if (!btn || !atelierHero) return;
     const act = btn.getAttribute("data-atl");
     if (act === "menu") { atlMenuOpen = !atlMenuOpen; render(); return; }
-    if (act === "pull1") pullFrags(atelierHero, 1);
+    if (act === "buy200") buyGems(PULL_COST);
+    else if (act === "buy2000") buyGems(PULL_COST * 10);
+    else if (act === "pull1") pullFrags(atelierHero, 1);
     else if (act === "pull10") pullFrags(atelierHero, 10);
     else if (act === "fuse") fuseBuffer(atelierHero);
     else if (act === "mint") mintCopy(atelierHero);
