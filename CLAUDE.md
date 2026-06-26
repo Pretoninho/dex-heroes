@@ -264,6 +264,23 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 
 **→ Design méta COMPLET (placement, buffeur/signature, gear, les 2 robinets, migration) — prêt à coder.**
 
+- **Démontage de l'ancien système — ✅ FAIT (a + b), 2026-06-26** (slice c restante). Slices testées
+  (navigateur Chromium) + poussées une par une :
+  - **(a)** Effets héros **FIXES** : passifs (`moduleMult`/`globalHeroFx`/`costOf`) + compétences actives
+    (`triggerSig`) calculés à **niveau=1** (valeur de base, plus de scaling). = « signature = effet fixe ».
+  - **(b1)** **Gacha RNG retiré** : onglet 🎲 + écran + `pullOnce`/`pull`/`epicProb`/`DROP`/`HEROES_BY_TIER` +
+    collection. Acquisition héros = invocation ciblée de fragments. `PULL_COST` conservé. ⚠️ Champs
+    `pity`/`dropBoost`/`freePullNext` vestigiaux ; **signatures `freePull`/`dropBoost` désormais inertes** (à redesigner).
+  - **(b2)** **Éclats retirés** : balayage des doublons morts (les doublons = copies utiles), `craftHero` +
+    bouton Fabriquer, barre d'Éclats du Codex, branches Éclats des objectifs. `SHARD_PER_COPY` conservé pour
+    la migration shards→gemmes uniquement.
+  - **(b3)** **Ancienne fusion + niveaux retirés** : `fuse`/`fuseCost`/`heroLvl`/`maxLvl`/`dupesOf`/`shardsOf`/
+    `SHARD_LABEL` + bouton `mpFuseBtn` (page module) + affichage de l'ancien niveau. Page module : héros montre
+    désormais buffeur niv + déploiement (signature). Objectif « max1 » repointé (buffeur niv 10, récompense
+    gemmes). `state.lvl`/`state.shards` **conservés en données** UNIQUEMENT pour `migrateMetaV2` (vieilles saves).
+  - **Slice (c) RESTANTE** : intégrer le parcours validé de l'Atelier dans la **vraie fiche Codex** + **retirer
+    l'Atelier temporaire**. Rééquilibrage `copyCost` à faire après playtest.
+
 ### Page Atelier (TEMPORAIRE — prototype UX, 2026-06-26)
 Onglet **🧪 Atelier** (`data-nav="atelier"`, `#atelierScreen`, `openAtelier`/`renderAtelier`/`buildAtelierPicker`).
 Prototype du **parcours simplifié de création de héros** à valider avant de démonter l'ancien système :

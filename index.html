@@ -549,7 +549,6 @@
         <div class="hero-slot">
           <div id="mpHeroInfo">🦸 Slot héros</div>
           <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
-          <button class="btn" id="mpFuseBtn" style="display:none; margin-top:8px">Fusionner</button>
         </div>
       </div>
 
@@ -703,13 +702,10 @@
   const HDATA_BY_ID = Object.fromEntries(HDATA.map(h => [h.id, h]));
   const HSYN = HMETA.synergies || [];   // synergies de collection
 
-  // 🧩 Éclats (fragments fongibles par rareté) — voir docs/economy-vision.md §3
-  // Faucet : doublon d'un héros DÉJÀ maxé → 1 Éclat de sa rareté (au lieu d'un doublon mort).
-  // Sink : fabriquer 1 copie d'un héros CHOISI (coût ci-dessous) — sert aussi de doublon de secours.
-  const SHARD_PER_COPY = { 0: 8, 1: 6, 2: 4 };   // Éclats pour 1 copie (Commun · Rare · Épique)
-  const SHARD_LABEL = { 0: "Communs", 1: "Rares", 2: "Épiques" };
+  // 🧩 Éclats RETIRÉS (méta V2). `SHARD_PER_COPY` conservé UNIQUEMENT pour la migration des
+  // vieilles saves (migrateMetaV2 convertit les anciens Éclats en gemmes à raison de 200/valeur).
+  const SHARD_PER_COPY = { 0: 8, 1: 6, 2: 4 };
   function rarityName(r) { return (HMETA.rarities[r] || {}).name || ("rareté " + r); }
-  function shardsOf(r) { return (state.shards && state.shards[r]) || 0; }
 
   // === Méta V2 — refonte héros / gear / fragments (design verrouillé 2026-06-26, voir CLAUDE.md) ===
   // BLOC 1 = socle : on POSE les nouveaux stocks de fragments + on migre les saves.
@@ -1101,7 +1097,7 @@
   // d'avant la feature sont amorcées en silence (seedObjectives) : pas de pluie de gains.
   function objConnected() { const s = new Set(); state.dexes.forEach(d => { if (d.levels) Object.keys(d.levels).forEach(id => { if (d.levels[id] > 0) s.add(id); }); }); return s.size; }
   function objOwned() { return ASSETS.filter(n => (state.heroes[n.id] || 0) > 0).length; }
-  function objMaxed() { return ASSETS.filter(n => (state.heroes[n.id] || 0) > 0 && (state.lvl[n.id] || 1) >= maxLvl(n.id)).length; }
+  function objMaxed() { return ASSETS.filter(n => bufferLvl(n.id) >= BUFFER_MAX_LVL).length; }
   const OBJECTIVES = [
     { id: "prod1",    label: "Premiers revenus",     desc: "Atteindre $50 / s",           check: () => perSecond() >= 50,       reward: { gems: 200 } },
     { id: "conn6",    label: "Diversification",      desc: "Connecter 6 modules",         check: () => objConnected() >= 6,     reward: { gems: 300 } },
@@ -1110,7 +1106,7 @@
     { id: "valo1",    label: "Promotion",            desc: "Atteindre le rang Analyste",  check: () => valoRankNum() >= 1,      reward: { gems: 400 } },
     { id: "dex2",     label: "Duplication",          desc: "Acheter le Dex 2",            check: () => state.dexes.length >= 2, reward: { gems: 800 } },
     { id: "conn12",   label: "Conglomérat",          desc: "Connecter 12 modules",        check: () => objConnected() >= 12,    reward: { gems: 700 } },
-    { id: "max1",     label: "Fusion maximale",      desc: "Maxer un héros",              check: () => objMaxed() >= 1,         reward: { shards: { r: 1, n: 6 } } },
+    { id: "max1",     label: "Buffeur maximal",      desc: "Monter un buffeur au niveau 10", check: () => objMaxed() >= 1,       reward: { gems: 1000 } },
     { id: "prod3",    label: "Machine à cash",       desc: "Atteindre $100 k / s",        check: () => perSecond() >= 1e5,      reward: { gems: 1200 } },
     { id: "valo4",    label: "Cadre supérieur",      desc: "Atteindre le rang Directeur", check: () => valoRankNum() >= 4,      reward: { gems: 1500 } },
     { id: "conn18",   label: "Mainmise totale",      desc: "Connecter les 18 modules",    check: () => objConnected() >= 18,    reward: { gems: 2000 } },
@@ -1245,35 +1241,9 @@
   function ownsHero(id) { return (state.heroes[id] || 0) > 0; }
   function isDeployed(node, di = state.currentDex) { return !!(dex(di).placed && dex(di).placed[node.id]); }
 
-  // --- Fusion (niveaux) -------------------------------------------------
-  function heroLvl(id) { return state.lvl[id] || (state.heroes[id] > 0 ? 1 : 0); }
-  function dupesOf(id) { return Math.max(0, (state.heroes[id] || 0) - 1); }
-  function fuseCost(level) { return level + 1; }                 // 1→2 = 2 doublons, 2→3 = 3…
-  function maxLvl(id) { const r = (HDATA_BY_ID[id] || {}).rarity; return (HMETA.rarities[r] || {}).fusionMax || 5; }
-  function fuse(id) {
-    const h = HDATA_BY_ID[id]; if (!h) return;
-    const lvl = heroLvl(id), cost = fuseCost(lvl), dup = dupesOf(id);
-    if (lvl >= maxLvl(id)) { toast("Niveau max atteint"); return; }
-    let note = "";
-    if (dup >= cost) {
-      state.heroes[id] -= cost;                          // doublons suffisants
-    } else {
-      // Éclats = doublons de secours : couvrent le manque (coût = manque × prix d'1 copie)
-      const missing = cost - dup, r = h.rarity, shardCost = missing * SHARD_PER_COPY[r];
-      if (shardsOf(r) < shardCost) {
-        toast(`Il faut ${cost} doublons (ou ${dup} + ${shardCost} 🧩 ${SHARD_LABEL[r]})`); return;
-      }
-      state.heroes[id] = Math.max(1, state.heroes[id] - dup);   // consomme tous les doublons
-      state.shards[r] -= shardCost;
-      note = ` (${missing} doublon${missing > 1 ? "s" : ""} couvert${missing > 1 ? "s" : ""} par 🧩)`;
-    }
-    state.lvl[id] = lvl + 1;
-    toast(`⬆️ ${h.name} → Niv.${lvl + 1}${note}`);
-    render();
-    save();
-  }
-  // Fabrication par Éclats RETIRÉE (méta V2) : forger une copie se fait avec des fragments
-  // ciblés (mintCopy). Les Éclats ont été convertis en gemmes à la migration.
+  // Ancienne fusion par doublons/Éclats + niveaux (heroLvl/maxLvl/dupesOf/fuseCost) RETIRÉS (méta V2).
+  // Profondeur = niveau de buffeur (fuseBuffer, fragments) ; largeur = copies (mintCopy). `state.lvl`
+  // est conservé en données UNIQUEMENT pour la migration des vieilles saves (migrateMetaV2).
   // Mise à l'échelle d'un effet selon le niveau (conservée pour scaleVal ; appelée avec niveau=1 = fixe)
   const MULT_TYPES = { mult: 1, rarityMult: 1, globalMult: 1, downstreamMult: 1, offlineMult: 1, offlineCap: 1, clickMult: 1, synergyMult: 1 };
   function lvlFactor(level) { return 1 + 0.20 * ((level || 1) - 1); }
@@ -1784,32 +1754,20 @@
     const deployed = isDeployed(n);
     const info = document.getElementById("mpHeroInfo");
     const hbtn = document.getElementById("mpHeroBtn");
-    const fbtn = document.getElementById("mpFuseBtn");
     const hd = HDATA_BY_ID[n.id];
     const hname = hd ? heroName(n.id) : n.name;
     const eff = hd ? hd.passive.text : "";
     if (!owns) {
-      info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque-le au gacha`;
-      hbtn.style.display = "none"; fbtn.style.display = "none";
+      info.innerHTML = `🦸 <b>${hname}</b> non obtenu — invoque ses fragments (🧪 Atelier) puis forge une copie`;
+      hbtn.style.display = "none";
     } else {
-      const lvl = heroLvl(n.id), dup = dupesOf(n.id), max = maxLvl(n.id), cost = fuseCost(lvl);
+      const bl = bufferLvl(n.id);
       info.innerHTML =
-        `🦸 <b>${hname}</b> · Niv.${lvl}${deployed ? ' · <span style="color:var(--accent)">déployé</span>' : ''}<br>` +
-        `<span style="color:var(--muted)">${eff} · ${dup} doublon${dup > 1 ? "s" : ""}</span>`;
+        `🦸 <b>${hname}</b>${deployed ? ' · <span style="color:var(--accent)">déployé (signature)</span>' : ''}<br>` +
+        `<span style="color:var(--muted)">${eff} · buffeur niv ${bl}/${BUFFER_MAX_LVL}</span>`;
       hbtn.style.display = "inline-block";
-      hbtn.textContent = deployed ? "Retirer le héros" : "Déployer";
+      hbtn.textContent = deployed ? "Retirer le héros" : "Déployer (signature)";
       hbtn.className = "btn" + (deployed ? "" : " can");
-      fbtn.style.display = "inline-block";
-      if (lvl >= max) { fbtn.textContent = `Niveau max (${max})`; fbtn.className = "btn"; fbtn.disabled = true; }
-      else {
-        const r = hd ? hd.rarity : 0, missing = Math.max(0, cost - dup), shardCost = missing * SHARD_PER_COPY[r];
-        const canDup = dup >= cost, canShard = missing > 0 && shardsOf(r) >= shardCost;
-        fbtn.disabled = !(canDup || canShard);
-        fbtn.textContent = (canShard && !canDup)
-          ? `Fusionner → Niv.${lvl + 1} (${dup} + ${shardCost} 🧩)`
-          : `Fusionner → Niv.${lvl + 1} (${cost} doublons)`;
-        fbtn.className = "btn" + (canDup || canShard ? " can" : "");
-      }
     }
   }
 
@@ -1933,7 +1891,6 @@
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
-  document.getElementById("mpFuseBtn").addEventListener("click", () => { if (currentModule) fuse(currentModule); });
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)
   window.DEX = {
     getState: () => state,
