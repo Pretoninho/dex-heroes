@@ -209,11 +209,22 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
     5 autres modules de sa rareté. Plafond module **+30 %** (sig +10 fixe + 2 buffeurs +10). Couche **buff =
     quantitatif grindé** / **signature = qualitatif stratégique**.
 
+- **Gear — VERROUILLÉ (2026-06-25)** : **mix par slot** = **petit % de prod** (garniture, ~1-2 %/pièce —
+  ne doit PAS écraser les héros ; sim : 9 pièces/module, à +5 %/pièce le gear dépasse les +30 % héros) **+
+  1 effet qualitatif** d'un **pool capé**. **3 slots libres/héros** (non typés). **Robinet séparé** des héros
+  (fragments gear distincts), même fusion **base-3 / classes C/R/É**. **Leveling** : l'effet scale
+  linéairement/niveau vers son cap, coût **×3/niveau** (même auto-pacing que les héros).
+  - **Pool qualitatif** : réduction de coût (verse dans le **cap 80 % global** existant de `costOf` ✅),
+    gain hors-ligne (`offlineMult`, cap +100 %), plafond hors-ligne (`offlineCap`, +8 h), **trouvaille de
+    fragments** (*neuf*, +50 %, **pont entre les 2 robinets** → caper serré), gemmes (`gemPriceMult`) ;
+    clic/auto mineurs en option.
+  - **Caps GLOBAUX par effet + rendement décroissant** → pousse à **diversifier** → c'est ce qui rend les
+    **3 slots libres** intéressants (un portefeuille à composer, pas « équipe le plus gros »).
+
 **Ouvert / à trancher :**
-1. **Robinet** (fragments/tirage + fréquence) à caler contre l'ancre « tout à niv5 ≈ 27 k frags ».
-2. **Gear** (3 objets/héros, **la vraie pénurie** — exclusif à un exemplaire) : effet + scaling **à définir** ;
-   **réutiliser les `synergies` existantes** ; **auto-pilote** (auto-équipe/placement suggéré) pour garder la gestion *légère*.
-3. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
+1. **Robinet** (les **2** : fragments héros + fragments gear, taux/tirage + fréquence) à caler contre
+   l'ancre « tout à niv5 ≈ 27 k frags » côté héros. Sépare les deux faucets sans qu'ils se cannibalisent.
+2. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
    `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
 
 ## Tâches en attente / roadmap
