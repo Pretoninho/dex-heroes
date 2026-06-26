@@ -438,6 +438,45 @@
   .wb-cap { font-size: 12px; color: var(--accent-2); margin-top: 10px; }
   .wb-cap .wb-hint { color: var(--muted); }
   .wb-card .big-btn { margin-top: 18px; width: 100%; }
+
+  /* === Atelier Héros (page temporaire — parcours simplifié en 3 gestes) === */
+  .atl-intro { background: rgba(52,209,122,.07); border: 1px dashed var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .atl-pickwrap { margin-bottom: 16px; }
+  .atl-rargroup { margin-bottom: 10px; }
+  .atl-rarlbl { font-size: 12px; color: var(--muted); margin: 0 0 5px 2px; letter-spacing: .03em; }
+  .atl-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .atl-chip { display: flex; align-items: center; gap: 7px; padding: 7px 11px; border-radius: 999px; border: 1px solid #2a3550; background: #161d2e; cursor: pointer; font-size: 13px; transition: border-color .12s, background .12s; }
+  .atl-chip:hover { border-color: #3a4360; }
+  .atl-chip .ce { font-size: 16px; }
+  .atl-chip .cs { font-size: 11px; color: var(--muted); }
+  .atl-chip.sel { border-color: var(--accent); background: rgba(52,209,122,.12); box-shadow: 0 0 8px rgba(52,209,122,.25); }
+  .atl-chip.placed { border-color: var(--accent-2); }
+  .atl-empty { color: var(--muted); font-style: italic; padding: 18px 4px; }
+  .atl-step { background: #131a29; border: 1px solid #232d44; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .atl-step h3 { margin: 0 0 4px; font-size: 15px; }
+  .atl-step .sub { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .atl-stat { font-size: 13px; margin-bottom: 10px; }
+  .atl-stat b { color: var(--fg); }
+  .atl-btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .atl-choice { display: flex; flex-wrap: wrap; gap: 10px; }
+  .atl-card { flex: 1 1 180px; background: #0f1521; border: 1px solid #232d44; border-radius: 10px; padding: 11px 12px; }
+  .atl-card .ct { font-size: 12px; color: var(--muted); }
+  .atl-card .cv { font-size: 18px; font-weight: 800; margin: 2px 0 9px; }
+  .atl-card .btn { width: 100%; }
+  .atl-modrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1c2435; }
+  .atl-modrow:last-child { border-bottom: none; }
+  .atl-slots { font-size: 13px; letter-spacing: 2px; color: var(--accent); }
+  .atl-slots .off { color: #2f3a52; }
+  .atl-modname .mr { font-size: 11px; color: var(--muted); }
+  /* Menu déployable (☰) qui replie les boutons d'action */
+  .atl-hero-head { display: flex; align-items: flex-start; gap: 10px; }
+  .atl-hero-head .hh-main { flex: 1; }
+  .atl-menu-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1px solid #2a3550; background: #161d2e; color: var(--fg); cursor: pointer; font-size: 15px; line-height: 1; transition: border-color .12s, background .12s; }
+  .atl-menu-btn:hover { border-color: var(--accent); }
+  .atl-menu-btn.open { border-color: var(--accent); background: rgba(52,209,122,.12); color: var(--accent); }
+  .atl-menu-btn .lbl { font-size: 12px; }
+  .atl-menu { display: none; margin-top: 12px; }
+  .atl-menu.open { display: block; }
 </style>
 </head>
 <body>
@@ -449,6 +488,7 @@
       <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
       <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
+      <button class="navtab" data-nav="atelier">🧪<span>Atelier</span></button>
     </div>
   </nav>
 
@@ -606,6 +646,21 @@
         <h2>🎯 Objectifs</h2>
         <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes et 🧩 Éclats.</p>
         <div class="objlist" id="objList"></div>
+      </div>
+
+      <!-- Écran Atelier (TEMPORAIRE — prototype du parcours simplifié de création de héros) -->
+      <div id="atelierScreen" style="display:none">
+        <h2>🧪 Atelier Héros <span style="color:var(--muted);font-size:13px;font-weight:400">— prototype</span></h2>
+        <div class="atl-intro">
+          Parcours simplifié à valider : <b>1️⃣ Invoquer</b> des fragments → <b>2️⃣ Renforcer</b> (plus fort
+          <i>ou</i> plus large) → <b>3️⃣ Placer</b> sur les modules. Page <b>temporaire</b>, branchée sur ton
+          vrai état (tes actions ici comptent). L'ancien système n'est pas touché.
+        </div>
+        <div class="atl-pickwrap">
+          <div class="atl-rarlbl">CHOISIS UN HÉROS</div>
+          <div id="atlPicker"></div>
+        </div>
+        <div id="atlWorkshop"><div class="atl-empty">Sélectionne un héros ci-dessus pour ouvrir l'atelier.</div></div>
       </div>
     </div>
   </div>
@@ -1170,6 +1225,64 @@
   }
   function openObjectives() { showScreen("objectives"); render(); }
 
+  // --- Atelier Héros (page TEMPORAIRE : prototype du parcours simplifié en 3 gestes) -------
+  // But : valider l'UX "Invoquer → Renforcer → Placer" avant de démonter l'ancien système.
+  // Branché sur les vraies fonctions méta V2 (pullFrags/fuseBuffer/mintCopy/toggleBuffer).
+  let atelierHero = null, atlMenuOpen = false;
+  function openAtelier() { buildAtelierPicker(); showScreen("atelier"); render(); }
+  function buildAtelierPicker() {
+    document.getElementById("atlPicker").innerHTML = [0, 1, 2].map(r => {
+      const meta = HMETA.rarities[r] || { name: "rareté " + r, stars: 3 };
+      const chips = HDATA.filter(h => h.rarity === r).map(h =>
+        `<div class="atl-chip" data-hero="${h.id}"><span class="ce">${h.emoji}</span><span>${h.name}</span><span class="cs" id="atlchip-${h.id}"></span></div>`
+      ).join("");
+      return `<div class="atl-rargroup"><div class="atl-rarlbl">${"★".repeat(meta.stars)} ${meta.name}</div><div class="atl-chips">${chips}</div></div>`;
+    }).join("");
+  }
+  function renderAtelier() {
+    HDATA.forEach(h => {
+      const chip = document.querySelector('.atl-chip[data-hero="' + h.id + '"]');
+      if (!chip) return;
+      chip.classList.toggle("sel", atelierHero === h.id);
+      chip.classList.toggle("placed", copiesUsed(h.id) > 0);
+      const cs = document.getElementById("atlchip-" + h.id);
+      if (cs) cs.textContent = "niv" + bufferLvl(h.id);
+    });
+    const ws = document.getElementById("atlWorkshop");
+    if (!atelierHero) { ws.innerHTML = '<div class="atl-empty">Sélectionne un héros ci-dessus pour ouvrir l\'atelier.</div>'; return; }
+    const id = atelierHero, h = HDATA_BY_ID[id], R = rarityOf(id);
+    const meta = HMETA.rarities[R] || { name: "", stars: 3, color: "#fff" };
+    const gems = Math.floor(state.gems || 0), frags = heroFragsOf(id);
+    const L = bufferLvl(id), atMax = L >= BUFFER_MAX_LVL, step = bufferStepCost(id);
+    const owned = copiesOwned(id), free = copiesFree(id), cc = copyCost(id);
+    const mods = ASSETS.filter(x => x.tier === R).map(x => {
+      const on = isPlacedOn(id, x.id), used = slotsOf(x.id).length, dis = !on && ((used >= 2) || free <= 0);
+      const dots = (used >= 1 ? "●" : '<span class="off">○</span>') + (used >= 2 ? "●" : '<span class="off">○</span>');
+      return `<div class="atl-modrow"><span class="atl-modname">${x.emoji} ${x.name} <span class="mr">slots <span class="atl-slots">${dots}</span></span></span>`
+        + `<button class="btn ${on ? "can" : ""}" data-atl="place" data-mod="${x.id}"${dis ? " disabled" : ""}>${on ? "Retirer" : "Placer"}</button></div>`;
+    }).join("");
+    const mo = atlMenuOpen ? " open" : "";
+    ws.innerHTML =
+      // En-tête : infos TOUJOURS visibles + bouton qui déploie le menu d'actions
+      `<div class="atl-step" style="border-color:${meta.color}55"><div class="atl-hero-head"><div class="hh-main">`
+      + `<h3>${h.emoji} ${heroName(id)} <span style="color:${meta.color};font-size:12px">${"★".repeat(meta.stars)}</span></h3>`
+      + `<div class="sub">${h.module || ""} · ${meta.name}</div>`
+      + `<div class="atl-stat">💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)</div>`
+      + `</div><button class="atl-menu-btn${mo}" data-atl="menu" title="Afficher / masquer les actions">☰<span class="lbl">Actions</span></button></div></div>`
+      // Menu déployable : tous les boutons d'action
+      + `<div class="atl-menu${mo}">`
+      + `<div class="atl-step"><h3>1️⃣ 🧬 Invoquer</h3><div class="sub">Tes gemmes deviennent des fragments ciblés (déterministe, zéro hasard).</div>`
+      + `<div class="atl-btnrow"><button class="btn ${gems >= PULL_COST ? "can" : ""}" data-atl="pull1"${gems < PULL_COST ? " disabled" : ""}>Invoquer ×1 · 200💎</button>`
+      + `<button class="btn ${gems >= PULL_COST * 10 ? "can" : ""}" data-atl="pull10"${gems < PULL_COST * 10 ? " disabled" : ""}>×10 · 2000💎</button></div></div>`
+      + `<div class="atl-step"><h3>2️⃣ ⚒️ Renforcer</h3><div class="sub">Le choix : dépense tes fragments en <b>force</b> (niveau) ou en <b>largeur</b> (copies).</div>`
+      + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv">niv ${L}/${BUFFER_MAX_LVL} · +${L}%</div>`
+      + `<button class="btn ${(!atMax && frags >= step) ? "can" : ""}" data-atl="fuse"${(atMax || frags < step) ? " disabled" : ""}>${atMax ? "Niveau max" : `Fusionner +1% · ${step} 🧬`}</button></div>`
+      + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv">${owned} copie(s) · ${free} libre(s)</div>`
+      + `<button class="btn ${frags >= cc ? "can" : ""}" data-atl="mint"${frags < cc ? " disabled" : ""}>Forger une copie · ${cc} 🧬</button></div></div></div>`
+      + `<div class="atl-step"><h3>3️⃣ 📍 Placer</h3><div class="sub">Occupe un slot buffeur d'un module de même rareté (1 copie libre par slot) → +${L}% à ce module.</div>${mods}</div>`
+      + `</div>`;
+  }
+
   function perSecond() {
     let total = 0;
     state.dexes.forEach((d, di) => {
@@ -1481,6 +1594,7 @@
     document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
+    document.getElementById("atelierScreen").style.display = name === "atelier" ? "block" : "none";
     setActiveNav();
   }
   function setActiveNav() {
@@ -1657,6 +1771,7 @@
     else if (screen === "gacha") renderGacha();
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
+    else if (screen === "atelier") renderAtelier();
     else renderOverview();
     renderAbilities();
   }
@@ -1879,6 +1994,7 @@
     if (nav === "gacha") openGacha();
     else if (nav === "heroes") openHeroes();
     else if (nav === "objectives") openObjectives();
+    else if (nav === "atelier") openAtelier();
     else backToOverview();
   }));
 
@@ -1903,6 +2019,21 @@
   document.getElementById("fichePlaceList").addEventListener("click", (ev) => {
     const b = ev.target.closest(".place-btn"); if (!b || !ficheId) return;
     toggleBuffer(ficheId, b.getAttribute("data-mod"));
+  });
+  // Atelier (page temporaire) : sélection du héros + actions des 3 étapes
+  document.getElementById("atlPicker").addEventListener("click", (ev) => {
+    const chip = ev.target.closest(".atl-chip"); if (!chip) return;
+    atelierHero = chip.getAttribute("data-hero"); render();
+  });
+  document.getElementById("atlWorkshop").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-atl]"); if (!btn || !atelierHero) return;
+    const act = btn.getAttribute("data-atl");
+    if (act === "menu") { atlMenuOpen = !atlMenuOpen; render(); return; }
+    if (act === "pull1") pullFrags(atelierHero, 1);
+    else if (act === "pull10") pullFrags(atelierHero, 10);
+    else if (act === "fuse") fuseBuffer(atelierHero);
+    else if (act === "mint") mintCopy(atelierHero);
+    else if (act === "place") toggleBuffer(atelierHero, btn.getAttribute("data-mod"));
   });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   function applyNick() {

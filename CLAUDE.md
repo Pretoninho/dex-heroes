@@ -264,6 +264,15 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 
 **→ Design méta COMPLET (placement, buffeur/signature, gear, les 2 robinets, migration) — prêt à coder.**
 
+### Page Atelier (TEMPORAIRE — prototype UX, 2026-06-26)
+Onglet **🧪 Atelier** (`data-nav="atelier"`, `#atelierScreen`, `openAtelier`/`renderAtelier`/`buildAtelierPicker`).
+Prototype du **parcours simplifié de création de héros** à valider avant de démonter l'ancien système :
+sélecteur de héros (par rareté) → workshop en **3 gestes** (1️⃣ Invoquer fragments · 2️⃣ Renforcer = Fusionner
+*ou* Forger une copie · 3️⃣ Placer sur modules). Boutons d'action **repliés dans un menu déployable** (bouton
+**☰ Actions**, état `atlMenuOpen` ; infos gemmes/frags/niv/copies restent visibles). **Branché sur les vraies
+fonctions** méta V2 (pullFrags/fuseBuffer/mintCopy/toggleBuffer) → les actions comptent. **À retirer** quand le
+parcours validé sera intégré à la vraie fiche + démontage de l'ancien système. Testé en navigateur (Chromium).
+
 ### Implémentation par blocs (en cours)
 Découpage livrable, pas de big-bang : (1) **Migration + stockage des fragments** → (2) **Fusion ciblée +
 buffeurs** (cœur jouable) → (3) **Signatures + placement par module** → (4) **Gear + faucet passif + pool
