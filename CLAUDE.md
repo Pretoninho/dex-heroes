@@ -308,9 +308,17 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   **signature** (héros-maison déployé). UI : étape **« 4️⃣ Équiper »** dans le workshop fiche (3 slots, coût/niv/
   bonus, 🛠️ dans la ligne de stats). Chiffres collent au design : 1 slot maxé ≈ 6,5k frags ≈ 82 h ; 3 slots ≈ 10 j ;
   module (9 slots) ≈ 59k ≈ 31 j. Testé navigateur (escalade 2→6→18, niveau, bonus, dépense) + `node --check` OK.
-- **4c À FAIRE** : pool qualitatif capé (réduction coût / offline / gemmes / trouvaille de frags) + caps globaux.
-  ⚠️ Interim : pour l'instant un slot de gear ne donne **que** le bonus prod (+1 %/niv8) ; le **pool qualitatif**
-  (1 effet par pièce) = 4c.
+- **4c — ✅ FAIT (2026-06-26)** : **pool qualitatif** (la star du gear). `state.gearFx`{heroId:[fx0,fx1,fx2]} —
+  **1 effet au choix par slot** (slots non typés). Pool `GEAR_FX` (5 effets, **TUNABLE**) : `cost` (−coût, perSlot
+  2 %, cap 40 % → verse dans le cap 80 % de `costOf`), `offmult` (+gain offline, 10 %, cap 100 %), `offcap`
+  (+plafond offline, 1 h, cap 8 h), `frag` (+trouvaille de frags, 5 %, cap **50 %** = pont serré entre robinets),
+  `gem` (−prix gemmes, 5 %, cap 50 %). Magnitude/slot = `niveau/8 × perSlot` ; `gearQual()` = totaux globaux
+  **cappés par effet** (somme tous slots tous héros) → pousse à diversifier. Branchements : `costOf` (`reduce +=
+  gq.cost`), offline `load()` (`×(1+gq.offmult)` + `cap += gq.offcap`), `pullFrags` (`×(1+gq.frag)`), `gemPrice`
+  (`×(1−gq.gem)`). UI : `<select>` d'effet par slot + contribution + ligne « Pool qualitatif (global, cappé) ».
+  Testé : gearQual + caps (12 slots frag → 0,50), frag end-to-end (invoke ×10 → 10,5 frags bruts). node --check OK.
+
+**→ Bloc 4 (Gear) COMPLET : faucet passif (4a) + 3 slots/effet prod (4b) + pool qualitatif capé (4c).**
 
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
