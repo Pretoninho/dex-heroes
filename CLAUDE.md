@@ -320,6 +320,14 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 
 **→ Bloc 4 (Gear) COMPLET : faucet passif (4a) + 3 slots/effet prod (4b) + pool qualitatif capé (4c).**
 
+### ⏳ Chantier À VENIR — réorganisation de l'affichage (UX, demandé 2026-06-26)
+Le système méta est complet **fonctionnellement**, mais l'**affichage est à réorganiser** (priorité du joueur).
+Pistes identifiées (à préciser avec lui avant de coder) : la **fiche Codex est devenue longue** (lore + 4 étapes
+empilées : Invoquer/Renforcer/Placer/Équiper) → regrouper/replier les étapes ? · **ligne de stats `atlStat`**
+très longue (💵💎🧬🛠️ + buffeur + copies) → condenser · hiérarchie visuelle générale · éventuellement l'écran
+module. **Pas de cap design verrouillé encore** : partir de ce qui le gêne le plus. Rien n'est cassé, c'est
+purement de la mise en forme.
+
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
 du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments) · **2️⃣ Renforcer** (Fusionner = +1 %/niv
