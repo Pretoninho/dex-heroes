@@ -234,10 +234,21 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   `PULL_COST`(=200), `GEM_T`(=0,10). Faucet **gear = passif/temps**, séparé (à caler en parallèle, pas
   encore chiffré).
 
+- **Robinet gear — VERROUILLÉ (2026-06-26)** : faucet **passif/temps** (≠ héros cash-gaté), unité =
+  **heures réelles**. Débit **PLAT = 80 frags/heure**, online **+ offline capé** comme le cash
+  (`OFFLINE_CAP_H`=4 h base, étendable par les héros `offlineCap`). Texture voulue : héros = grind cash
+  (scale avec l'engagement) / gear = « reviens chaque jour » (même débit pour tous). Pièce de gear :
+  niveaux 1→8, fusion **cumulée base 3** (`3^L` frags pour ÊTRE niv L), effet prod **+1 %/pièce à max**
+  (niv8 ; → **+9 %/module** = clairement **sous** les +30 % héros : garniture, le **pool qualitatif est la
+  star**) + 1 effet qualitatif scalant vers son cap. Cadence calée **en parallèle** du faucet héros : 1er
+  module gearé léger (9 pièces niv4, 729 frags) ≈ **9,1 h** = pile sur le « 1er module satisfaisant » héros ;
+  gear MAXÉ (9 pièces niv8, 59 049) ≈ **31 j** → **le gear se complète, les héros portent la longue traîne.**
+  **Séparation des 2 robinets** = monnaies distinctes (frags héros = gemmes/cash ; frags gear = temps) ;
+  **seul pont** = la *trouvaille de fragments* du pool qualitatif gear (+50 %, **capé serré**, volontaire).
+  Levier de tuning : `GEAR_RATE`(=80/h).
+
 **Ouvert / à trancher :**
-1. **Robinet gear** (passif/temps) — à caler en parallèle du faucet héros (cadence ~équivalente, sans
-   cannibaliser le robinet héros). Pas encore chiffré.
-2. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
+1. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
    `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
 
 ## Tâches en attente / roadmap
