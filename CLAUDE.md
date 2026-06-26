@@ -247,9 +247,22 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   **seul pont** = la *trouvaille de fragments* du pool qualitatif gear (+50 %, **capé serré**, volontaire).
   Levier de tuning : `GEAR_RATE`(=80/h).
 
-**Ouvert / à trancher :**
-1. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
-   `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
+- **Migration des saves — VERROUILLÉE (2026-06-26)** : **soft-reset + crédit généreux** (philosophie A ;
+  l'ancien et le nouveau modèle ont des **formes** trop différentes pour un port fidèle 1:1). Principe
+  directeur : **1 ancienne copie = 1 nouveau fragment** (les deux coûtent 1 pull / 200 gemmes → conversion
+  sans perte de valeur). Règles :
+  1. **Héros possédés → placés au MÊME numéro de niveau** : un héros à l'ancien niv L (1→5) est re-crédité
+     au nouveau niv L (`b^L` frags ciblés, b=3 C/R · 4 É), **1 copie en inventaire**. Préserve le numéro (pas
+     de « j'ai chuté de 5 à 3 »), généreux (niv5 = 243 frags offerts vs ~15 copies investies), et les anciens
+     maxés deviennent **mid-tier** (niv5/10) → **niv6→10 = la nouvelle traîne**.
+  2. **Éclats fongibles (`state.shards`) → gemmes** : `200/SHARD_PER_COPY` gemmes/Éclat (Commun **25** ·
+     Rare **~33** · Épique **50**). La fongibilité ne survit pas en ciblé → monnaie universelle.
+  3. **`state.gems` conservées** telles quelles.
+  4. **Gear démarre à zéro** (faucet passif se remplit dès la migration) + option petit pack « bon retour ».
+  5. **Retirés** : `state.lvl` + fusion `fuseCost=niv+1`, `craftHero`, `SHARD_PER_COPY`/`state.shards` →
+     remplacés par les stocks de fragments (héros ciblés + gear).
+
+**→ Design méta COMPLET (placement, buffeur/signature, gear, les 2 robinets, migration) — prêt à coder.**
 
 ## Tâches en attente / roadmap
 
