@@ -289,6 +289,21 @@ qualitatif** (le plus lourd, en dernier).
   interim (pas encore par-module) ; les héros migrés gagnent `+Σniveaux %` de prod globale immédiate (crédit de
   leur ancien investissement) — **le bloc 3 localisera** le buff aux slots de module + ajoutera les signatures.
   L'ancien gacha RNG (héros entiers) **coexiste encore** ; il sera retiré quand le placement V2 sera en place.
+- **Bloc 3 — ✅ FAIT (2026-06-26)** : **placement par module + copies**, le buff devient **LOCALISÉ**. Décision
+  prise en autonomie (« même procédure ») sur le seul point non spécifié — **d'où viennent les copies** : choix
+  **A = copies forgées avec des fragments** (même monnaie que les niveaux → tension profondeur vs largeur ;
+  cohérent avec « gacha = fragments »). Ajouts `index.html` : `state.bufSlots`{moduleId:[heroId,heroId]} (2 slots
+  buffeurs/module, **placement GLOBAL** tous Dex) ; helpers `copyCost`(=`base²`, 9 C/R · 16 É — **TUNABLE**)/
+  `copiesOwned`/`copiesUsed`/`copiesFree`/`mintCopy`/`toggleBuffer`/`moduleBuffMult`/`slotsOf`/`isPlacedOn`.
+  `buffMult()` **GLOBAL retiré** de `perSecond` → remplacé par `moduleMult ×= moduleBuffMult(n.id)` (= `1 + Σniv
+  buffeurs placés ×0,01`). `META_VERSION`→**4** + `migrateMetaV4()` : auto-place chaque héros niveauté sur le
+  slot de **son module-maison** (continuité du buff bloc 2 → pas de chute de prod à la bascule ; consomme 1 copie ;
+  idempotent). UI fiche : stock de copies + libres + « Forger une copie », et **liste de placement** (les modules
+  de même rareté, toggle Placer/Retirer, garde-fous rareté/slots-pleins/copie-libre). Testé (forge, placement,
+  rareté, slots, buff localisé, retrait, migration V4 + idempotence) + `node --check` OK. Cloud round-trip OK
+  (pas de bump `?v=`). ⚠️ **Interim restant** (raffinements design, pas encore codés) : **signature = effet FIXE**
+  (pour l'instant le héros-maison déployé garde ses **passifs niveautés** existants = la « signature » ; à figer) ;
+  **retrait de l'ancien gacha RNG** + des passifs-mults niveautés ; rééquilibrage du `copyCost`.
 
 ## Tâches en attente / roadmap
 

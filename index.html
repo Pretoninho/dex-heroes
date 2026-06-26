@@ -586,6 +586,10 @@
               <button class="btn" id="ficheFragPull10">×10 · 2000💎</button>
               <button class="btn" id="ficheFuseBtn">Fusionner</button>
             </div>
+            <div id="ficheCopies" style="margin-top:8px"></div>
+            <button class="btn" id="ficheMintBtn">Forger une copie</button>
+            <div class="fiche-k" style="margin-top:10px">Placement buffeur <span style="color:var(--muted);font-weight:400">(modules de même rareté · 2 slots chacun)</span></div>
+            <div id="fichePlaceList"></div>
           </div>
           <div class="fiche-status" id="ficheStatus"></div>
           <button class="btn" id="ficheCraftBtn" style="display:none"></button>
@@ -690,7 +694,7 @@
   // BLOC 1 = socle : on POSE les nouveaux stocks de fragments + on migre les saves.
   // Le gameplay (fusion ciblée, buffeurs, placement, gear) arrive aux blocs suivants ;
   // ici rien ne change pour le joueur (le pull donne encore des héros, l'ancienne fusion tourne).
-  const META_VERSION = 3;                       // version de schéma méta (flag de migration one-shot)
+  const META_VERSION = 4;                       // version de schéma méta (flag de migration one-shot)
   const FUSION_BASE = { 0: 3, 1: 3, 2: 4 };     // base de fusion : Commun/Rare base 3 · Épique base 4
   const BUFFER_MAX_LVL = 10;                     // niveau buffeur max (+1 %/niv → +10 %)
   const GEAR_RATE = 80;                          // fragments gear / heure (faucet passif/temps, offline capé)
@@ -742,6 +746,21 @@
     });
   }
 
+  // Migration V4 (bloc 3) : le buff devient LOCALISÉ (placement). Pour éviter une chute de prod
+  // à la bascule, on auto-place chaque héros déjà niveauté sur le slot buffeur de SON module-maison
+  // (continuité du buff du bloc 2 + démonstration du système). Une copie est consommée (le héros
+  // migré en a 1). Idempotent (flag metaV2 + déjà-présent). Le joueur peut ensuite redistribuer.
+  function migrateMetaV4() {
+    if (!state.bufSlots || typeof state.bufSlots !== "object") state.bufSlots = {};
+    Object.keys(state.bufferLvl || {}).forEach(id => {
+      if ((state.bufferLvl[id] || 0) <= 0) return;
+      if (!NODE[id]) return;
+      if (copiesFree(id) <= 0) return;
+      const slots = state.bufSlots[id] || (state.bufSlots[id] = []);
+      if (slots.length < 2 && slots.indexOf(id) === -1) slots.push(id);
+    });
+  }
+
   // --- Buffeur (méta V2, bloc 2) : niveau 0→10, +1 %/niv de PRODUCTION GLOBALE -----------
   // Robinet = fragments ciblés (gacha aux gemmes). Fusion cumulée b^L. NON-BREAKING : c'est
   // une source de bonus ADDITIONNELLE ; l'ancien système héros (placement/passifs/signatures)
@@ -749,10 +768,53 @@
   function bufferLvl(id) { return Math.min(BUFFER_MAX_LVL, (state.bufferLvl && state.bufferLvl[id]) || 0); }
   function bufferStepCost(id) { const r = rarityOf(id), L = bufferLvl(id); return fragsForLevel(r, L + 1) - fragsForLevel(r, L); }
   function heroFragsOf(id) { return Math.floor((state.heroFrags && state.heroFrags[id]) || 0); }
-  function buffMult() {
-    let b = 0;
-    if (state.bufferLvl) Object.keys(state.bufferLvl).forEach(id => { b += Math.min(BUFFER_MAX_LVL, state.bufferLvl[id] || 0); });
-    return 1 + b * 0.01;
+  // --- Copies & placement (méta V2, bloc 3) -----------------------------------
+  // Largeur : un exemplaire couvre 1 slot buffeur d'un module. Copies FORGÉES avec des
+  // fragments du héros (même monnaie que les niveaux → tension profondeur vs largeur).
+  // Placement GLOBAL (le buffeur s'applique au module dans tous les Dex). 2 slots/module,
+  // héros de MÊME rareté que le module. `COPY_COST` (= base², 9 C/R · 16 É) est TUNABLE.
+  // NON-BREAKING : l'ancien système (héros-maison déployé = signature + ses passifs/synergies)
+  // reste intact ; le bloc 3 AJOUTE les 2 slots buffeurs et REMPLACE le buff global du bloc 2
+  // par ce buff localisé. (Raffinements à venir : signature en effet FIXE, retrait des passifs
+  // niveautés et de l'ancien gacha RNG.)
+  function copyCost(id) { return fragsForLevel(rarityOf(id), 2); }   // = base² — TUNABLE
+  function copiesOwned(id) { return state.heroes[id] || 0; }
+  function slotsOf(moduleId) { return (state.bufSlots && state.bufSlots[moduleId]) || []; }
+  function copiesUsed(id) {
+    let n = 0;
+    if (state.bufSlots) Object.keys(state.bufSlots).forEach(m => { if ((state.bufSlots[m] || []).indexOf(id) !== -1) n++; });
+    return n;
+  }
+  function copiesFree(id) { return copiesOwned(id) - copiesUsed(id); }
+  function isPlacedOn(id, moduleId) { return slotsOf(moduleId).indexOf(id) !== -1; }
+  function mintCopy(id) {
+    const cost = copyCost(id);
+    if (heroFragsOf(id) < cost) { toast(`Il faut ${cost} fragments`); return; }
+    state.heroFrags[id] -= cost;
+    state.heroes[id] = (state.heroes[id] || 0) + 1;
+    if (!state.lvl[id]) state.lvl[id] = 1;
+    toast(`🧬 +1 copie · ${heroName(id)}`);
+    render(); save();
+  }
+  function toggleBuffer(id, moduleId) {
+    const node = NODE[moduleId]; if (!node) return;
+    if (rarityOf(id) !== node.tier) { toast("Rareté incompatible"); return; }
+    if (!state.bufSlots) state.bufSlots = {};
+    const slots = state.bufSlots[moduleId] || (state.bufSlots[moduleId] = []);
+    const idx = slots.indexOf(id);
+    if (idx !== -1) { slots.splice(idx, 1); toast(`Retiré de ${node.name}`); }
+    else {
+      if (slots.length >= 2) { toast(`${node.name} : 2 slots buffeurs pleins`); return; }
+      if (copiesFree(id) <= 0) { toast("Pas de copie libre — forge-en une"); return; }
+      slots.push(id); toast(`🦸 ${heroName(id)} → buffeur sur ${node.name}`);
+    }
+    render(); save();
+  }
+  // Multiplicateur de prod d'un module via ses slots buffeur (+1 %/niv par buffeur placé)
+  function moduleBuffMult(moduleId) {
+    let bonus = 0;
+    slotsOf(moduleId).forEach(id => { bonus += bufferLvl(id); });
+    return 1 + bonus * 0.01;
   }
   // Gacha ciblé : 1 fragment du héros CHOISI par tirage (200 gemmes ; déterministe, zéro RNG).
   function pullFrags(id, n) {
@@ -839,7 +901,8 @@
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
       gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
-      bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod globale) }
+      bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod du module où placé) }
+      bufSlots: {},                // { moduleId: [heroId, heroId] } — 2 slots buffeurs/module (même rareté)
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       lastSeen: Date.now()
     };
@@ -875,9 +938,18 @@
     if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
     if (typeof state.gearFrags !== "number") state.gearFrags = 0;
     if (!state.bufferLvl || typeof state.bufferLvl !== "object") state.bufferLvl = {};
+    if (!state.bufSlots || typeof state.bufSlots !== "object") state.bufSlots = {};
+    // Nettoie les slots buffeur : garde au plus 2 entrées valides de bonne rareté par module.
+    Object.keys(state.bufSlots).forEach(m => {
+      const node = NODE[m];
+      let arr = Array.isArray(state.bufSlots[m]) ? state.bufSlots[m] : [];
+      arr = arr.filter(id => HDATA_BY_ID[id] && node && rarityOf(id) === node.tier).slice(0, 2);
+      if (arr.length) state.bufSlots[m] = arr; else delete state.bufSlots[m];
+    });
     if (typeof state.metaV2 !== "number") state.metaV2 = 0;
     if (state.metaV2 < 2) { migrateMetaV2(); state.metaV2 = 2; }   // bloc 1 : héros→frags, Éclats→gemmes
     if (state.metaV2 < 3) { migrateMetaV3(); state.metaV2 = 3; }   // bloc 2 : frags→niveaux de buffeur
+    if (state.metaV2 < 4) { migrateMetaV4(); state.metaV2 = 4; }   // bloc 3 : auto-place sur module-maison
     if (!Array.isArray(state.buffs)) state.buffs = [];
     state.buffs = state.buffs.filter(b => b && b.until > Date.now());
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
@@ -1023,6 +1095,7 @@
       else if (b.scope === "downstream" && b.arm === n.arm && n.tier > b.tier) m *= b.value;
       else if (b.scope === "rarity" && n.tier === b.rarity) m *= b.value;
     });
+    m *= moduleBuffMult(n.id);   // buffeurs méta V2 placés dans les 2 slots du module
     return m;
   }
   // Note : le régime de marché (effet héros famille G) a été retiré avec l'Exchange
@@ -1105,7 +1178,7 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
-    return total * valoMult() * buffMult();   // × rang de Valorisation × buffeurs méta V2
+    return total * valoMult();   // × rang de Valorisation (buffeurs méta V2 = localisés dans moduleMult)
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1517,12 +1590,11 @@
       cb.className = "btn" + (shardsOf(r) >= cost ? " can" : "");
       cb.textContent = (copies > 0 ? "Fabriquer +1 doublon" : "Fabriquer ce héros")
         + ` · ${cost} 🧩 ${SHARD_LABEL[r]} (${shardsOf(r)})`;
-      // Bloc buffeur méta V2 (fragments ciblés → niveaux → +1 %/niv prod globale)
+      // Bloc buffeur méta V2 (fragments ciblés → niveaux → +1 %/niv prod du module où placé)
       const L = bufferLvl(ficheId), step = bufferStepCost(ficheId), have = heroFragsOf(ficheId), atMax = L >= BUFFER_MAX_LVL;
       document.getElementById("ficheBuffInfo").innerHTML =
-        `Niveau buffeur <b>${L}/${BUFFER_MAX_LVL}</b> → <b>+${L}%</b> production globale`
-        + `<br>Fragments en stock : <b>${have}</b>` + (atMax ? " · niveau max atteint" : ` · prochain niveau : <b>${step}</b> frags`)
-        + `<br><span style="color:var(--muted)">Buff global cumulé (tous héros) : ×${buffMult().toFixed(2)}</span>`;
+        `Niveau buffeur <b>${L}/${BUFFER_MAX_LVL}</b> → <b>+${L}%</b> de prod par module où ce héros est placé`
+        + `<br>Fragments en stock : <b>${have}</b>` + (atMax ? " · niveau max atteint" : ` · prochain niveau : <b>${step}</b> frags`);
       const gems = state.gems || 0;
       const fuseBtn = document.getElementById("ficheFuseBtn");
       fuseBtn.disabled = atMax || have < step;
@@ -1530,6 +1602,22 @@
       fuseBtn.textContent = atMax ? "Niveau max" : `Fusionner → Niv.${L + 1} (${step} frags)`;
       const p1 = document.getElementById("ficheFragPull"); p1.disabled = gems < PULL_COST; p1.className = "btn" + (gems >= PULL_COST ? " can" : "");
       const p10 = document.getElementById("ficheFragPull10"); p10.disabled = gems < PULL_COST * 10; p10.className = "btn" + (gems >= PULL_COST * 10 ? " can" : "");
+      // Copies (largeur) + forge
+      const ownedC = copiesOwned(ficheId), freeC = copiesFree(ficheId), mc = copyCost(ficheId);
+      document.getElementById("ficheCopies").innerHTML =
+        `Copies : <b>${ownedC}</b> · libres : <b>${freeC}</b> · placé sur <b>${copiesUsed(ficheId)}</b> module(s)`;
+      const mb = document.getElementById("ficheMintBtn");
+      mb.disabled = have < mc; mb.className = "btn" + (have >= mc ? " can" : "");
+      mb.textContent = `Forger une copie · ${mc} frags`;
+      // Liste de placement : les modules de même rareté (2 slots buffeurs chacun)
+      const R = rarityOf(ficheId);
+      document.getElementById("fichePlaceList").innerHTML = ASSETS.filter(x => x.tier === R).map(x => {
+        const on = isPlacedOn(ficheId, x.id), used = slotsOf(x.id).length, full = used >= 2 && !on;
+        const dis = !on && (full || freeC <= 0);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:3px 0">`
+          + `<span>${x.emoji} ${x.name} <span style="color:var(--muted)">(${used}/2)</span></span>`
+          + `<button class="btn place-btn${on ? " can" : ""}" data-mod="${x.id}"${dis ? " disabled" : ""}>${on ? "Retirer" : "Placer"}</button></div>`;
+      }).join("");
     }
   }
   function gotoSibling(delta) {
@@ -1811,6 +1899,11 @@
   document.getElementById("ficheFragPull").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 1); });
   document.getElementById("ficheFragPull10").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 10); });
   document.getElementById("ficheFuseBtn").addEventListener("click", () => { if (ficheId) fuseBuffer(ficheId); });
+  document.getElementById("ficheMintBtn").addEventListener("click", () => { if (ficheId) mintCopy(ficheId); });
+  document.getElementById("fichePlaceList").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".place-btn"); if (!b || !ficheId) return;
+    toggleBuffer(ficheId, b.getAttribute("data-mod"));
+  });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   function applyNick() {
     if (!ficheId) return;
