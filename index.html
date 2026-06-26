@@ -562,11 +562,6 @@
         </div>
         <div id="heroList">
           <h2>📖 Codex des Héros</h2>
-          <div class="shardbar" id="shardBar" title="Éclats : doublons de héros déjà maxés. Fabrique une copie d'un héros de la même rareté.">
-            <span class="shard s0">🧩 <b id="shard0">0</b> Communs</span>
-            <span class="shard s1">🧩 <b id="shard1">0</b> Rares</span>
-            <span class="shard s2">🧩 <b id="shard2">0</b> Épiques</span>
-          </div>
           <div class="herogrid" id="heroGrid"></div>
         </div>
         <div id="heroFiche" style="display:none">
@@ -605,7 +600,6 @@
             <div id="fichePlaceList"></div>
           </div>
           <div class="fiche-status" id="ficheStatus"></div>
-          <button class="btn" id="ficheCraftBtn" style="display:none"></button>
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
@@ -617,7 +611,7 @@
           <div>🎯 <b id="objDone">0</b>/<span id="objTotal">0</span></div>
         </div>
         <h2>🎯 Objectifs</h2>
-        <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes et 🧩 Éclats.</p>
+        <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes.</p>
         <div class="objlist" id="objList"></div>
       </div>
 
@@ -939,17 +933,12 @@
     if (!state.heroes || typeof state.heroes !== "object") state.heroes = {};
     if (!state.lvl || typeof state.lvl !== "object") state.lvl = {};
     Object.keys(state.heroes).forEach(id => { if (state.heroes[id] > 0 && !state.lvl[id]) state.lvl[id] = 1; });
-    // Éclats : normalisation + balayage des doublons MORTS (héros au max → surplus = Éclats)
+    // Éclats : normalisation seule (conservée pour la migration shards→gemmes). Le système
+    // d'Éclats est RETIRÉ (méta V2) : plus de balayage des doublons (les doublons sont des
+    // copies utiles désormais), plus de fabrication.
     if (!state.shards || typeof state.shards !== "object") state.shards = { 0: 0, 1: 0, 2: 0 };
     [0, 1, 2].forEach(r => { if (typeof state.shards[r] !== "number") state.shards[r] = 0; });
     if (!state.nicknames || typeof state.nicknames !== "object") state.nicknames = {};
-    Object.keys(state.heroes).forEach(id => {
-      const h = HDATA_BY_ID[id]; if (!h) return;
-      if (state.heroes[id] > 1 && (state.lvl[id] || 1) >= maxLvl(id)) {   // maxé → doublons inutiles
-        state.shards[h.rarity] = (state.shards[h.rarity] || 0) + (state.heroes[id] - 1);
-        state.heroes[id] = 1;
-      }
-    });
     // Méta V2 : normalisation des stocks + migrations one-shot étagées (après finalisation des Éclats).
     if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
     if (typeof state.gearFrags !== "number") state.gearFrags = 0;
@@ -1130,8 +1119,8 @@
     { id: "prod4",    label: "Empire financier",     desc: "Atteindre $10 M / s",         check: () => perSecond() >= 1e7,      reward: { gems: 4000 } },
     { id: "valo7",    label: "Magnat de la finance", desc: "Atteindre le rang Oligarque", check: () => valoRankNum() >= 7,      reward: { gems: 6000 } },
   ];
-  function objReward(rw) { const p = []; if (rw && rw.gems) p.push("+" + rw.gems + " 💎"); if (rw && rw.shards) p.push("+" + rw.shards.n + " 🧩 " + SHARD_LABEL[rw.shards.r]); return p.join(" · "); }
-  function grantObjReward(rw) { if (!rw) return; if (rw.gems) state.gems = (state.gems || 0) + rw.gems; if (rw.shards) state.shards[rw.shards.r] = (state.shards[rw.shards.r] || 0) + rw.shards.n; }
+  function objReward(rw) { return (rw && rw.gems) ? "+" + rw.gems + " 💎" : ""; }
+  function grantObjReward(rw) { if (rw && rw.gems) state.gems = (state.gems || 0) + rw.gems; }
   function seedObjectives() { OBJECTIVES.forEach(o => { try { if (o.check()) state.objectives[o.id] = true; } catch (e) {} }); }
   function checkObjectives() {
     let changed = false;
@@ -1283,20 +1272,9 @@
     render();
     save();
   }
-  // Sink : fabriquer 1 copie d'un héros CHOISI avec des Éclats de sa rareté.
-  function craftHero(id) {
-    const h = HDATA_BY_ID[id]; if (!h) return;
-    const r = h.rarity, cost = SHARD_PER_COPY[r];
-    if (shardsOf(r) < cost) { toast(`Il faut ${cost} 🧩 ${SHARD_LABEL[r]}`); return; }
-    state.shards[r] -= cost;
-    const wasNew = !(state.heroes[id] > 0);
-    state.heroes[id] = (state.heroes[id] || 0) + 1;
-    if (wasNew) state.lvl[id] = 1;
-    toast(wasNew ? `✨ ${h.name} fabriqué !` : `+1 doublon · ${h.name}`);
-    render();
-    save();
-  }
-  // Mise à l'échelle d'un effet selon le niveau (+20 % du bonus par niveau)
+  // Fabrication par Éclats RETIRÉE (méta V2) : forger une copie se fait avec des fragments
+  // ciblés (mintCopy). Les Éclats ont été convertis en gemmes à la migration.
+  // Mise à l'échelle d'un effet selon le niveau (conservée pour scaleVal ; appelée avec niveau=1 = fixe)
   const MULT_TYPES = { mult: 1, rarityMult: 1, globalMult: 1, downstreamMult: 1, offlineMult: 1, offlineCap: 1, clickMult: 1, synergyMult: 1 };
   function lvlFactor(level) { return 1 + 0.20 * ((level || 1) - 1); }
   function scaleVal(type, value, level) {
@@ -1635,29 +1613,19 @@
       const cell = document.getElementById("hg-" + h.id);
       if (cell) {
         cell.classList.toggle("owned", copies > 0);
-        document.getElementById("hgcopies-" + h.id).textContent = copies > 0 ? "Niv." + heroLvl(h.id) : "";
+        document.getElementById("hgcopies-" + h.id).textContent = bufferLvl(h.id) > 0 ? "Niv." + bufferLvl(h.id) : (copies > 0 ? "✓" : "");
         const nm = document.getElementById("hgname-" + h.id);
         if (nm) { nm.textContent = heroName(h.id); nm.classList.toggle("nick", !!heroNick(h.id)); }
       }
     });
     document.getElementById("heroesOwned").textContent = owned;
-    [0, 1, 2].forEach(r => { document.getElementById("shard" + r).textContent = shardsOf(r); });
     if (ficheId) {
       const copies = state.heroes[ficheId] || 0;
       const node = NODE[ficheId];
       const deployed = node && isDeployed(node);
-      const maxed = copies > 0 && heroLvl(ficheId) >= maxLvl(ficheId);
       document.getElementById("ficheStatus").innerHTML = copies > 0
-        ? `Possédé · Niv.${heroLvl(ficheId)} · ${dupesOf(ficheId)} doublon(s)${deployed ? " · 🦸 déployé" : ""}`
-        : `Non obtenu — fabrique-le 🧩 ou invoque-le au gacha 🎲`;
-      // Bouton de fabrication par Éclats (ciblé)
-      const cb = document.getElementById("ficheCraftBtn");
-      const h = HDATA_BY_ID[ficheId], r = h ? h.rarity : 0, cost = SHARD_PER_COPY[r];
-      cb.style.display = "inline-block";
-      cb.disabled = shardsOf(r) < cost;
-      cb.className = "btn" + (shardsOf(r) >= cost ? " can" : "");
-      cb.textContent = (copies > 0 ? "Fabriquer +1 doublon" : "Fabriquer ce héros")
-        + ` · ${cost} 🧩 ${SHARD_LABEL[r]} (${shardsOf(r)})`;
+        ? `Possédé · ${copies} copie(s)${deployed ? " · 🦸 déployé (signature)" : ""}`
+        : `Non obtenu — invoque ses fragments puis forge une copie`;
       // Bloc buffeur méta V2 (fragments ciblés → niveaux → +1 %/niv prod du module où placé)
       const L = bufferLvl(ficheId), step = bufferStepCost(ficheId), have = heroFragsOf(ficheId), atMax = L >= BUFFER_MAX_LVL;
       document.getElementById("ficheBuffInfo").innerHTML =
@@ -1923,7 +1891,6 @@
   }
   updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
-  document.getElementById("ficheCraftBtn").addEventListener("click", () => { if (ficheId) craftHero(ficheId); });
   document.getElementById("ficheFragPull").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 1); });
   document.getElementById("ficheFragPull10").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 10); });
   document.getElementById("ficheFuseBtn").addEventListener("click", () => { if (ficheId) fuseBuffer(ficheId); });
