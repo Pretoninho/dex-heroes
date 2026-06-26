@@ -278,17 +278,22 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
     `SHARD_LABEL` + bouton `mpFuseBtn` (page module) + affichage de l'ancien niveau. Page module : héros montre
     désormais buffeur niv + déploiement (signature). Objectif « max1 » repointé (buffeur niv 10, récompense
     gemmes). `state.lvl`/`state.shards` **conservés en données** UNIQUEMENT pour `migrateMetaV2` (vieilles saves).
-  - **Slice (c) RESTANTE** : intégrer le parcours validé de l'Atelier dans la **vraie fiche Codex** + **retirer
-    l'Atelier temporaire**. Rééquilibrage `copyCost` à faire après playtest.
+  - **(c)** ✅ **FAIT (2026-06-26)** : parcours validé **intégré dans la vraie fiche Codex** + **onglet Atelier
+    temporaire retiré**. La grille du Codex = le sélecteur ; cliquer un héros ouvre sa fiche (lore + surnom) avec
+    le **workshop** en dessous (conteneur `#atlWorkshop`). `atelierHero` suit `ficheId` ; `renderAtelier`/
+    `buildAtelierWorkshop`/`updateAtelierWorkshop` conservés (build-once + update-in-place = clics fiables).
+    Retiré : `#atelierScreen`, onglet `data-nav="atelier"`, `openAtelier`/`buildAtelierPicker`/picker+chips,
+    l'ancien bloc buffeur inline de la fiche (`ficheBuffBlock` et ses boutons/listeners). Testé navigateur
+    (parcours complet dans la fiche + changement de héros), `node --check` OK.
+  - **Reste** : rééquilibrage `copyCost` après playtest ; redesign des 2 signatures inertes (`freePull`/`dropBoost`).
 
-### Page Atelier (TEMPORAIRE — prototype UX, 2026-06-26)
-Onglet **🧪 Atelier** (`data-nav="atelier"`, `#atelierScreen`, `openAtelier`/`renderAtelier`/`buildAtelierPicker`).
-Prototype du **parcours simplifié de création de héros** à valider avant de démonter l'ancien système :
-sélecteur de héros (par rareté) → workshop en **3 gestes** (1️⃣ Invoquer fragments · 2️⃣ Renforcer = Fusionner
-*ou* Forger une copie · 3️⃣ Placer sur modules). Boutons d'action **repliés dans un menu déployable** (bouton
-**☰ Actions**, état `atlMenuOpen` ; infos gemmes/frags/niv/copies restent visibles). **Branché sur les vraies
-fonctions** méta V2 (pullFrags/fuseBuffer/mintCopy/toggleBuffer) → les actions comptent. **À retirer** quand le
-parcours validé sera intégré à la vraie fiche + démontage de l'ancien système. Testé en navigateur (Chromium).
+### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
+Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
+du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments) · **2️⃣ Renforcer** (Fusionner = +1 %/niv
+*ou* Forger une copie, avec progression « X / Y · manque Z » sous chaque bouton) · **3️⃣ Placer** (modules de même
+rareté, 2 slots). Fonctions `renderAtelier`/`buildAtelierWorkshop`/`updateAtelierWorkshop` ; un seul listener
+délégué sur `#atlWorkshop` (boutons `data-atl`). Structure **construite une fois par héros** (anti-reconstruction
+du game loop 10×/s → clics fiables), valeurs mises à jour ensuite.
 
 ### Implémentation par blocs (en cours)
 Découpage livrable, pas de big-bang : (1) **Migration + stockage des fragments** → (2) **Fusion ciblée +

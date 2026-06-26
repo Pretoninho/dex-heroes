@@ -478,7 +478,6 @@
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
       <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
-      <button class="navtab" data-nav="atelier">🧪<span>Atelier</span></button>
     </div>
   </nav>
 
@@ -585,20 +584,8 @@
               <button class="btn" id="ficheNickClear">Effacer</button>
             </div>
           </div>
-          <div class="fiche-block" id="ficheBuffBlock">
-            <div class="fiche-k">Buffeur · production <span style="color:var(--muted);font-weight:400">(méta V2 — fragments ciblés)</span></div>
-            <div id="ficheBuffInfo"></div>
-            <div class="nick-edit">
-              <button class="btn" id="ficheFragPull">Invoquer fragment · 200💎</button>
-              <button class="btn" id="ficheFragPull10">×10 · 2000💎</button>
-              <button class="btn" id="ficheFuseBtn">Fusionner</button>
-            </div>
-            <div id="ficheCopies" style="margin-top:8px"></div>
-            <button class="btn" id="ficheMintBtn">Forger une copie</button>
-            <div class="fiche-k" style="margin-top:10px">Placement buffeur <span style="color:var(--muted);font-weight:400">(modules de même rareté · 2 slots chacun)</span></div>
-            <div id="fichePlaceList"></div>
-          </div>
           <div class="fiche-status" id="ficheStatus"></div>
+          <div id="atlWorkshop"></div>
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
@@ -614,20 +601,6 @@
         <div class="objlist" id="objList"></div>
       </div>
 
-      <!-- Écran Atelier (TEMPORAIRE — prototype du parcours simplifié de création de héros) -->
-      <div id="atelierScreen" style="display:none">
-        <h2>🧪 Atelier Héros <span style="color:var(--muted);font-size:13px;font-weight:400">— prototype</span></h2>
-        <div class="atl-intro">
-          Parcours simplifié à valider : <b>1️⃣ Invoquer</b> des fragments → <b>2️⃣ Renforcer</b> (plus fort
-          <i>ou</i> plus large) → <b>3️⃣ Placer</b> sur les modules. Page <b>temporaire</b>, branchée sur ton
-          vrai état (tes actions ici comptent). L'ancien système n'est pas touché.
-        </div>
-        <div class="atl-pickwrap">
-          <div class="atl-rarlbl">CHOISIS UN HÉROS</div>
-          <div id="atlPicker"></div>
-        </div>
-        <div id="atlWorkshop"><div class="atl-empty">Sélectionne un héros ci-dessus pour ouvrir l'atelier.</div></div>
-      </div>
     </div>
   </div>
 
@@ -1142,46 +1115,25 @@
   // --- Atelier Héros (page TEMPORAIRE : prototype du parcours simplifié en 3 gestes) -------
   // But : valider l'UX "Invoquer → Renforcer → Placer" avant de démonter l'ancien système.
   // Branché sur les vraies fonctions méta V2 (pullFrags/fuseBuffer/mintCopy/toggleBuffer).
-  let atelierHero = null;
-  function openAtelier() { buildAtelierPicker(); showScreen("atelier"); render(); }
-  function buildAtelierPicker() {
-    document.getElementById("atlPicker").innerHTML = [0, 1, 2].map(r => {
-      const meta = HMETA.rarities[r] || { name: "rareté " + r, stars: 3 };
-      const chips = HDATA.filter(h => h.rarity === r).map(h =>
-        `<div class="atl-chip" data-hero="${h.id}"><span class="ce">${h.emoji}</span><span>${h.name}</span><span class="cs" id="atlchip-${h.id}"></span></div>`
-      ).join("");
-      return `<div class="atl-rargroup"><div class="atl-rarlbl">${"★".repeat(meta.stars)} ${meta.name}</div><div class="atl-chips">${chips}</div></div>`;
-    }).join("");
-  }
-  let atlBuiltFor = null;   // héros pour lequel la STRUCTURE du workshop est en place (anti-reconstruction)
+  // Parcours de création de héros (Invoquer → Renforcer → Placer). Vit DANS la fiche Codex :
+  // `atelierHero` suit `ficheId`. Structure construite UNE fois par héros (anti-reconstruction
+  // 10×/s du game loop → clics fiables) ; ensuite seules les valeurs sont mises à jour.
+  let atelierHero = null, atlBuiltFor = null;
   function renderAtelier() {
-    HDATA.forEach(h => {
-      const chip = document.querySelector('.atl-chip[data-hero="' + h.id + '"]');
-      if (!chip) return;
-      chip.classList.toggle("sel", atelierHero === h.id);
-      chip.classList.toggle("placed", copiesUsed(h.id) > 0);
-      const cs = document.getElementById("atlchip-" + h.id);
-      if (cs) cs.textContent = "niv" + bufferLvl(h.id);
-    });
     const ws = document.getElementById("atlWorkshop");
-    if (!atelierHero) {
-      if (atlBuiltFor !== null) { ws.innerHTML = '<div class="atl-empty">Sélectionne un héros ci-dessus pour ouvrir l\'atelier.</div>'; atlBuiltFor = null; }
-      return;
-    }
-    // Construire la structure UNE fois par héros ; ensuite seules les VALEURS sont mises à jour.
-    // (Évite de recréer les boutons 10×/s → les clics ne sont plus avalés par un re-render.)
+    if (!ws) return;
+    if (!atelierHero) { if (atlBuiltFor !== null) { ws.innerHTML = ""; atlBuiltFor = null; } return; }
     if (atlBuiltFor !== atelierHero) { buildAtelierWorkshop(atelierHero); atlBuiltFor = atelierHero; }
     updateAtelierWorkshop(atelierHero);
   }
   function buildAtelierWorkshop(id) {
-    const h = HDATA_BY_ID[id], R = rarityOf(id), meta = HMETA.rarities[R] || { name: "", stars: 3, color: "#fff" };
+    const R = rarityOf(id);
     const rows = ASSETS.filter(x => x.tier === R).map(x =>
       `<div class="atl-modrow"><span class="atl-modname">${x.emoji} ${x.name} <span class="mr">slots <span class="atl-slots" id="atlslot-${x.id}"></span></span></span>`
       + `<button class="btn" id="atlplace-${x.id}" data-atl="place" data-mod="${x.id}">Placer</button></div>`
     ).join("");
     document.getElementById("atlWorkshop").innerHTML =
-      `<div class="atl-step" style="border-color:${meta.color}55"><h3>${h.emoji} ${heroName(id)} <span style="color:${meta.color};font-size:12px">${"★".repeat(meta.stars)}</span></h3>`
-      + `<div class="sub">${h.module || ""} · ${meta.name}</div><div class="atl-stat" id="atlStat"></div></div>`
+      `<div class="atl-step"><div class="atl-stat" id="atlStat"></div></div>`
       + `<div class="atl-step"><h3>1️⃣ 🧬 Invoquer</h3><div class="sub">Étape A : achète des gemmes avec ton cash. Étape B : transforme-les en fragments ciblés.</div>`
       + `<div class="atl-btnrow"><button class="btn" id="atlBuy1" data-atl="buy200"></button><button class="btn" id="atlBuy10" data-atl="buy2000"></button></div>`
       + `<div class="atl-btnrow" style="margin-top:8px"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button></div>`
@@ -1497,7 +1449,6 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
-    document.getElementById("atelierScreen").style.display = name === "atelier" ? "block" : "none";
     setActiveNav();
   }
   function setActiveNav() {
@@ -1596,34 +1547,9 @@
       document.getElementById("ficheStatus").innerHTML = copies > 0
         ? `Possédé · ${copies} copie(s)${deployed ? " · 🦸 déployé (signature)" : ""}`
         : `Non obtenu — invoque ses fragments puis forge une copie`;
-      // Bloc buffeur méta V2 (fragments ciblés → niveaux → +1 %/niv prod du module où placé)
-      const L = bufferLvl(ficheId), step = bufferStepCost(ficheId), have = heroFragsOf(ficheId), atMax = L >= BUFFER_MAX_LVL;
-      document.getElementById("ficheBuffInfo").innerHTML =
-        `Niveau buffeur <b>${L}/${BUFFER_MAX_LVL}</b> → <b>+${L}%</b> de prod par module où ce héros est placé`
-        + `<br>Fragments en stock : <b>${have}</b>` + (atMax ? " · niveau max atteint" : ` · prochain niveau : <b>${step}</b> frags`);
-      const gems = state.gems || 0;
-      const fuseBtn = document.getElementById("ficheFuseBtn");
-      fuseBtn.disabled = atMax || have < step;
-      fuseBtn.className = "btn" + (!atMax && have >= step ? " can" : "");
-      fuseBtn.textContent = atMax ? "Niveau max" : `Fusionner → Niv.${L + 1} (${step} frags)`;
-      const p1 = document.getElementById("ficheFragPull"); p1.disabled = gems < PULL_COST; p1.className = "btn" + (gems >= PULL_COST ? " can" : "");
-      const p10 = document.getElementById("ficheFragPull10"); p10.disabled = gems < PULL_COST * 10; p10.className = "btn" + (gems >= PULL_COST * 10 ? " can" : "");
-      // Copies (largeur) + forge
-      const ownedC = copiesOwned(ficheId), freeC = copiesFree(ficheId), mc = copyCost(ficheId);
-      document.getElementById("ficheCopies").innerHTML =
-        `Copies : <b>${ownedC}</b> · libres : <b>${freeC}</b> · placé sur <b>${copiesUsed(ficheId)}</b> module(s)`;
-      const mb = document.getElementById("ficheMintBtn");
-      mb.disabled = have < mc; mb.className = "btn" + (have >= mc ? " can" : "");
-      mb.textContent = `Forger une copie · ${mc} frags`;
-      // Liste de placement : les modules de même rareté (2 slots buffeurs chacun)
-      const R = rarityOf(ficheId);
-      document.getElementById("fichePlaceList").innerHTML = ASSETS.filter(x => x.tier === R).map(x => {
-        const on = isPlacedOn(ficheId, x.id), used = slotsOf(x.id).length, full = used >= 2 && !on;
-        const dis = !on && (full || freeC <= 0);
-        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:3px 0">`
-          + `<span>${x.emoji} ${x.name} <span style="color:var(--muted)">(${used}/2)</span></span>`
-          + `<button class="btn place-btn${on ? " can" : ""}" data-mod="${x.id}"${dis ? " disabled" : ""}>${on ? "Retirer" : "Placer"}</button></div>`;
-      }).join("");
+      // Parcours méta V2 (Invoquer → Renforcer → Placer) rendu dans le workshop intégré à la fiche.
+      atelierHero = ficheId;
+      renderAtelier();
     }
   }
   function gotoSibling(delta) {
@@ -1648,7 +1574,7 @@
     document.getElementById("buyGem100").classList.toggle("can", state.cash >= gp * 100);
     document.getElementById("buyGem1000").classList.toggle("can", state.cash >= gp * 1000);
     const gh = document.getElementById("gemHint");
-    if (gh) gh.textContent = "Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.";
+    if (gh) gh.textContent = "Prix des gemmes indexé sur ta production. Invoque tes héros dans le 📖 Codex.";
 
     const vr = valoRankNum(), vc = valoCost(vr);
     document.getElementById("valoRank").textContent = valoName(vr);
@@ -1662,7 +1588,6 @@
     if (screen === "module") renderModulePage();
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
-    else if (screen === "atelier") renderAtelier();
     else renderOverview();
     renderAbilities();
   }
@@ -1832,7 +1757,6 @@
     const nav = b.dataset.nav;
     if (nav === "heroes") openHeroes();
     else if (nav === "objectives") openObjectives();
-    else if (nav === "atelier") openAtelier();
     else backToOverview();
   }));
 
@@ -1849,19 +1773,7 @@
   }
   updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
-  document.getElementById("ficheFragPull").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 1); });
-  document.getElementById("ficheFragPull10").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 10); });
-  document.getElementById("ficheFuseBtn").addEventListener("click", () => { if (ficheId) fuseBuffer(ficheId); });
-  document.getElementById("ficheMintBtn").addEventListener("click", () => { if (ficheId) mintCopy(ficheId); });
-  document.getElementById("fichePlaceList").addEventListener("click", (ev) => {
-    const b = ev.target.closest(".place-btn"); if (!b || !ficheId) return;
-    toggleBuffer(ficheId, b.getAttribute("data-mod"));
-  });
-  // Atelier (page temporaire) : sélection du héros + actions des 3 étapes
-  document.getElementById("atlPicker").addEventListener("click", (ev) => {
-    const chip = ev.target.closest(".atl-chip"); if (!chip) return;
-    atelierHero = chip.getAttribute("data-hero"); render();
-  });
+  // Parcours méta V2 dans la fiche : un seul listener délégué sur le workshop (boutons data-atl).
   document.getElementById("atlWorkshop").addEventListener("click", (ev) => {
     const btn = ev.target.closest("[data-atl]"); if (!btn || !atelierHero) return;
     const act = btn.getAttribute("data-atl");
