@@ -388,6 +388,34 @@ qualitatif** (le plus lourd, en dernier).
    Reste : **Quêtes** (tâches dirigées, **reset quotidien UTC** — horloge déjà en place ; c'est ici que vit le
    **sink récurrent** « dépense X »). Pistes : gater des déblocages sur le rang Valo ; équilibrer la liste d'objectifs.
 
+### Refonte progression — EN CONCEPTION (demandé 2026-06-26, à coder)
+Direction validée en discussion (mode critique). Trois chantiers, tous **idle-natifs** :
+- **A. Quêtes = milestones SIMPLES RECYCLABLES** (à faire en 1er). Remplacer les Objectifs **one-shot écrits à la
+  main** (`OBJECTIVES`, hand-authored) par un système **templaté** : définir un *type* de milestone (« atteindre
+  X prod/s », « connecter Y modules », « fusionner Z buffeurs », « atteindre rang Valo R »…) et le **recycler à
+  seuils croissants** → progression **infinie sans hand-authoring**. Branche le **sink récurrent** (reset
+  quotidien UTC, horloge déjà là). Garder le latch one-shot pour les jalons uniques ; les recyclables ont un
+  compteur de palier qui monte. **Avantage** : remplace la liste figée par une courbe auto-générée + tunable.
+- **B. Prestige DUR (avec reset)** — *manque vraiment*. Valo = soft-prestige **sans** reset (mid-game). Ajouter
+  un **vrai prestige endgame** : reset (cash/modules/Dex ?) contre une **monnaie de multiplicateur permanente**
+  → boucle idle classique. Valo reste la couche mid-game, le prestige dur la couche endgame. À spécifier (quoi
+  reset, quoi garder — héros/fragments/gear probablement gardés, cash/niveaux modules reset).
+- **C. Barre de progression / XP = COUCHE D'AFFICHAGE**, pas une nouvelle mécanique. ⚠️ **Anti-doublon** : la
+  Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
+  atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.
+
+### Mini-jeux de module — EN DÉBAT (docs fournis : Banque/Prêts = knapsack, Bourse/Appariement = assignment)
+Docs **bien conçus** (2 problèmes cognitifs distincts, non-punitifs). **MAIS tension dure avec le cap 100 % IDLE** :
+ce sont des couches **actives** (ce qu'on a purgé avec l'Exchange). **Contradiction interne des docs** : « découplé
+du cash » mais « multiplicateurs globaux » (un mult global *affecte* l'éco → l'ignorer = progresser moins → le
+mini-jeu devient **semi-obligatoire** ; « optionnel mais récompensé » n'existe pas pour un optimiseur). **Reco pour
+réconcilier avec l'idle** : donner à chaque mini-jeu un **mode auto/politique** (le joueur règle une stratégie →
+rendement passif correct ; le jeu **manuel fait mieux** = plafond de skill) → respecte « chemin passif par défaut,
+l'endgame n'exige jamais de clic ». Sans ce mode auto, ça casse le pilier. **Flag scope** : 18 modules × activité =
+énorme ; méta fraîche **pas encore playtestée**. **DÉCISION EN ATTENTE** (l'utilisateur repense les mini-jeux) :
+assumer le **pivot hybride** (idle + actif optionnel avec auto) **ou** rester idle-pur (skill exprimé par un
+auto-solveur qu'on *règle*, sans clic). Ne pas *dériver* dedans — choix conscient requis.
+
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** ~~Phase 1~~ ✅ FAIT (local : faucet surplus→Éclats, fabrication ciblée,
 fusion de secours ; `state.shards`, `SHARD_PER_COPY`=8/6/4, `craftHero`, UI Codex). Reste **Phase 2** :
