@@ -677,6 +677,43 @@
   function rarityName(r) { return (HMETA.rarities[r] || {}).name || ("rareté " + r); }
   function shardsOf(r) { return (state.shards && state.shards[r]) || 0; }
 
+  // === Méta V2 — refonte héros / gear / fragments (design verrouillé 2026-06-26, voir CLAUDE.md) ===
+  // BLOC 1 = socle : on POSE les nouveaux stocks de fragments + on migre les saves.
+  // Le gameplay (fusion ciblée, buffeurs, placement, gear) arrive aux blocs suivants ;
+  // ici rien ne change pour le joueur (le pull donne encore des héros, l'ancienne fusion tourne).
+  const META_VERSION = 2;                       // version de schéma méta (flag de migration one-shot)
+  const FUSION_BASE = { 0: 3, 1: 3, 2: 4 };     // base de fusion : Commun/Rare base 3 · Épique base 4
+  const BUFFER_MAX_LVL = 10;                     // niveau buffeur max (+1 %/niv → +10 %)
+  const GEAR_RATE = 80;                          // fragments gear / heure (faucet passif/temps, offline capé)
+  function fusionBase(r) { return FUSION_BASE[r] || 3; }
+  // Coût CUMULÉ (fragments) pour ÊTRE au niveau L : base^L. Niveau 0 = 0 fragment.
+  function fragsForLevel(r, L) { return L <= 0 ? 0 : Math.pow(fusionBase(r), L); }
+  function rarityOf(id) { const h = HDATA_BY_ID[id]; return h ? h.rarity : ((NODE[id] || {}).tier || 0); }
+
+  // Migration one-shot : crédite les stocks V2 depuis l'ancien état. NON-DESTRUCTIF pour
+  // le gameplay actuel (heroes/lvl/fusion restent intacts) ; règle = 1 ancienne copie = 1
+  // nouveau fragment (même coût : 1 pull / 200 gemmes). Voir CLAUDE.md (migration verrouillée).
+  function migrateMetaV2() {
+    // 1. Héros possédés → fragments ciblés au MÊME numéro de niveau (b^L). 1 copie reste en inventaire.
+    Object.keys(state.heroes || {}).forEach(id => {
+      if (!(state.heroes[id] > 0)) return;
+      const r = rarityOf(id), L = state.lvl[id] || 1;
+      state.heroFrags[id] = Math.max(state.heroFrags[id] || 0, fragsForLevel(r, L));
+    });
+    // 2. Éclats fongibles → gemmes (200/SHARD_PER_COPY par Éclat). La fongibilité ne survit
+    //    pas en ciblé → monnaie universelle. Les Éclats convertis sont vidés (pas de double-crédit).
+    let gemCredit = 0;
+    [0, 1, 2].forEach(r => {
+      const n = (state.shards && state.shards[r]) || 0;
+      if (n > 0) gemCredit += Math.round(n * 200 / SHARD_PER_COPY[r]);
+    });
+    if (gemCredit > 0) {
+      state.gems = (state.gems || 0) + gemCredit;
+      state.shards = { 0: 0, 1: 0, 2: 0 };
+    }
+    // 3. Gear démarre à zéro (le faucet passif le remplira) ; state.gems conservées telles quelles.
+  }
+
   // Surnoms de héros — voir docs/economy-vision.md §4. Le nom canonique reste la
   // source de vérité ; le surnom est cosmétique et personnel (jamais public).
   const NICK_MAX = 20;
@@ -737,6 +774,10 @@
       autoBuy: false,              // automatisation : auto-améliorer le module le moins cher
       valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
       objectives: {},              // 🎯 jalons atteints { objId: true } (récompense versée une fois)
+      // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
+      heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
+      gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
+      metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       lastSeen: Date.now()
     };
   }
@@ -767,6 +808,11 @@
         state.heroes[id] = 1;
       }
     });
+    // Méta V2 : normalisation des stocks + migration one-shot (après finalisation des Éclats ci-dessus).
+    if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
+    if (typeof state.gearFrags !== "number") state.gearFrags = 0;
+    if (typeof state.metaV2 !== "number") state.metaV2 = 0;
+    if (state.metaV2 < META_VERSION) { migrateMetaV2(); state.metaV2 = META_VERSION; }
     if (!Array.isArray(state.buffs)) state.buffs = [];
     state.buffs = state.buffs.filter(b => b && b.until > Date.now());
     if (!state.cd || typeof state.cd !== "object") state.cd = {};

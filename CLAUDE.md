@@ -264,6 +264,19 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
 
 **→ Design méta COMPLET (placement, buffeur/signature, gear, les 2 robinets, migration) — prêt à coder.**
 
+### Implémentation par blocs (en cours)
+Découpage livrable, pas de big-bang : (1) **Migration + stockage des fragments** → (2) **Fusion ciblée +
+buffeurs** (cœur jouable) → (3) **Signatures + placement par module** → (4) **Gear + faucet passif + pool
+qualitatif** (le plus lourd, en dernier).
+- **Bloc 1 — ✅ FAIT (2026-06-26)** : socle **non-breaking** dans `index.html`. Constantes
+  `META_VERSION`(=2), `FUSION_BASE`(C/R=3·É=4), `BUFFER_MAX_LVL`(=10), `GEAR_RATE`(=80) ; helpers
+  `fusionBase`/`fragsForLevel`(=base^L)/`rarityOf`. Stocks neufs dans `defaultState` : `state.heroFrags`{},
+  `state.gearFrags`(0), `state.metaV2`(0). Migration one-shot `migrateMetaV2()` (gardée par flag `metaV2`,
+  appelée dans `adopt()` après finalisation des Éclats) : héros possédés → `b^L` frags ciblés au même niveau ;
+  Éclats → gemmes (`200/SHARD_PER_COPY`) puis vidés ; gear à 0. **L'ancien système (heroes/lvl/fusion/craftHero)
+  reste intact et jouable** — les blocs 2-4 basculeront le gameplay sur ces stocks. Testé (math du crédit,
+  idempotence, save vierge) + `node --check` OK. Cloud round-trip OK (state poussé entier → pas de bump `?v=`).
+
 ## Tâches en attente / roadmap
 
 1. ~~**NPC réactif (L3b)**~~ — ✅ FAIT (`economy_l3b.sql`). Le cours bouge tout seul.
