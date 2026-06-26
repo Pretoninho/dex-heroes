@@ -301,8 +301,16 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   **online** (dans `loop()`, `+GEAR_RATE/3600×dt`) **+ offline plafonné** (dans `load()`, `+GEAR_RATE/3600×eff`,
   même plafond `OFFLINE_CAP_H`=4h × `offlineCapMult` que le cash). Fondation isolée, **pas d'UI/dépense encore**
   (comme le bloc 1). Vérifié navigateur : online monte ; offline 2h=160, 6h=320 (plafonné 4h). node --check OK.
-- **4b À FAIRE** : pièces de gear (3 slots/héros) + effet prod (+1 %/pièce à niv8, base-3) + UI + dépense des gearFrags.
+- **4b — ✅ FAIT (2026-06-26)** : **gear par-HÉROS** (décision validée : pas par-copie ; plus simple, garniture).
+  `state.gearLvl`{heroId:[s0,s1,s2]} — 3 slots/héros, niv 0→8, leveled avec le faucet `gearFrags` (fusion cumulée
+  base 3, `gearSlotCost(L)=3^(L+1)−3^L`). `gearBonus(id)`=`Σslots×0,01/8` (max **+3 %/héros**, +1 %/slot à niv8).
+  Effet branché : `moduleBuffMult` ajoute `gearBonus` des buffeurs placés ; `moduleMult` ajoute le gear de la
+  **signature** (héros-maison déployé). UI : étape **« 4️⃣ Équiper »** dans le workshop fiche (3 slots, coût/niv/
+  bonus, 🛠️ dans la ligne de stats). Chiffres collent au design : 1 slot maxé ≈ 6,5k frags ≈ 82 h ; 3 slots ≈ 10 j ;
+  module (9 slots) ≈ 59k ≈ 31 j. Testé navigateur (escalade 2→6→18, niveau, bonus, dépense) + `node --check` OK.
 - **4c À FAIRE** : pool qualitatif capé (réduction coût / offline / gemmes / trouvaille de frags) + caps globaux.
+  ⚠️ Interim : pour l'instant un slot de gear ne donne **que** le bonus prod (+1 %/niv8) ; le **pool qualitatif**
+  (1 effet par pièce) = 4c.
 
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore

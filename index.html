@@ -688,6 +688,7 @@
   const FUSION_BASE = { 0: 3, 1: 3, 2: 4 };     // base de fusion : Commun/Rare base 3 · Épique base 4
   const BUFFER_MAX_LVL = 10;                     // niveau buffeur max (+1 %/niv → +10 %)
   const GEAR_RATE = 80;                          // fragments gear / heure (faucet passif/temps, offline capé)
+  const GEAR_MAX_LVL = 8;                         // niveau max d'un slot de gear (+1 %/slot à niv8)
   function fusionBase(r) { return FUSION_BASE[r] || 3; }
   // Coût CUMULÉ (fragments) pour ÊTRE au niveau L : base^L. Niveau 0 = 0 fragment.
   function fragsForLevel(r, L) { return L <= 0 ? 0 : Math.pow(fusionBase(r), L); }
@@ -804,11 +805,27 @@
     }
     render(); save();
   }
-  // Multiplicateur de prod d'un module via ses slots buffeur (+1 %/niv par buffeur placé)
+  // --- Gear (méta V2, bloc 4b) : 3 slots/héros, leveled avec le faucet PASSIF gearFrags ----------
+  // Par-HÉROS (pas par-copie) : le bonus s'applique partout où le héros est placé. Garniture :
+  // +1 %/slot à niv8 (max +3 %/héros) → bien SOUS les héros ; le pool qualitatif (4c) sera la star.
+  // Fusion cumulée base 3 (3^L pour ÊTRE niv L) ; un module gearé à fond (9 slots) ≈ 59 k frags ≈ 31 j.
+  function gearSlots(id) { if (!state.gearLvl) state.gearLvl = {}; if (!Array.isArray(state.gearLvl[id])) state.gearLvl[id] = [0, 0, 0]; return state.gearLvl[id]; }
+  function gearSlotCost(L) { return Math.pow(3, L + 1) - Math.pow(3, L); }   // palier base 3
+  function gearBonus(id) { const s = (state.gearLvl && state.gearLvl[id]) || [0, 0, 0]; return ((s[0] || 0) + (s[1] || 0) + (s[2] || 0)) * 0.01 / GEAR_MAX_LVL; }
+  function upgradeGearSlot(id, i) {
+    const s = gearSlots(id), L = s[i] || 0;
+    if (L >= GEAR_MAX_LVL) { toast("Slot d'équipement au max"); return; }
+    const cost = gearSlotCost(L);
+    if ((state.gearFrags || 0) < cost) { toast(`Il faut ${cost} 🛠️ fragments d'équipement`); return; }
+    state.gearFrags -= cost; s[i] = L + 1;
+    toast(`🛠️ ${heroName(id)} · slot ${i + 1} → niv ${L + 1}`);
+    render(); save();
+  }
+  // Multiplicateur de prod d'un module : buffeurs placés (niveau de buffeur + leur bonus gear)
   function moduleBuffMult(moduleId) {
     let bonus = 0;
-    slotsOf(moduleId).forEach(id => { bonus += bufferLvl(id); });
-    return 1 + bonus * 0.01;
+    slotsOf(moduleId).forEach(id => { bonus += bufferLvl(id) * 0.01 + gearBonus(id); });
+    return 1 + bonus;
   }
   // Gacha ciblé : 1 fragment du héros CHOISI par tirage (200 gemmes ; déterministe, zéro RNG).
   function pullFrags(id, n) {
@@ -884,6 +901,7 @@
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
       gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
+      gearLvl: {},                 // { heroId: [slot0, slot1, slot2] } — niveaux des 3 slots de gear (0→8)
       bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod du module où placé) }
       bufSlots: {},                // { moduleId: [heroId, heroId] } — 2 slots buffeurs/module (même rareté)
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
@@ -915,6 +933,7 @@
     // Méta V2 : normalisation des stocks + migrations one-shot étagées (après finalisation des Éclats).
     if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
     if (typeof state.gearFrags !== "number") state.gearFrags = 0;
+    if (!state.gearLvl || typeof state.gearLvl !== "object") state.gearLvl = {};
     if (!state.bufferLvl || typeof state.bufferLvl !== "object") state.bufferLvl = {};
     if (!state.bufSlots || typeof state.bufSlots !== "object") state.bufSlots = {};
     // Nettoie les slots buffeur : garde au plus 2 entrées valides de bonne rareté par module.
@@ -1040,7 +1059,8 @@
         else if (b.scope === "rarity" && n.tier === b.rarity) m *= b.value;
       });
     }
-    m *= moduleBuffMult(n.id);   // buffeurs méta V2 placés dans les 2 slots du module (permanent)
+    if (d.placed && d.placed[n.id]) m *= (1 + gearBonus(n.id));   // gear de la signature (héros-maison déployé)
+    m *= moduleBuffMult(n.id);   // buffeurs méta V2 placés dans les 2 slots du module (niveau + gear)
     return m;
   }
   // Note : le régime de marché (effet héros famille G) a été retiré avec l'Exchange
@@ -1145,7 +1165,12 @@
       + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv" id="atlFortVal"></div><div class="ct" id="atlFortFrags" style="margin-bottom:8px"></div><button class="btn" id="atlFuse" data-atl="fuse"></button></div>`
       + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv" id="atlLargeVal"></div><div class="ct" id="atlLargeFrags" style="margin-bottom:8px"></div><button class="btn" id="atlMint" data-atl="mint"></button></div></div></div>`
       + `<div class="atl-step"><h3>3️⃣ 📍 Placer</h3><div class="sub">Occupe un slot buffeur d'un module de même rareté (1 copie libre par slot).</div>${rows}`
-      + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`;
+      + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`
+      + `<div class="atl-step"><h3>4️⃣ 🛠️ Équiper <span style="color:var(--muted);font-weight:400;font-size:12px">(gear · garniture)</span></h3>`
+      + `<div class="sub">Faucet <b>passif</b> (80 frags/h, online + hors-ligne). 3 slots, +1 % de prod / slot à niv 8 — appliqué partout où le héros est placé.</div>`
+      + `<div class="atl-stat" id="atlGearInfo"></div>`
+      + [0, 1, 2].map(i => `<div class="atl-modrow"><span class="atl-modname">Slot ${i + 1} <span class="mr" id="atlgearlvl-${i}"></span></span><button class="btn" id="atlgear-${i}" data-atl="gear" data-slot="${i}"></button></div>`).join("")
+      + `</div>`;
   }
   function updateAtelierWorkshop(id) {
     const R = rarityOf(id);
@@ -1155,7 +1180,7 @@
     const owned = copiesOwned(id), free = copiesFree(id), cc = copyCost(id);
     const set = (elId, html) => { const e = document.getElementById(elId); if (e) e.innerHTML = html; };
     const able = (elId, can) => { const e = document.getElementById(elId); if (e) { e.disabled = !can; e.classList.toggle("can", can); } };
-    set("atlStat", `💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)`);
+    set("atlStat", `💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · 🛠️ <b>${Math.floor(state.gearFrags || 0)}</b> gear · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)`);
     set("atlBuy1", `Acheter 200💎 · ≈$${fmt(buy1)}`); able("atlBuy1", state.cash >= buy1);
     set("atlBuy10", `2000💎 · ≈$${fmt(buy10)}`); able("atlBuy10", state.cash >= buy10);
     able("atlPull1", gems >= PULL_COST);
@@ -1177,6 +1202,15 @@
       if (b) { b.textContent = on ? "Retirer" : "Placer"; b.disabled = dis; b.classList.toggle("can", on); }
     });
     const ph = document.getElementById("atlPlaceHint"); if (ph) ph.style.display = free <= 0 ? "block" : "none";
+    // Gear (4b) : faucet passif partagé, 3 slots leveled avec gearFrags
+    const gf = Math.floor(state.gearFrags || 0), gsl = gearSlots(id);
+    set("atlGearInfo", `🛠️ <b>${gf}</b> fragments d'équipement · bonus prod total <b>+${(gearBonus(id) * 100).toFixed(2)} %</b>`);
+    [0, 1, 2].forEach(i => {
+      const sl = gsl[i] || 0, gmax = sl >= GEAR_MAX_LVL, gcost = gearSlotCost(sl);
+      set("atlgearlvl-" + i, `· niv ${sl}/${GEAR_MAX_LVL} (+${(sl / GEAR_MAX_LVL).toFixed(2)} %)`);
+      const gb = document.getElementById("atlgear-" + i);
+      if (gb) { gb.textContent = gmax ? "Max" : `Améliorer · ${gcost} 🛠️`; gb.disabled = gmax || gf < gcost; gb.classList.toggle("can", !gmax && gf >= gcost); }
+    });
   }
 
   function perSecond(noBuffs) {
@@ -1784,6 +1818,7 @@
     else if (act === "fuse") fuseBuffer(atelierHero);
     else if (act === "mint") mintCopy(atelierHero);
     else if (act === "place") toggleBuffer(atelierHero, btn.getAttribute("data-mod"));
+    else if (act === "gear") upgradeGearSlot(atelierHero, parseInt(btn.getAttribute("data-slot"), 10));
   });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   function applyNick() {
