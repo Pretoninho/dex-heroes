@@ -97,7 +97,7 @@
       synergies: ["arm_indus"] },
     { id: "a3t2", arm: "Industrie", module: "Aérospatial", emoji: "🛰️", name: "Richard Brunson", rarity: 2, klass: "Diamond Hands", regime: "CRASH",
       passive: { family: "C", text: "−prix des gemmes", effect: { type: "gemPriceReduce", value: 0.2, scope: "global" } },
-      signature: { name: "Lancement", text: "Le prochain tirage est gratuit", cooldown: 240, effect: { kind: "freePull" } },
+      signature: { name: "Lancement", text: "×2,5 production globale pendant 20 s", cooldown: 240, effect: { kind: "prod", scope: "global", value: 2.5, duration: 20 } },
       synergies: ["arm_indus", "deeptech"] },
 
     // Bras Startup 💼 — clic & croissance
@@ -106,8 +106,8 @@
       signature: { name: "Pitch", text: "Clics ×10 pendant 15 s", cooldown: 150, effect: { kind: "click", value: 10, duration: 15 } },
       synergies: ["arm_startup"] },
     { id: "a4t1", arm: "Startup", module: "Licorne", emoji: "🦄", name: "Pieter Thielo", rarity: 1, klass: "Momentum", regime: "BULL",
-      passive: { family: "C", text: "+chance de tirage gratuit au gacha", effect: { type: "freePullChance", value: 0.05, scope: "global" } },
-      signature: { name: "Levée", text: "+20 % de drop pendant 5 tirages", cooldown: 300, effect: { kind: "dropBoost", bonus: 0.2, pulls: 5 } },
+      passive: { family: "A", text: "×1,3 production de son module", effect: { type: "mult", value: 1.3, scope: "module" } },
+      signature: { name: "Levée de fonds", text: "Gagne instantanément 75 s de production (cash)", cooldown: 240, effect: { kind: "cash", seconds: 75 } },
       synergies: ["arm_startup", "speculation"] },
     { id: "a4t2", arm: "Startup", module: "Conglomérat", emoji: "🌍", name: "Geoff Bezus", rarity: 2, klass: "Quant", regime: null,
       passive: { family: "F", text: "×prod par synergie active", effect: { type: "synergyMult", value: 1.1, scope: "global" } },

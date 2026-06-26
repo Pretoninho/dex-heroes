@@ -285,7 +285,12 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
     Retiré : `#atelierScreen`, onglet `data-nav="atelier"`, `openAtelier`/`buildAtelierPicker`/picker+chips,
     l'ancien bloc buffeur inline de la fiche (`ficheBuffBlock` et ses boutons/listeners). Testé navigateur
     (parcours complet dans la fiche + changement de héros), `node --check` OK.
-  - **Reste** : rééquilibrage `copyCost` après playtest ; redesign des 2 signatures inertes (`freePull`/`dropBoost`).
+  - **Signatures gacha redesignées — ✅ FAIT (2026-06-26)** : **Richard Brunson** (Épique) sig « Lancement » →
+    burst **prod ×2,5 global / 20 s** (passif −prix gemmes gardé) ; **Pieter Thielo** (Rare) passif → **×1,3 prod
+    de son module**, sig « Levée de fonds » → **+75 s de prod en cash**. Effets réutilisant des kinds/types déjà
+    supportés (prod/cash/gemPriceReduce/mult). Kinds morts `freePull`/`dropBoost` + case `freePullChance` retirés
+    du moteur. **`heroes.data.js?v=8→9`** (cache-bust). Champs `pity`/`dropBoost`/`freePullNext` restent vestigiaux.
+  - **Reste** : rééquilibrage `copyCost` après playtest.
 
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore

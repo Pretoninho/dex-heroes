@@ -622,7 +622,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloud.js?v=23"></script>
-<script src="heroes.data.js?v=8"></script>
+<script src="heroes.data.js?v=9"></script>
 <script>
 (() => {
   "use strict";
@@ -977,7 +977,7 @@
   // --- Effets des héros déployés (passifs) ------------------------------
   // Effets GLOBAUX agrégés sur tous les Dex (clic, auto-clic, gemmes, hors-ligne…)
   function globalHeroFx() {
-    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, offlineCapMult: 1, freePull: 0 };
+    const fx = { clickMult: 1, autoClick: 0, gemPerSec: 0, gemPriceMult: 1, offlineMult: 1, offlineCapMult: 1 };
     state.dexes.forEach(d => {
       ASSETS.forEach(n => {
         if (!(d.placed && d.placed[n.id])) return;
@@ -990,7 +990,6 @@
           case "gemPriceReduce": fx.gemPriceMult *= (1 - Math.min(0.9, scaleVal("gemPriceReduce", e.value, lvl))); break;
           case "offlineMult":    fx.offlineMult *= scaleVal("offlineMult", e.value, lvl); break;
           case "offlineCap":     fx.offlineCapMult *= scaleVal("offlineCap", e.value, lvl); break;
-          case "freePullChance": fx.freePull = 1 - (1 - fx.freePull) * (1 - Math.min(0.9, scaleVal("freePullChance", e.value, lvl))); break;
         }
       });
     });
@@ -1236,13 +1235,8 @@
       const gain = e.seconds * f * perSecond();
       state.cash += gain;
       toast(`💰 ${h.signature.name} : +$${fmt(gain)}`);
-    } else if (e.kind === "freePull") {
-      state.freePullNext = true;
-      toast(`🎟️ ${h.signature.name} : prochain tirage gratuit`);
-    } else if (e.kind === "dropBoost") {
-      state.dropBoost = { bonus: e.bonus, pulls: e.pulls };
-      toast(`🎲 ${h.signature.name} : +${Math.round(e.bonus * 100)}% drop (${e.pulls} tirages)`);
     }
+    // (kinds freePull/dropBoost retirés : dépendaient du gacha, héros redesignés)
     state.cd[node.id] = Date.now() + h.signature.cooldown * 1000;
     render();
     save();
