@@ -404,17 +404,48 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
   atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.
 
-### Mini-jeux de module — EN DÉBAT (docs fournis : Banque/Prêts = knapsack, Bourse/Appariement = assignment)
-Docs **bien conçus** (2 problèmes cognitifs distincts, non-punitifs). **MAIS tension dure avec le cap 100 % IDLE** :
-ce sont des couches **actives** (ce qu'on a purgé avec l'Exchange). **Contradiction interne des docs** : « découplé
-du cash » mais « multiplicateurs globaux » (un mult global *affecte* l'éco → l'ignorer = progresser moins → le
-mini-jeu devient **semi-obligatoire** ; « optionnel mais récompensé » n'existe pas pour un optimiseur). **Reco pour
-réconcilier avec l'idle** : donner à chaque mini-jeu un **mode auto/politique** (le joueur règle une stratégie →
-rendement passif correct ; le jeu **manuel fait mieux** = plafond de skill) → respecte « chemin passif par défaut,
-l'endgame n'exige jamais de clic ». Sans ce mode auto, ça casse le pilier. **Flag scope** : 18 modules × activité =
-énorme ; méta fraîche **pas encore playtestée**. **DÉCISION EN ATTENTE** (l'utilisateur repense les mini-jeux) :
-assumer le **pivot hybride** (idle + actif optionnel avec auto) **ou** rester idle-pur (skill exprimé par un
-auto-solveur qu'on *règle*, sans clic). Ne pas *dériver* dedans — choix conscient requis.
+### 🎰 MARGIN CALL — design VERROUILLÉ en conception (le **prochain chantier**, demandé 2026-06-26)
+Réconciliation des mini-jeux avec le cap **100 % IDLE** : au lieu de cliquer (actif), on **alloue du cash** (passif).
+Le skill = **dosage stratégique** d'une décision qu'on pose et qui tourne ensuite seule. (Les docs Banque=knapsack /
+Bourse=assignment peuvent devenir l'**activité passive sous-jacente** du module, résolue auto, nourrie par l'allocation.)
+
+**Boucle (le cœur) :**
+- **OFF par défaut = LE coup de maître** : mini-jeu éteint ⇒ **totalement hors système** (zéro conso, zéro régime,
+  zéro risque). L'idle-pur qui n'y touche jamais n'est **JAMAIS** affecté. Le risque n'existe **que** sur un
+  **lancement délibéré** → *« idle pur par défaut + pari actif opt-in »*. Pilier idle intouchable.
+- Le joueur **LANCE une session** : il choisit **durée × allocation (cash) × moment**, jusqu'à des **CAPS**.
+- Pendant la session : le cash alloué est **consommé** pour entretenir l'activité passive du module, à un **taux
+  variable piloté par le RÉGIME de marché** (réutilisé : **cycle déterministe piloté par l'horloge UTC, LOCAL, sans
+  backend** ; 5 états BULL/BEAR/CRASH/CRABE/HYPE ; BULL = entretien *cheap*, CRASH = appels de marge violents).
+- **Margin Call** (allocation insuffisante face au taux) ⇒ **allocation restante consumée + activité en PAUSE** jusqu'à
+  relance. **Auto-désactivation** à la fin de la durée choisie (borne la fenêtre de danger).
+
+**Non-punitif (verrouillé) :** OFF par défaut = idle-pur intouchable · le **faucet de base du module continue** quoi
+qu'il arrive · on ne perd **que le carburant misé** (l'allocation), **jamais sous la base**. **Hors-ligne =
+responsabilité ASSUMÉE du joueur** (« tu lances 8 h, tu dors, tu te fais sortir = le jeu, ça colle à la réalité ») —
+*équitable* **parce que** le régime est **déterministe + affiché** : le joueur **lit la météo** avant de lancer
+(timing stratégique). Mini-jeu non lancé = **vraiment éteint**, pas concerné par les variations.
+
+**Anti set-and-forget (verrouillé) :** régime déterministe **mais la session traverse des transitions** (BULL→CRASH
+à mi-parcours). Arbitrage **durée × taille × timing** qui ne se fige pas : longue = +rendement mais traverse plus de
+météo (+risque) ; courte = sûre mais -rendement. ⚠️ Le cycle régime doit être **assez rapide** pour qu'une session en
+croise plusieurs.
+
+**Récompense (boucle complète) :**
+- **GEMMES (éco-facing)** = source **alternative** de gemmes → nourrit la méta (fragments/gear). Réalise *« le manuel
+  fait mieux »* : l'idle-pur achète ses gemmes au cash (sûr) ; l'actif alloue en Margin Call et sort **plus** de
+  gemmes s'il joue bien. **Jamais obligatoire, récompensé.** Doit être **net-positif EN MOYENNE**, modulé par le
+  régime (généreux BULL, risqué CRASH).
+- **RÉPUTATION (INTERNE au mini-jeu — VERROUILLÉ : PAS un mult de prod global)** = progression/maîtrise qui débloque
+  **allocation max ↑, durée max ↑, meilleur rendement gemmes, plus de modules activables, meilleures conditions de
+  marge**. C'est la **barre de progression** scopée au mini-jeu → **pas de doublon avec la Valo** (= niveau joueur
+  global). Répond aussi à la question « barre d'XP » (B/C de la refonte progression).
+
+**Garde-fous / à caler (prochain chantier) :** plafond **durée + allocation max repoussés par la réputation** (= hook
+de progression, protège le hors-ligne) · **lisibilité** : avant lancement, afficher la **PROJECTION** (rendement
+gemmes estimé + fenêtre de risque régime sur la durée choisie) → décision transparente · **reconstruire le régime en
+LOCAL** (cycle déterministe UTC, le champ `regime` des héros est gardé exprès) · **calibrer** le net-positif moyen +
+la courbe taux/régime + conversion allocation→gemmes.
 
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** ~~Phase 1~~ ✅ FAIT (local : faucet surplus→Éclats, fabrication ciblée,
