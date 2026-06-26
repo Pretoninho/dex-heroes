@@ -290,7 +290,11 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
     de son module**, sig « Levée de fonds » → **+75 s de prod en cash**. Effets réutilisant des kinds/types déjà
     supportés (prod/cash/gemPriceReduce/mult). Kinds morts `freePull`/`dropBoost` + case `freePullChance` retirés
     du moteur. **`heroes.data.js?v=8→9`** (cache-bust). Champs `pity`/`dropBoost`/`freePullNext` restent vestigiaux.
-  - **Reste** : rééquilibrage `copyCost` après playtest.
+  - **`copyCost` rééquilibré — ✅ FAIT (2026-06-26)** : remplacé le coût PLAT (`base²`, étaler = trivial → tension
+    largeur cassée) par un coût **escaladant** `base^(copies+1)` : C/R = 3·9·27·81·243·729 (6 copies = 1092 ≈ niv 6-7
+    de profondeur) ; Épique base 4. 1ʳᵉ copie bon marché (accessible), spread large = vrai investissement → tension
+    profondeur/largeur rétablie. Vérifié navigateur (escalade 3→9→27→81). **TUNABLE** (base + exposant).
+  - **Reste** : playtest d'équilibrage global (la courbe `copyCost` peut encore se régler).
 
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore

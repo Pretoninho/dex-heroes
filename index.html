@@ -767,7 +767,11 @@
   // reste intact ; le bloc 3 AJOUTE les 2 slots buffeurs et REMPLACE le buff global du bloc 2
   // par ce buff localisé. (Raffinements à venir : signature en effet FIXE, retrait des passifs
   // niveautés et de l'ancien gacha RNG.)
-  function copyCost(id) { return fragsForLevel(rarityOf(id), 2); }   // = base² — TUNABLE
+  // Coût de la PROCHAINE copie : escaladant en base^(copies+1) → 1ʳᵉ copie bon marché (accessible),
+  // puis ça grimpe géométriquement → étaler un héros sur plusieurs modules devient un vrai
+  // investissement (tension profondeur/largeur). C/R (base 3) : 3·9·27·81·243·729 (6 copies = 1092).
+  // Épique (base 4) : 4·16·64·256… TUNABLE (l'exposant +1 et la base).
+  function copyCost(id) { return Math.pow(fusionBase(rarityOf(id)), copiesOwned(id) + 1); }
   function copiesOwned(id) { return state.heroes[id] || 0; }
   function slotsOf(moduleId) { return (state.bufSlots && state.bufSlots[moduleId]) || []; }
   function copiesUsed(id) {
