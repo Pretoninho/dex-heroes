@@ -296,6 +296,14 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
     profondeur/largeur rétablie. Vérifié navigateur (escalade 3→9→27→81). **TUNABLE** (base + exposant).
   - **Reste** : playtest d'équilibrage global (la courbe `copyCost` peut encore se régler).
 
+#### Bloc 4 — Gear (en cours, sous-slices)
+- **4a — ✅ FAIT (2026-06-26)** : **faucet gear passif**. `state.gearFrags` accrue à `GEAR_RATE`(=80)/h —
+  **online** (dans `loop()`, `+GEAR_RATE/3600×dt`) **+ offline plafonné** (dans `load()`, `+GEAR_RATE/3600×eff`,
+  même plafond `OFFLINE_CAP_H`=4h × `offlineCapMult` que le cash). Fondation isolée, **pas d'UI/dépense encore**
+  (comme le bloc 1). Vérifié navigateur : online monte ; offline 2h=160, 6h=320 (plafonné 4h). node --check OK.
+- **4b À FAIRE** : pièces de gear (3 slots/héros) + effet prod (+1 %/pièce à niv8, base-3) + UI + dépense des gearFrags.
+- **4c À FAIRE** : pool qualitatif capé (réduction coût / offline / gemmes / trouvaille de frags) + caps globaux.
+
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
 du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments) · **2️⃣ Renforcer** (Fusionner = +1 %/niv

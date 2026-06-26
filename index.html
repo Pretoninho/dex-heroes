@@ -1295,6 +1295,7 @@
         const fx = globalHeroFx();
         const cap = OFFLINE_CAP_H * 3600 * fx.offlineCapMult;    // plafond 4 h, étendu par les héros offlineCap
         const eff = Math.min(elapsed, cap);                      // durée créditée, plafonnée
+        state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * eff;   // faucet gear passif (même plafond hors-ligne)
         const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult;   // 50 % du taux × bonus héros offlineMult
         if (gained > 0) {
           state.cash += gained;
@@ -1728,6 +1729,7 @@
     const fx = globalHeroFx();
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
+    state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
     if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
     checkObjectives();
     render();
