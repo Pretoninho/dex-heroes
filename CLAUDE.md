@@ -221,9 +221,22 @@ RE-PASSER `economy_otc.sql` ensuite** (sinon le tick OTC est perdu). Tests : `te
   - **Caps GLOBAUX par effet + rendement décroissant** → pousse à **diversifier** → c'est ce qui rend les
     **3 slots libres** intéressants (un portefeuille à composer, pas « équipe le plus gros »).
 
+- **Robinet héros — VERROUILLÉ (2026-06-26)** : faucet **cash-gaté, pas temps-gaté** (découverte clé :
+  `gemPrice()=perSecond×0,10` → 1 pull/200 gemmes coûte **toujours ~20 s de production**, à tout stade ;
+  les gemmes ne sont pas rares, elles s'achètent au cash). Donc l'unité pertinente = **« heures de
+  production-équivalent »**, pas « frags/jour ». **FPP=1** (1 fragment **ciblé**/pull) → **20 s de prod /
+  fragment, constant pour toujours** (le self-pacing de `GROWTH`=1,15 est intégré gratis : le prix gemme
+  suit la prod). Fusion **cumulée** `b^L` (coût pour ÊTRE au niveau L ; dernier palier `b^L−b^(L−1)`).
+  Courbe résultante (buffeur C/R base 3) : 1er module satisfaisant (+10 %, 486 frags) ≈ **2,7 h prod-équiv**
+  (~9 h @30 % du cash au gacha) · une rareté décente (2 916) ≈ 16 h · buffeur **niv10 MAX** (59 049) ≈
+  **13,7 j prod-pure** (~46 j @30 %, *décoratif baleine* assumé) · 1 module MAXÉ (118 098) ≈ **27 j**. Aucun
+  palier artificiel : juste `b^L × 20 s`. **Leviers de tuning** (décalent toute la courbe) : `FPP`,
+  `PULL_COST`(=200), `GEM_T`(=0,10). Faucet **gear = passif/temps**, séparé (à caler en parallèle, pas
+  encore chiffré).
+
 **Ouvert / à trancher :**
-1. **Robinet** (les **2** : fragments héros + fragments gear, taux/tirage + fréquence) à caler contre
-   l'ancre « tout à niv5 ≈ 27 k frags » côté héros. Sépare les deux faucets sans qu'ils se cannibalisent.
+1. **Robinet gear** (passif/temps) — à caler en parallèle du faucet héros (cadence ~équivalente, sans
+   cannibaliser le robinet héros). Pas encore chiffré.
 2. **Migration** : interaction avec l'existant (`state.shards`/`SHARD_PER_COPY`/`craftHero`, fusion
    `fuseCost=niveau+1` max 5) — que deviennent les saves ? À traiter avant tout code.
 
