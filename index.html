@@ -578,6 +578,15 @@
               <button class="btn" id="ficheNickClear">Effacer</button>
             </div>
           </div>
+          <div class="fiche-block" id="ficheBuffBlock">
+            <div class="fiche-k">Buffeur · production <span style="color:var(--muted);font-weight:400">(méta V2 — fragments ciblés)</span></div>
+            <div id="ficheBuffInfo"></div>
+            <div class="nick-edit">
+              <button class="btn" id="ficheFragPull">Invoquer fragment · 200💎</button>
+              <button class="btn" id="ficheFragPull10">×10 · 2000💎</button>
+              <button class="btn" id="ficheFuseBtn">Fusionner</button>
+            </div>
+          </div>
           <div class="fiche-status" id="ficheStatus"></div>
           <button class="btn" id="ficheCraftBtn" style="display:none"></button>
           <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
@@ -681,7 +690,7 @@
   // BLOC 1 = socle : on POSE les nouveaux stocks de fragments + on migre les saves.
   // Le gameplay (fusion ciblée, buffeurs, placement, gear) arrive aux blocs suivants ;
   // ici rien ne change pour le joueur (le pull donne encore des héros, l'ancienne fusion tourne).
-  const META_VERSION = 2;                       // version de schéma méta (flag de migration one-shot)
+  const META_VERSION = 3;                       // version de schéma méta (flag de migration one-shot)
   const FUSION_BASE = { 0: 3, 1: 3, 2: 4 };     // base de fusion : Commun/Rare base 3 · Épique base 4
   const BUFFER_MAX_LVL = 10;                     // niveau buffeur max (+1 %/niv → +10 %)
   const GEAR_RATE = 80;                          // fragments gear / heure (faucet passif/temps, offline capé)
@@ -712,6 +721,59 @@
       state.shards = { 0: 0, 1: 0, 2: 0 };
     }
     // 3. Gear démarre à zéro (le faucet passif le remplira) ; state.gems conservées telles quelles.
+  }
+  // Migration V3 (bloc 2) : le crédit du bloc 1 (heroFrags = b^L en stock) est converti en
+  // NIVEAUX de buffeur — auto-fusion jusqu'au plus haut niveau finançable, reliquat conservé.
+  // Comme b^L = coût cumulé pour ÊTRE au niveau L, un héros migré retrouve EXACTEMENT son
+  // ancien numéro de niveau (0 reliquat). Honore le « déjà au niveau L » (design verrouillé).
+  function migrateMetaV3() {
+    if (!state.bufferLvl || typeof state.bufferLvl !== "object") state.bufferLvl = {};
+    Object.keys(state.heroFrags || {}).forEach(id => {
+      let stock = state.heroFrags[id] || 0;
+      const r = rarityOf(id);
+      let L = state.bufferLvl[id] || 0;
+      while (L < BUFFER_MAX_LVL) {
+        const step = fragsForLevel(r, L + 1) - fragsForLevel(r, L);
+        if (stock < step) break;
+        stock -= step; L++;
+      }
+      state.bufferLvl[id] = L;
+      state.heroFrags[id] = stock;
+    });
+  }
+
+  // --- Buffeur (méta V2, bloc 2) : niveau 0→10, +1 %/niv de PRODUCTION GLOBALE -----------
+  // Robinet = fragments ciblés (gacha aux gemmes). Fusion cumulée b^L. NON-BREAKING : c'est
+  // une source de bonus ADDITIONNELLE ; l'ancien système héros (placement/passifs/signatures)
+  // reste intact. Le bloc 3 réorganisera (placement par module + signatures) et retirera l'ancien.
+  function bufferLvl(id) { return Math.min(BUFFER_MAX_LVL, (state.bufferLvl && state.bufferLvl[id]) || 0); }
+  function bufferStepCost(id) { const r = rarityOf(id), L = bufferLvl(id); return fragsForLevel(r, L + 1) - fragsForLevel(r, L); }
+  function heroFragsOf(id) { return Math.floor((state.heroFrags && state.heroFrags[id]) || 0); }
+  function buffMult() {
+    let b = 0;
+    if (state.bufferLvl) Object.keys(state.bufferLvl).forEach(id => { b += Math.min(BUFFER_MAX_LVL, state.bufferLvl[id] || 0); });
+    return 1 + b * 0.01;
+  }
+  // Gacha ciblé : 1 fragment du héros CHOISI par tirage (200 gemmes ; déterministe, zéro RNG).
+  function pullFrags(id, n) {
+    n = n || 1;
+    const cost = PULL_COST * n;
+    if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
+    state.gems -= cost;
+    state.heroFrags[id] = (state.heroFrags[id] || 0) + n;
+    toast(`🧬 +${n} fragment${n > 1 ? "s" : ""} · ${heroName(id)}`);
+    render(); save();
+  }
+  // Fusion : monte le buffeur d'un niveau en dépensant les fragments ciblés (coût = palier b^L).
+  function fuseBuffer(id) {
+    const L = bufferLvl(id);
+    if (L >= BUFFER_MAX_LVL) { toast("Niveau buffeur max"); return; }
+    const step = bufferStepCost(id);
+    if (heroFragsOf(id) < step) { toast(`Il faut ${step} fragments`); return; }
+    state.heroFrags[id] -= step;
+    state.bufferLvl[id] = L + 1;
+    toast(`⬆️ ${heroName(id)} buffeur → Niv.${L + 1} (+${L + 1}% prod globale)`);
+    render(); save();
   }
 
   // Surnoms de héros — voir docs/economy-vision.md §4. Le nom canonique reste la
@@ -777,6 +839,7 @@
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
       gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
+      bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod globale) }
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       lastSeen: Date.now()
     };
@@ -808,11 +871,13 @@
         state.heroes[id] = 1;
       }
     });
-    // Méta V2 : normalisation des stocks + migration one-shot (après finalisation des Éclats ci-dessus).
+    // Méta V2 : normalisation des stocks + migrations one-shot étagées (après finalisation des Éclats).
     if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
     if (typeof state.gearFrags !== "number") state.gearFrags = 0;
+    if (!state.bufferLvl || typeof state.bufferLvl !== "object") state.bufferLvl = {};
     if (typeof state.metaV2 !== "number") state.metaV2 = 0;
-    if (state.metaV2 < META_VERSION) { migrateMetaV2(); state.metaV2 = META_VERSION; }
+    if (state.metaV2 < 2) { migrateMetaV2(); state.metaV2 = 2; }   // bloc 1 : héros→frags, Éclats→gemmes
+    if (state.metaV2 < 3) { migrateMetaV3(); state.metaV2 = 3; }   // bloc 2 : frags→niveaux de buffeur
     if (!Array.isArray(state.buffs)) state.buffs = [];
     state.buffs = state.buffs.filter(b => b && b.until > Date.now());
     if (!state.cd || typeof state.cd !== "object") state.cd = {};
@@ -1040,7 +1105,7 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
       });
     });
-    return total * valoMult();   // × rang de Valorisation
+    return total * valoMult() * buffMult();   // × rang de Valorisation × buffeurs méta V2
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1452,6 +1517,19 @@
       cb.className = "btn" + (shardsOf(r) >= cost ? " can" : "");
       cb.textContent = (copies > 0 ? "Fabriquer +1 doublon" : "Fabriquer ce héros")
         + ` · ${cost} 🧩 ${SHARD_LABEL[r]} (${shardsOf(r)})`;
+      // Bloc buffeur méta V2 (fragments ciblés → niveaux → +1 %/niv prod globale)
+      const L = bufferLvl(ficheId), step = bufferStepCost(ficheId), have = heroFragsOf(ficheId), atMax = L >= BUFFER_MAX_LVL;
+      document.getElementById("ficheBuffInfo").innerHTML =
+        `Niveau buffeur <b>${L}/${BUFFER_MAX_LVL}</b> → <b>+${L}%</b> production globale`
+        + `<br>Fragments en stock : <b>${have}</b>` + (atMax ? " · niveau max atteint" : ` · prochain niveau : <b>${step}</b> frags`)
+        + `<br><span style="color:var(--muted)">Buff global cumulé (tous héros) : ×${buffMult().toFixed(2)}</span>`;
+      const gems = state.gems || 0;
+      const fuseBtn = document.getElementById("ficheFuseBtn");
+      fuseBtn.disabled = atMax || have < step;
+      fuseBtn.className = "btn" + (!atMax && have >= step ? " can" : "");
+      fuseBtn.textContent = atMax ? "Niveau max" : `Fusionner → Niv.${L + 1} (${step} frags)`;
+      const p1 = document.getElementById("ficheFragPull"); p1.disabled = gems < PULL_COST; p1.className = "btn" + (gems >= PULL_COST ? " can" : "");
+      const p10 = document.getElementById("ficheFragPull10"); p10.disabled = gems < PULL_COST * 10; p10.className = "btn" + (gems >= PULL_COST * 10 ? " can" : "");
     }
   }
   function gotoSibling(delta) {
@@ -1730,6 +1808,9 @@
   updateClock(); setInterval(updateClock, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
   document.getElementById("ficheCraftBtn").addEventListener("click", () => { if (ficheId) craftHero(ficheId); });
+  document.getElementById("ficheFragPull").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 1); });
+  document.getElementById("ficheFragPull10").addEventListener("click", () => { if (ficheId) pullFrags(ficheId, 10); });
+  document.getElementById("ficheFuseBtn").addEventListener("click", () => { if (ficheId) fuseBuffer(ficheId); });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   function applyNick() {
     if (!ficheId) return;

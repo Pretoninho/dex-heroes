@@ -269,13 +269,26 @@ Découpage livrable, pas de big-bang : (1) **Migration + stockage des fragments*
 buffeurs** (cœur jouable) → (3) **Signatures + placement par module** → (4) **Gear + faucet passif + pool
 qualitatif** (le plus lourd, en dernier).
 - **Bloc 1 — ✅ FAIT (2026-06-26)** : socle **non-breaking** dans `index.html`. Constantes
-  `META_VERSION`(=2), `FUSION_BASE`(C/R=3·É=4), `BUFFER_MAX_LVL`(=10), `GEAR_RATE`(=80) ; helpers
+  `META_VERSION`, `FUSION_BASE`(C/R=3·É=4), `BUFFER_MAX_LVL`(=10), `GEAR_RATE`(=80) ; helpers
   `fusionBase`/`fragsForLevel`(=base^L)/`rarityOf`. Stocks neufs dans `defaultState` : `state.heroFrags`{},
   `state.gearFrags`(0), `state.metaV2`(0). Migration one-shot `migrateMetaV2()` (gardée par flag `metaV2`,
   appelée dans `adopt()` après finalisation des Éclats) : héros possédés → `b^L` frags ciblés au même niveau ;
   Éclats → gemmes (`200/SHARD_PER_COPY`) puis vidés ; gear à 0. **L'ancien système (heroes/lvl/fusion/craftHero)
-  reste intact et jouable** — les blocs 2-4 basculeront le gameplay sur ces stocks. Testé (math du crédit,
-  idempotence, save vierge) + `node --check` OK. Cloud round-trip OK (state poussé entier → pas de bump `?v=`).
+  reste intact et jouable**. Testé + `node --check` OK. Cloud round-trip OK (pas de bump `?v=`).
+- **Bloc 2 — ✅ FAIT (2026-06-26)** : boucle **fragment ciblé → fusion → buffeur**, toujours **non-breaking**
+  (source de bonus ADDITIONNELLE ; l'ancien placement/passifs/signatures reste intact — le bloc 3 réorganisera
+  et retirera l'ancien). Ajouts `index.html` : champ `state.bufferLvl`{} (niveau 0→10) ; `META_VERSION`→**3** +
+  migration étagée dans `adopt()` (`<2`→V2, `<3`→V3) ; `migrateMetaV3()` convertit le stock `heroFrags` du bloc 1
+  en **niveaux de buffeur** (auto-fusion jusqu'au plus haut niveau finançable, reliquat gardé → un héros migré
+  retrouve EXACTEMENT son ancien numéro de niveau, honore le « déjà au niveau L »). Helpers `bufferLvl`/
+  `bufferStepCost`(=`b^(L+1)−b^L`)/`heroFragsOf`/`buffMult`(=`1+Σmin(lvl,10)×0,01`). Gacha **ciblé déterministe**
+  `pullFrags(id,n)` (1 frag/200 💎, zéro RNG) + `fuseBuffer(id)` (dépense les frags, +1 niv). `buffMult()` branché
+  dans `perSecond()` (`×valoMult×buffMult`). UI : bloc « Buffeur » dans la fiche héros (niveau, stock, ×1/×10
+  invoquer, Fusionner, buff global cumulé). Testé (migration exacte+idempotente, stock partiel, fusion, cap niv10,
+  pullFrags) + `node --check` OK. Cloud round-trip OK (pas de bump `?v=`). ⚠️ **Effet appliqué GLOBALEMENT** en
+  interim (pas encore par-module) ; les héros migrés gagnent `+Σniveaux %` de prod globale immédiate (crédit de
+  leur ancien investissement) — **le bloc 3 localisera** le buff aux slots de module + ajoutera les signatures.
+  L'ancien gacha RNG (héros entiers) **coexiste encore** ; il sera retiré quand le placement V2 sera en place.
 
 ## Tâches en attente / roadmap
 
