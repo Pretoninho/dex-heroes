@@ -476,7 +476,6 @@
     <div class="clock" id="topClock">—</div>
     <div class="navtabs">
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
-      <button class="navtab" data-nav="gacha">🎲<span>Gacha</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
       <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
       <button class="navtab" data-nav="atelier">🧪<span>Atelier</span></button>
@@ -555,23 +554,6 @@
       </div>
 
       <!-- Écran Gacha -->
-      <div id="gachaScreen" style="display:none">
-        <div class="mnav">
-          <button class="btn" id="gachaBackBtn">← Retour</button>
-          <div class="gembal">💎 <b id="gachaGems">0</b></div>
-        </div>
-        <h2>🎲 Gacha — Invocation</h2>
-        <div class="droprates">Taux : <span class="r0">Commun 79%</span> · <span class="r1">Rare 18%</span> · <span class="r2">Épique 3%</span></div>
-        <div class="pitybar">Pity : <b id="pityCount">0</b>/80 — Épique garanti au 80ᵉ tirage</div>
-        <div class="pullbtns">
-          <button class="big-btn" id="pull1">Tirer ×1 · 200💎</button>
-          <button class="big-btn" id="pull10">Tirer ×10 · 2000💎</button>
-        </div>
-        <div class="pullresult" id="pullResult"></div>
-        <h2 style="margin-top:18px">📒 Collection des héros</h2>
-        <div class="collection" id="collection"></div>
-      </div>
-
       <!-- Écran Codex (fiches des héros) -->
       <div id="heroesScreen" style="display:none">
         <div class="mnav">
@@ -721,7 +703,6 @@
 
   // Héros : 1 par module (même id), rareté = palier du module (0/1/2).
   const HEROES = ASSETS.map(n => ({ id: n.id, name: n.name, emoji: n.emoji, tier: n.tier }));
-  const HEROES_BY_TIER = [0, 1, 2].map(t => HEROES.filter(h => h.tier === t));
   // Données d'affichage des fiches (chargées depuis heroes.data.js)
   const HDATA = (typeof HERO_DATA !== "undefined") ? HERO_DATA : [];
   const HMETA = (typeof HERO_META !== "undefined") ? HERO_META : { rarities: [{stars:3},{stars:4},{stars:5}], synergies: [] };
@@ -900,18 +881,7 @@
   // Automatisation (idle)
   const AUTO_BUY_MS = 300;             // cadence de l'auto-amélioration (ms)
 
-  // Gacha (réglages issus du GDD Desk Heroes)
-  const PULL_COST = 200;            // gemmes par tirage
-  const DROP = [79, 18];            // poids Commun / Rare (l'Épique est géré par le pity)
-  function epicProb(counter) {      // proba d'Épique au prochain tirage (soft pity 74, dur 80)
-    const c = counter + 1;
-    let p;
-    if (c >= 80) p = 1.0;
-    else if (c >= 74) p = Math.min(1, 0.03 + (c - 74) * 0.04);
-    else p = 0.03;
-    if (state.dropBoost && state.dropBoost.pulls > 0) p = Math.min(1, p + state.dropBoost.bonus);   // signature Levée
-    return p;
-  }
+  const PULL_COST = 200;            // gemmes par invocation (réutilisé par le gacha ciblé de fragments méta V2)
 
   // Dex = machines à cash réutilisant le même graphe. costMult/rateMult mettent
   // les chiffres à l'échelle ; buyCost = prix d'achat du Dex. Le déblocage passe
@@ -1008,46 +978,9 @@
     if (!hadObjectives) seedObjectives();   // save d'avant la feature : marque les jalons déjà atteints SANS récompense
   }
 
-  // --- Gacha : tirage avec pity -----------------------------------------
-  function pullOnce() {
-    let tier;
-    if (Math.random() < epicProb(state.pity)) { tier = 2; state.pity = 0; }
-    else { state.pity++; tier = (Math.random() * (DROP[0] + DROP[1]) < DROP[0]) ? 0 : 1; }
-    const pool = HEROES_BY_TIER[tier];
-    const h = pool[Math.floor(Math.random() * pool.length)];
-    const owned = state.heroes[h.id] > 0;
-    // Héros déjà au max → le doublon est inutile : il se convertit en Éclat (faucet)
-    if (owned && heroLvl(h.id) >= maxLvl(h.id)) {
-      state.shards[tier] = (state.shards[tier] || 0) + 1;
-      return { hero: h, tier, isNew: false, shard: true };
-    }
-    state.heroes[h.id] = (state.heroes[h.id] || 0) + 1;
-    if (!owned) state.lvl[h.id] = 1;
-    return { hero: h, tier, isNew: !owned };
-  }
-  function pull(times) {
-    const free = globalHeroFx().freePull;
-    let paid = 0, useFlag = false;
-    for (let i = 0; i < times; i++) {
-      let isFree = false;
-      if (i === 0 && state.freePullNext) { isFree = true; useFlag = true; }   // signature Lancement
-      else if (Math.random() < free) isFree = true;
-      if (!isFree) paid++;
-    }
-    const cost = PULL_COST * paid;
-    if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
-    if (useFlag) state.freePullNext = false;
-    state.gems -= cost;
-    const results = [];
-    for (let i = 0; i < times; i++) {
-      results.push(pullOnce());
-      if (state.dropBoost && state.dropBoost.pulls > 0 && --state.dropBoost.pulls <= 0) state.dropBoost = null;
-    }
-    if (paid < times) setTimeout(() => toast(`🎟️ ${times - paid} tirage(s) gratuit(s) !`), 300);
-    renderPullResults(results);
-    render();
-    save();
-  }
+  // Ancien gacha RNG (tirage de héros entiers) RETIRÉ — remplacé par l'invocation ciblée de
+  // fragments (méta V2 : pullFrags). Champs vestigiaux pity/dropBoost/freePullNext conservés
+  // sans effet ; signatures freePull/dropBoost désormais inertes (à redesigner).
 
   // Prix d'une gemme = indexé sur la production (gemmes abondantes : T faible).
   // Calibré pour qu'un 10-pull (2000 gemmes) ≈ 100 s de production.
@@ -1607,14 +1540,13 @@
   }
 
   // --- Navigation entre écrans ------------------------------------------
-  let screen = "overview";    // "overview" | "module" | "gacha" | "heroes"
+  let screen = "overview";    // "overview" | "module" | "heroes" | "objectives" | "atelier"
   let currentModule = null;   // id du module ouvert
   let ficheId = null;         // id du héros dont la fiche est ouverte
   function showScreen(name) {
     screen = name;
     document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
-    document.getElementById("gachaScreen").style.display = name === "gacha" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
     document.getElementById("atelierScreen").style.display = name === "atelier" ? "block" : "none";
@@ -1637,7 +1569,6 @@
     render();
   }
   function backToOverview() { currentModule = null; showScreen("overview"); render(); }
-  function openGacha() { document.getElementById("pullResult").innerHTML = ""; showScreen("gacha"); render(); }
 
   // --- Codex des héros (fiches) -----------------------------------------
   function openHeroes() {
@@ -1791,7 +1722,6 @@
     if (bd) bd.classList.toggle("affordable", state.cash >= (+bd.dataset.cost));
 
     if (screen === "module") renderModulePage();
-    else if (screen === "gacha") renderGacha();
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
     else if (screen === "atelier") renderAtelier();
@@ -1915,44 +1845,6 @@
     }
   }
 
-  // --- Rendu du gacha ----------------------------------------------------
-  function renderGacha() {
-    document.getElementById("gachaGems").textContent = Math.floor(state.gems || 0);
-    document.getElementById("pityCount").textContent = state.pity || 0;
-    document.getElementById("pull1").classList.toggle("can", (state.gems || 0) >= PULL_COST);
-    document.getElementById("pull10").classList.toggle("can", (state.gems || 0) >= PULL_COST * 10);
-    renderCollection();
-  }
-  function renderPullResults(results) {
-    document.getElementById("pullResult").innerHTML = results.map(r =>
-      `<div class="pull-card r${r.tier}${r.shard ? " shard" : ""}">
-        <div class="pemoji">${r.shard ? "🧩" : r.hero.emoji}</div>
-        <div class="pname">${r.hero.name}</div>
-        <div class="ptag">${r.shard ? "+1 🧩 " + SHARD_LABEL[r.tier] : RARITY[r.tier] + (r.isNew ? " · NEW" : "")}</div>
-      </div>`).join("");
-  }
-  function buildCollection() {
-    const c = document.getElementById("collection");
-    c.innerHTML = "";
-    HEROES.forEach(h => {
-      const cell = document.createElement("div");
-      cell.className = "col-cell r" + h.tier;
-      cell.id = "col-" + h.id;
-      cell.innerHTML =
-        `<div class="cemoji">${h.emoji}</div>` +
-        `<div class="cname">${h.name}</div>` +
-        `<div class="ccopies" id="copies-${h.id}">—</div>`;
-      cell.addEventListener("click", () => openFiche(h.id));
-      c.appendChild(cell);
-    });
-  }
-  function renderCollection() {
-    HEROES.forEach(h => {
-      const copies = state.heroes[h.id] || 0;
-      document.getElementById("col-" + h.id).classList.toggle("owned", copies > 0);
-      document.getElementById("copies-" + h.id).textContent = copies > 0 ? "Niv." + heroLvl(h.id) : "—";
-    });
-  }
 
   // Onglets de Dex (reconstruits à l'achat / au changement de Dex)
   function renderTabs() {
@@ -1995,7 +1887,6 @@
   // --- Démarrage ---------------------------------------------------------
   load();
   buildOverview();
-  buildCollection();
   buildHeroGrid();
   renderTabs();
   render();
@@ -2009,13 +1900,11 @@
   document.getElementById("valoBtn").addEventListener("click", buyValo);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
-  document.getElementById("gachaBackBtn").addEventListener("click", backToOverview);
   document.getElementById("heroesBackBtn").addEventListener("click", backToOverview);
   document.getElementById("objBackBtn").addEventListener("click", backToOverview);
   document.querySelectorAll(".navtab").forEach(b => b.addEventListener("click", () => {
     const nav = b.dataset.nav;
-    if (nav === "gacha") openGacha();
-    else if (nav === "heroes") openHeroes();
+    if (nav === "heroes") openHeroes();
     else if (nav === "objectives") openObjectives();
     else if (nav === "atelier") openAtelier();
     else backToOverview();
@@ -2072,8 +1961,6 @@
   document.getElementById("ficheNickClear").addEventListener("click", () => {
     document.getElementById("ficheNickInput").value = ""; applyNick();
   });
-  document.getElementById("pull1").addEventListener("click", () => pull(1));
-  document.getElementById("pull10").addEventListener("click", () => pull(10));
   document.getElementById("backBtn").addEventListener("click", backToOverview);
   document.getElementById("prevBtn").addEventListener("click", () => gotoSibling(-1));
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
