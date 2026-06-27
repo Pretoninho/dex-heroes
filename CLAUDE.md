@@ -46,6 +46,8 @@ suppression délibérée, à confirmer avant chaque purge) :
 | `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), **gains hors-ligne + auto-amélioration**, horloge UTC, pont `window.DEX`, **🌍 `world()` (cycle de marché déterministe partagé, fonction pure UTC) + bandeau météo**, **🎰 Margin Call** (`state.mc`, `mcLaunch`/`mcAdvance`/`mcCollect`/`mcProject`, écran `#margincallScreen`). ⚠️ Exchange/régime backend **retirés** (2026-06-24) — le `world()` régime est **reconstruit en LOCAL**, sans serveur. |
 | `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, `regime`). Le champ `regime` n'est **plus utilisé** par le front (régime retiré) mais conservé pour réemploi. |
 | `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo. **Le terminal Exchange (`Cloud.economy.*`) a été retiré** (2026-06-24, pivot 100 % Idle). |
+| `sw.js` | **Service worker « réseau d'abord »** (2026-06-27) : la PWA récupère la version fraîche en ligne à chaque ouverture (cache = hors-ligne seulement) → fini la PWA iOS figée sur le cache. Enregistré par `index.html`. |
+| `manifest.webmanifest` | Manifest PWA minimal (standalone, scope, theme-color) — installable proprement. |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
 | `docs/economy.md` | Blueprint de l'économie **implémentée** (lois, couches L1–L5, décisions) |
 | `docs/economy-vision.md` | **Design à venir** (validé en discussion, pas codé) : verticale Trading, Éclats, surnoms héros, jeton **$VOLT**, tiers retail/OTC, achat gems au cours |
@@ -438,7 +440,7 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
 
 ### 🎨 REFONTE UI (« app mobile ») + PUMP + simplification — **EN COURS (2026-06-27, même branche), poussé sur `main` au fil de l'eau**
 Bascule d'une longue colonne vers une **app à nav du bas + page d'accueil (Lobby) = hub d'action**. Tout poussé
-live sur `main` (le joueur teste en PWA « écran d'accueil » → bouton **🔄 Mettre à jour** = `location.reload`).
+live sur `main` (le joueur teste en PWA « écran d'accueil »).
 Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`cloud.js?v=25`**.
 
 - **Shell** : **en-tête permanent 2 rangées** (`.appheader` flex column) — R1 avatar + pseudo + (rang Valo
@@ -449,8 +451,9 @@ Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`clo
   + **🔄 Mettre à jour** + compte. `showScreen` gère `lobby/overview/module/heroes/objectives/inventaire/margincall`
   (navKey pilote la surbrillance ; écrans internes ne la changent pas).
 - **🏠 LOBBY = hub d'action** (billet + Pump + compétences + Margin Call, **uniquement ici** ; le billet
-  n'apparaît plus ailleurs). Mise en page **flex robuste** : `body`/`.appmain` remplissent la hauteur (`100dvh`),
-  les boutons d'action sont poussés en bas (`margin-top:auto`) → **tient sur un écran**, sans offset magique.
+  n'apparaît plus ailleurs). Mise en page **flex robuste** : `body { min-height:100dvh; display:flex; flex-direction:column }`
+  + `.appmain { flex:1 1 auto }` → l'écran remplit la hauteur, boutons poussés en bas (`margin-top:auto`) **quand ça
+  tient**, et le **document scrolle nativement quand ça dépasse** (cf. correctif scroll ci-dessous).
 - **PUMP (`pumpGauge`/`pumpMult`/`pumpTap`/`pumpDecay`)** : taper le billet remplit la jauge (~8 taps,
   redescend sinon) ; **multiplicateur VIVANT sur la prod** selon le palier (×2/×3/×5), **sommet → ×10 verrouillé
   30 s** (`pumpLockUntil`) puis réarmement. `perSecond ×= pumpMult()` (hors indice base du prix gemme). 100 %
@@ -472,6 +475,27 @@ Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`clo
   (espace au-dessus de la nav, via flex).
 - **À VENIR** : **TUTO** (guidé & sautable — voir plus bas) ; le joueur retravaille **l'affichage Inventaire/
   Atelier** ; checkpoint de tuning Margin Call + Pump ; **audio** (Pump/MAX, à concevoir).
+
+#### 🔧 PWA auto-update + scroll natif — ✅ FAIT (2026-06-27, fin de session UI)
+Bloc de **correctifs mobiles/PWA** débogués avec le joueur (captures iPhone à l'appui) :
+- **Auto-update de la PWA** — ✅ : la PWA « écran d'accueil » iOS restait **figée sur l'`index.html` en cache**
+  (ni `location.reload()` ni cache-bust ne suffisent en standalone). Ajout d'un **service worker `sw.js`
+  « réseau d'abord »** (récupère la version fraîche en ligne à chaque ouverture, cache = hors-ligne seulement,
+  `skipWaiting`+`clients.claim`, purge des vieux caches) + enregistrement dans `index.html` + **`manifest.webmanifest`**
+  (standalone, scope) + meta `apple-mobile-web-app-*`/`theme-color`. **Bouton 🔄 Mettre à jour** = rechargement
+  **anti-cache** (sauve, purge `caches`, recharge avec `?v=Date.now()`). ⚠️ **Bootstrap** : une réinstallation
+  unique de l'icône est nécessaire pour poser le SW ; ensuite les MAJ arrivent **toutes seules** (juste fermer/rouvrir).
+- **⚠️ `viewport-fit=cover` RETIRÉ** : ajouté par erreur avec le SW, il étend le contenu bord-à-bord → en standalone
+  iOS `100dvh` dépassait la zone visible et **poussait le bas hors écran** (bouton 🤖 Auto de Cash Flow sous la nav).
+  Retour à l'inset auto du navigateur + `apple-mobile-web-app-status-bar-style: black`.
+- **⚠️ SCROLL — retour au scroll NATIF du document (revert ciblé de `82de532`)** : le commit qui a créé la bascule
+  Buffeur/Copies avait aussi basculé le shell en **« app figée »** (`body { height:100dvh; overflow:hidden }` +
+  **scroll interne `.appmain { overflow-y:auto }`**). Ce **scroll interne clippe en PWA iOS** quand le dépassement
+  est faible (liste atelier, fiche buffer = contenu coupé **et** non défilable ; copies marchait car gros dépassement).
+  **Fix = restaurer l'avant-`82de532`** : `body { min-height:100dvh }` (le **document scrolle nativement**, robuste
+  iOS), `.appmain`/`#screensPanel` **sans** `overflow`/`min-height:0`, atelier en **flux naturel** (`flex:0 0 auto`,
+  toggle en `margin-top` normal). **Header `sticky` + nav `fixed`** restent en place. **Leçon retenue (consigne joueur)** :
+  quand une modif ne règle pas le souci, **remonter au commit responsable / revert** plutôt qu'empiler des correctifs.
 
 #### Tuto — design validé (2026-06-27, à coder)
 **Guidé & sautable.** **Bulle à chaque étape** du cycle cœur (~8 gestes, une fois), puis **un pop contextuel**
