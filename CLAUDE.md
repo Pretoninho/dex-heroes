@@ -441,6 +441,21 @@ croise plusieurs.
   marge**. C'est la **barre de progression** scopée au mini-jeu → **pas de doublon avec la Valo** (= niveau joueur
   global). Répond aussi à la question « barre d'XP » (B/C de la refonte progression).
 
+**Fondation posée — ✅ FAIT (2026-06-27, branche `claude/margin-call-prep-0qo4ef`) : moteur de RÉGIME local.**
+Reconstruction LOCALE + DÉTERMINISTE du régime (l'ancien vivait dans le backend Exchange retiré). Dans
+`index.html` (après la note « régime retiré ») : `REGIME_DEFS` (5 états BULL/HYPE/CRABE/BEAR/CRASH, chacun
+avec `maint` = taux d'entretien × et `reward` = générosité gemmes × — **TUNABLE**) · `REGIME_CYCLE` (séquence
+fixe `CRABE,BULL,HYPE,BULL,CRABE,BEAR,CRASH,BEAR`) · `REGIME_PHASE_SEC`=240 (4 min/phase — **TUNABLE**) ·
+fonctions **PURES** `regimePhaseIndex`/`regimeAt(ms)`/`regimeNow(ms)` (→ `{key,secLeft,maint,reward,…}`)/
+`regimeForecast(durationSec,ms)` (→ suite des phases qu'une session traverserait = brique « PROJECTION avant
+lancement »). **Piloté par l'horloge UTC partagée** (epoch) → tout le monde lit la même météo, le joueur la lit
+AVANT de lancer (hors-ligne équitable). **ISOLÉ : ne touche NI au state NI à l'économie** (zéro migration, zéro
+régression) ; exposé sur `window.DEX.{regimeNow,regimeAt,regimeForecast}` pour inspection/test. Vérifié :
+déterminisme (epoch 0=CRABE), cycle qui boucle, `secLeft` décompte, session 14 min traverse CRABE→BULL→HYPE→BULL
+(propriété anti-set-and-forget). `node --check` OK. **Reste à coder** : la session (state `marginCall`, durée ×
+allocation × caps), la consommation du cash au `maint(régime)`, le Margin Call + pause, la sortie gemmes au
+`reward(régime)`, la réputation interne, l'UI (toggle OFF par défaut + projection).
+
 **Garde-fous / à caler (prochain chantier) :** plafond **durée + allocation max repoussés par la réputation** (= hook
 de progression, protège le hors-ligne) · **lisibilité** : avant lancement, afficher la **PROJECTION** (rendement
 gemmes estimé + fenêtre de risque régime sur la durée choisie) → décision transparente · **reconstruire le régime en

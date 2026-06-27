@@ -1101,6 +1101,67 @@
   // Note : le régime de marché (effet héros famille G) a été retiré avec l'Exchange
   // (pivot 100 % Idle). Le champ `regime` des héros reste en données pour réemploi futur.
 
+  // --- 🎰 MARGIN CALL · moteur de RÉGIME local (fondation, 2026-06-27) -----------------
+  // Reconstruction LOCALE et DÉTERMINISTE du régime de marché (l'ancien régime vivait dans
+  // le backend Exchange, retiré au pivot 100 % Idle). Piloté par l'HORLOGE UTC partagée :
+  // pas de backend, pas d'aléatoire → tout le monde lit la MÊME météo au même instant, et
+  // le joueur peut la LIRE AVANT de lancer une session (timing stratégique, hors-ligne
+  // équitable). C'est le carburant de Margin Call : le taux d'entretien d'une session et la
+  // générosité en gemmes dépendent du régime traversé.
+  //
+  // ⚠️ FONDATION ISOLÉE : ces fonctions sont PURES (fonctions du temps + constantes), ne
+  // touchent NI au state NI à l'économie (perSecond, prod, gemmes). Aucune migration. Le
+  // futur module Margin Call (session : durée × allocation × moment) viendra les consommer.
+  //
+  // Propriétés par régime — TUNABLE :
+  //   maint  = taux d'entretien relatif (×) du cash alloué (BULL cheap … CRASH violent)
+  //   reward = générosité relative (×) de la sortie en gemmes (généreux BULL, risqué CRASH)
+  const REGIME_DEFS = {
+    BULL:  { label: "Haussier", emoji: "🐂", maint: 0.7, reward: 1.30 },
+    HYPE:  { label: "Euphorie", emoji: "🚀", maint: 1.0, reward: 1.60 },
+    CRABE: { label: "Range",    emoji: "🦀", maint: 0.9, reward: 1.00 },
+    BEAR:  { label: "Baissier", emoji: "🐻", maint: 1.4, reward: 0.85 },
+    CRASH: { label: "Krach",    emoji: "💥", maint: 2.2, reward: 0.60 },
+  };
+  // Cycle déterministe : séquence fixe de phases. Assez RAPIDE pour qu'une session en croise
+  // plusieurs (anti set-and-forget : une session longue traverse BULL→…→CRASH). Pas de hand-
+  // authoring infini — on boucle ; la prévisibilité est VOULUE (le joueur lit la météo). TUNABLE.
+  const REGIME_CYCLE = ["CRABE", "BULL", "HYPE", "BULL", "CRABE", "BEAR", "CRASH", "BEAR"];
+  const REGIME_PHASE_SEC = 240;   // durée d'une phase (4 min) — TUNABLE (vitesse du cycle)
+
+  // Index de phase global depuis l'epoch UTC (déterministe, partagé).
+  function regimePhaseIndex(ms) { return Math.floor((ms / 1000) / REGIME_PHASE_SEC); }
+  // Régime à un instant donné (ms epoch). Par défaut : maintenant.
+  function regimeAt(ms) {
+    if (typeof ms !== "number") ms = Date.now();
+    return REGIME_CYCLE[((regimePhaseIndex(ms) % REGIME_CYCLE.length) + REGIME_CYCLE.length) % REGIME_CYCLE.length];
+  }
+  // Régime courant + ses propriétés + secondes restantes avant la prochaine transition.
+  function regimeNow(ms) {
+    if (typeof ms !== "number") ms = Date.now();
+    const key = regimeAt(ms);
+    const phaseEndSec = (regimePhaseIndex(ms) + 1) * REGIME_PHASE_SEC;
+    return Object.assign({ key, secLeft: Math.max(0, Math.round(phaseEndSec - ms / 1000)) }, REGIME_DEFS[key]);
+  }
+  // PROJECTION : la suite des phases de régime qu'une session de `durationSec` traverserait
+  // à partir de `ms` (par défaut : maintenant). Brique de lisibilité « avant lancement » :
+  // [{ key, emoji, label, maint, reward, fromSec, toSec }] (bornes relatives au début de session).
+  function regimeForecast(durationSec, ms) {
+    if (typeof ms !== "number") ms = Date.now();
+    const startSec = ms / 1000, endSec = startSec + Math.max(0, durationSec || 0);
+    const out = [];
+    let t = startSec;
+    while (t < endSec) {
+      const idx = Math.floor(t / REGIME_PHASE_SEC);
+      const phaseEnd = (idx + 1) * REGIME_PHASE_SEC;
+      const segEnd = Math.min(phaseEnd, endSec);
+      const key = regimeAt(t * 1000);
+      out.push(Object.assign({ key, fromSec: Math.round(t - startSec), toSec: Math.round(segEnd - startSec) }, REGIME_DEFS[key]));
+      t = phaseEnd;
+    }
+    return out;
+  }
+
   // --- 🏛️ Valorisation (rang d'entreprise) : niveau permanent + puits de cash ---
   // On monte de rang en DÉPENSANT du cash (coût ×VALO_GROWTH par rang). Chaque rang
   // donne +VALO_STEP de prod GLOBALE (multiplicatif, permanent). Pas de reset : c'est
@@ -1897,7 +1958,11 @@
     addGems: (n) => { state.gems = Math.max(0, (state.gems || 0) + n); render(); save(); },
     addCash: (n) => { state.cash = Math.max(0, (state.cash || 0) + n); render(); save(); },
     applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); },
-    resetState: () => { state = defaultState(); renderTabs(); render(); save(); }   // reset silencieux (changement de compte)
+    resetState: () => { state = defaultState(); renderTabs(); render(); save(); },  // reset silencieux (changement de compte)
+    // 🎰 Margin Call (fondation) : régime local déterministe, exposé pour inspection/test.
+    regimeNow: (ms) => regimeNow(ms),
+    regimeAt: (ms) => regimeAt(ms),
+    regimeForecast: (durationSec, ms) => regimeForecast(durationSec, ms)
   };
   if (window.Cloud && window.Cloud.enabled) window.Cloud.init(window.DEX);
 
