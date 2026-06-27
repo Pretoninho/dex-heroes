@@ -111,6 +111,18 @@
     .worldbar .wb-next { margin-left: 0; flex-basis: 100%; }
   }
 
+  /* 🎰 Margin Call */
+  .mc-weather { padding: 10px 14px; border-radius: 12px; background: var(--panel-2); border: 1px solid #2a4d3a; margin: 4px 0 16px; font-size: 14px; }
+  .mc-field { margin: 12px 0; }
+  .mc-field label { display: block; font-size: 14px; margin-bottom: 6px; }
+  .mc-field input[type=range] { width: 100%; accent-color: var(--accent); }
+  .mc-proj { padding: 10px 14px; border-radius: 10px; background: var(--panel-2); border: 1px dashed #2a4d3a; font-size: 13px; margin: 12px 0; min-height: 18px; }
+  .mc-stat { font-size: 14px; margin: 8px 0; }
+  .mc-bar { height: 12px; border-radius: 999px; background: #0d1f17; border: 1px solid #2a4d3a; overflow: hidden; margin: 6px 0 14px; }
+  .mc-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+  .mc-blown { padding: 12px 14px; border-radius: 10px; background: #3a1620; border: 1px solid #ff5470; color: #ffd3dc; font-weight: 700; margin: 8px 0 12px; }
+  .mc-last { margin-top: 16px; font-size: 13px; color: var(--muted); }
+
   .layout {
     display: grid;
     grid-template-columns: 1fr 1.4fr;
@@ -497,6 +509,7 @@
       <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
       <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
       <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
+      <button class="navtab" data-nav="margincall">🎰<span>Margin Call</span></button>
     </div>
   </nav>
 
@@ -627,6 +640,51 @@
         <div class="objlist" id="objList"></div>
       </div>
 
+      <div id="margincallScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="mcBackBtn">← Retour</button>
+          <div>🎰 Réputation <b id="mcRep">0</b></div>
+        </div>
+        <h2>🎰 Margin Call</h2>
+        <p class="hint">Pari <b>actif optionnel</b> par-dessus l'idle pur. Tu alloues du cash (carburant) sur une durée : le <b>régime mondial</b> (le même pour tous les joueurs) pilote l'entretien <i>et</i> le rendement en 💎. Rien lancé = idle pur intouchable.</p>
+
+        <div class="mc-weather" id="mcWeather"></div>
+
+        <!-- Lancement (aucune session) -->
+        <div id="mcLaunchPanel">
+          <div class="mc-field">
+            <label>Allocation (carburant) : <b id="mcAllocVal">$0</b> <span class="hint">/ max <span id="mcAllocMax">$0</span></span></label>
+            <input type="range" id="mcAllocSlider" min="0" max="100" value="50">
+          </div>
+          <div class="mc-field">
+            <label>Durée : <b id="mcDurVal">1.0</b> h <span class="hint">/ max <span id="mcDurMax">4</span> h</span></label>
+            <input type="range" id="mcDurSlider" min="0.25" max="4" step="0.25" value="1">
+          </div>
+          <div class="mc-proj" id="mcProj"></div>
+          <button class="big-btn" id="mcLaunchBtn">Lancer la session</button>
+        </div>
+
+        <!-- Session active -->
+        <div id="mcActivePanel" style="display:none">
+          <div class="mc-bar"><div class="mc-bar-fill" id="mcFuelBar"></div></div>
+          <div class="mc-stat">Carburant restant : <b id="mcFuel">$0</b></div>
+          <div class="mc-stat">Gemmes accumulées : 💎 <b id="mcGems">0</b></div>
+          <div class="mc-stat">Temps restant : <b id="mcTime">—</b></div>
+          <div class="mc-stat" id="mcRegimeNow"></div>
+          <button class="big-btn can" id="mcCloseBtn">Clôturer maintenant (collecter 💎)</button>
+          <p class="hint">Hors-ligne, la session continue sur toute la fenêtre choisie (non plafonnée). Lis la météo avant de lancer.</p>
+        </div>
+
+        <!-- Margin Call (carburant épuisé) -->
+        <div id="mcBlownPanel" style="display:none">
+          <div class="mc-blown">💥 Margin Call ! Le carburant alloué a été consumé.</div>
+          <div class="mc-stat">Gemmes gagnées à collecter : 💎 <b id="mcBlownGems">0</b></div>
+          <button class="big-btn can" id="mcCollectBtn">Collecter 💎 &amp; relancer</button>
+        </div>
+
+        <div class="mc-last" id="mcLast"></div>
+      </div>
+
     </div>
   </div>
 
@@ -743,6 +801,7 @@
     { key: "CRASH", label: "Krach",           emoji: "💥", color: "#ff5470", weight: 11 },
   ];
   const REGIME_TOTAL = REGIMES.reduce((s, r) => s + r.weight, 0);
+  const REGIME_BY_KEY = Object.fromEntries(REGIMES.map(r => [r.key, r]));
   // PRNG déterministe (mulberry32) — PAS de Math.random (non partageable) : seedé par le temps.
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   // Tirage pondéré déterministe d'un régime pour un palier (époque) donné.
@@ -1262,6 +1321,64 @@
   }
   function openObjectives() { showScreen("objectives"); render(); }
 
+  // --- 🎰 Margin Call (UI) ----------------------------------------------
+  function openMarginCall() { showScreen("margincall"); render(); }
+  function utcHM(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()); }
+  // Lit les sliders → allocation (cash) + durée, bornées par les caps et le cash dispo.
+  function mcLaunchInputs() {
+    const pct = (+document.getElementById("mcAllocSlider").value) / 100;
+    const maxAlloc = Math.min(mcMaxAlloc(), Math.floor(state.cash));
+    const alloc = Math.floor(maxAlloc * pct);
+    let durH = +document.getElementById("mcDurSlider").value;
+    durH = Math.min(Math.max(MC_MIN_DUR_H, durH), mcMaxDurationH());
+    return { alloc: alloc, durH: durH };
+  }
+  function renderMarginCall() {
+    const w = world();
+    document.getElementById("mcRep").textContent = fmt(mcRep());
+    document.getElementById("mcWeather").innerHTML =
+      `<span style="font-size:20px">${w.emoji}</span> Marché mondial : <b style="color:${w.color}">${w.label}</b> · jusqu'à ${utcHM(w.until)} UTC · puis ${w.next.emoji} ${w.next.label}`;
+    const s = mcSession();
+    const launch = document.getElementById("mcLaunchPanel");
+    const active = document.getElementById("mcActivePanel");
+    const blown = document.getElementById("mcBlownPanel");
+    if (mcRunning()) {
+      launch.style.display = "none"; active.style.display = "block"; blown.style.display = "none";
+      document.getElementById("mcFuel").textContent = "$" + fmt(s.fuel);
+      document.getElementById("mcGems").textContent = Math.floor(s.gems);
+      document.getElementById("mcTime").textContent = fmtDuration(Math.max(0, (s.endMs - Date.now()) / 1000));
+      document.getElementById("mcFuelBar").style.width = Math.max(0, Math.min(100, 100 * s.fuel / s.alloc)) + "%";
+      document.getElementById("mcRegimeNow").innerHTML =
+        `Régime courant : ${w.emoji} <b style="color:${w.color}">${w.label}</b> — entretien ×${(MC_BURN[w.key] || 1).toFixed(1)}, rendement ×${(MC_YIELD[w.key] || 1).toFixed(2)}`;
+    } else if (mcPending()) {
+      launch.style.display = "none"; active.style.display = "none"; blown.style.display = "block";
+      document.getElementById("mcBlownGems").textContent = Math.floor(s.gems);
+    } else {
+      launch.style.display = "block"; active.style.display = "none"; blown.style.display = "none";
+      const durSlider = document.getElementById("mcDurSlider");
+      durSlider.min = MC_MIN_DUR_H; durSlider.max = mcMaxDurationH().toFixed(2);
+      document.getElementById("mcAllocMax").textContent = "$" + fmt(mcMaxAlloc());
+      document.getElementById("mcDurMax").textContent = mcMaxDurationH().toFixed(1);
+      const inp = mcLaunchInputs();
+      document.getElementById("mcAllocVal").textContent = "$" + fmt(inp.alloc);
+      document.getElementById("mcDurVal").textContent = inp.durH.toFixed(2);
+      const proj = document.getElementById("mcProj");
+      if (inp.alloc > 0) {
+        const p = mcProject(inp.alloc, inp.durH);
+        const reg = p.regimes.map(k => (REGIME_BY_KEY[k] || {}).emoji || "").join(" ");
+        proj.innerHTML = `Projection : ≈💎 <b>${p.gems}</b> · traverse ${reg} · ` +
+          (p.blown ? `<span style="color:#ff5470">risque de margin call avant la fin</span>` : `<span style="color:#34d17a">devrait tenir la durée</span>`);
+      } else {
+        proj.textContent = "Choisis une allocation pour voir la projection.";
+      }
+      document.getElementById("mcLaunchBtn").classList.toggle("can", inp.alloc > 0);
+    }
+    const lr = mcState().lastResult;
+    document.getElementById("mcLast").innerHTML = lr
+      ? `Dernière session : ${lr.blown ? "💥 margin call" : "✅ clôturée"} · 💎 ${lr.gems} gagnées`
+      : "";
+  }
+
   // --- Atelier Héros (page TEMPORAIRE : prototype du parcours simplifié en 3 gestes) -------
   // But : valider l'UX "Invoquer → Renforcer → Placer" avant de démonter l'ancien système.
   // Branché sur les vraies fonctions méta V2 (pullFrags/fuseBuffer/mintCopy/toggleBuffer).
@@ -1741,6 +1858,7 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
+    document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
     setActiveNav();
   }
   function setActiveNav() {
@@ -1880,6 +1998,7 @@
     if (screen === "module") renderModulePage();
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
+    else if (screen === "margincall") renderMarginCall();
     else renderOverview();
     renderAbilities();
   }
@@ -2023,7 +2142,10 @@
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
-    if (mcRunning()) mcAdvance(now);   // 🎰 Margin Call : avance la session active (inerte si OFF)
+    if (mcRunning()) {   // 🎰 Margin Call : avance la session active (inerte si OFF)
+      mcAdvance(now);
+      if (!mcRunning()) { save(); toast(mcPending() ? "💥 Margin Call ! Carburant épuisé." : "🎰 Session clôturée (gemmes collectées)."); }
+    }
     if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
     checkObjectives();
     render();
@@ -2051,8 +2173,25 @@
     const nav = b.dataset.nav;
     if (nav === "heroes") openHeroes();
     else if (nav === "objectives") openObjectives();
+    else if (nav === "margincall") openMarginCall();
     else backToOverview();
   }));
+
+  // 🎰 Margin Call : listeners (attachés une fois ; renderMarginCall ne met à jour que les valeurs)
+  document.getElementById("mcBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("mcAllocSlider").addEventListener("input", () => { if (screen === "margincall") renderMarginCall(); });
+  document.getElementById("mcDurSlider").addEventListener("input", () => { if (screen === "margincall") renderMarginCall(); });
+  document.getElementById("mcLaunchBtn").addEventListener("click", () => {
+    const inp = mcLaunchInputs();
+    if (mcLaunch(inp.alloc, inp.durH)) { toast(`🎰 Session lancée : $${fmt(inp.alloc)} sur ${inp.durH.toFixed(2)} h`); render(); save(); }
+    else toast("Allocation invalide ou session déjà en cours");
+  });
+  document.getElementById("mcCloseBtn").addEventListener("click", () => {
+    const g = mcCollect(); toast(`🎰 Clôturé · +💎 ${g}`); render(); save();
+  });
+  document.getElementById("mcCollectBtn").addEventListener("click", () => {
+    const g = mcCollect(); toast(`💥 Collecté · +💎 ${g}`); render(); save();
+  });
 
   // Horloge UTC (heure du jeu) — barre du haut : Jour - JJ/MM/AAAA : HH:MM:SS UTC
   const JOURS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
