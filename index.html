@@ -136,7 +136,7 @@
   .panel {
     background: var(--panel);
     border-radius: 16px;
-    padding: 20px;
+    padding: 14px;
     box-shadow: var(--shadow);
     border: 1px solid #1d3d2c;
   }
@@ -205,12 +205,12 @@
   .branches {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
     border-left: 2px solid #234534;
-    margin-left: 14px;
-    padding-left: 10px;
+    margin-left: 10px;
+    padding-left: 8px;
   }
-  .synbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+  .synbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0; font-size: 12px; color: var(--muted); }
   .synpill { background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 2px 9px; font-weight: 700; }
 
   .row { display: flex; align-items: stretch; gap: 3px; }
@@ -229,7 +229,7 @@
     background: var(--panel-2);
     border: 2px solid #2a4d3a;
     border-radius: 12px;
-    padding: 6px 4px;
+    padding: 4px 3px;
     text-align: center;
     cursor: pointer;
     user-select: none;
@@ -645,8 +645,6 @@
     <div class="panel" id="screensPanel">
       <!-- Vue d'ensemble -->
       <div id="overviewScreen">
-        <h2>🔗 Cash Flow</h2>
-        <p class="hint">Tape un module pour ouvrir sa page (connecter / améliorer).</p>
         <div class="tabs" id="dexTabs"></div>
         <div class="synbar" id="synbar"></div>
         <div class="branches" id="branches"></div>
@@ -2288,9 +2286,9 @@
 
   function renderOverview() {
     const syns = activeSynergies(dex(state.currentDex));
-    document.getElementById("synbar").innerHTML = syns.length
-      ? "⚡ Synergies actives : " + syns.map(s => `<span class="synpill">${s.name} ×${s.mult}</span>`).join(" ")
-      : `<span style="opacity:.6">⚡ Aucune synergie active — déploie tous les héros d'un bras (ou d'un thème)</span>`;
+    const synbar = document.getElementById("synbar");
+    if (syns.length) { synbar.style.display = "flex"; synbar.innerHTML = "⚡ Synergies : " + syns.map(s => `<span class="synpill">${s.name} ×${s.mult}</span>`).join(" "); }
+    else { synbar.style.display = "none"; synbar.innerHTML = ""; }   // masquée quand aucune synergie (gagne de la place)
     ASSETS.forEach(n => {
       const card = document.getElementById("node-" + n.id);
       const info = document.getElementById("info-" + n.id);
