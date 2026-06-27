@@ -56,7 +56,7 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=23** (retrait du terminal Exchange).
+  Version actuelle : **v=25** (refonte UI : compte cloud re-logé dans la modale ⚙️ Réglages).
 - **Workflow git** : l'utilisateur push directement sur `main` ; **le jeu se déploie depuis `main`**.
 - **Déploiement (GitHub Pages via Actions `.github/workflows/pages.yml`)** : `build_type: workflow`, gardé par
   l'**environnement `github-pages`** dont la *deployment-branch-policy* liste les branches autorisées.
@@ -434,7 +434,52 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   les valeurs seulement (sliders non clobberés par le game loop 10×/s).
 - **RESTE** : **checkpoint de tuning** (4 leviers feel — vitesse du cycle/poids régimes, courbe entretien/régime,
   conversion alloc→gemmes/net-positif, caps réputation) à valider **avec le joueur** ; polish réputation
-  (afficher le palier) + UX. Bump `?v=` **non requis** (tout est dans `index.html`, `cloud.js` intact).
+  (afficher le palier) + UX.
+
+### 🎨 REFONTE UI (« app mobile ») + PUMP + simplification — **EN COURS (2026-06-27, même branche), poussé sur `main` au fil de l'eau**
+Bascule d'une longue colonne vers une **app à nav du bas + page d'accueil (Lobby) = hub d'action**. Tout poussé
+live sur `main` (le joueur teste en PWA « écran d'accueil » → bouton **🔄 Mettre à jour** = `location.reload`).
+Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`cloud.js?v=25`**.
+
+- **Shell** : **en-tête permanent 2 rangées** (`.appheader` flex column) — R1 avatar + pseudo + (rang Valo
+  `×mult` · prod/s) + **☁️ compte** (injecté par `cloud.js` dans `#cloudSlot`, **logé dans la modale ⚙️**) + **⚙️
+  Réglages** ; R2 chips **💵 cash** · **💎 gemmes (bouton → modale d'achat `#gemsOv`)** · **📈 Promotion** (Valo,
+  sortie des réglages, pastille « abordable »). **Nav du bas flottante** `.bottomnav` (5 dest. : Cash Flow ·
+  Objectifs · **Lobby 🏠** · Inventaire · Atelier ; remontée ~22px du bas). **⚙️ Réglages** = Sauver / Réinitialiser
+  + **🔄 Mettre à jour** + compte. `showScreen` gère `lobby/overview/module/heroes/objectives/inventaire/margincall`
+  (navKey pilote la surbrillance ; écrans internes ne la changent pas).
+- **🏠 LOBBY = hub d'action** (billet + Pump + compétences + Margin Call, **uniquement ici** ; le billet
+  n'apparaît plus ailleurs). Mise en page **flex robuste** : `body`/`.appmain` remplissent la hauteur (`100dvh`),
+  les boutons d'action sont poussés en bas (`margin-top:auto`) → **tient sur un écran**, sans offset magique.
+- **PUMP (`pumpGauge`/`pumpMult`/`pumpTap`/`pumpDecay`)** : taper le billet remplit la jauge (~8 taps,
+  redescend sinon) ; **multiplicateur VIVANT sur la prod** selon le palier (×2/×3/×5), **sommet → ×10 verrouillé
+  30 s** (`pumpLockUntil`) puis réarmement. `perSecond ×= pumpMult()` (hors indice base du prix gemme). 100 %
+  optionnel. **Effet « MAX ! »** spectaculaire au sommet (`crashEffect`) : **flash plein écran** `#crashFx` +
+  **secousse** `.appmain.shake` + **gros texte « 💥 MAX ! PRODUCTION ×10 »** (anim ~2,3 s). Constantes
+  `PUMP_PER_TAP`/`PUMP_DECAY`/`PUMP_LOCK_MS`/`PUMP_PALIERS` **PROVISOIRES**. (Audio à ajouter plus tard.)
+- **⚡ Compétences groupées** : **un seul bouton** (Lobby) déclenche toutes les signatures prêtes des héros
+  déployés (`fireAllSkills`) ; ancienne barre d'abilities retirée. **Pastilles rouges = action POSSIBLE,
+  ÉTEINTES par défaut** (`updateDots`/`setDot`), calculées à la volée (jamais décoratives).
+- **Simplification décidée (2026-06-27)** : héros **actifs gardés** · profondeur **+ largeur gardées** · **GEAR
+  APLATI** → bonus de prod **passif auto** (`state.gearTier`/`gearMult`/`gearTierCost`/`gearAutoLevel` ; +1 %/palier,
+  les `gearFrags` s'investissent seuls online+offline). **Retirés du jeu** : slots de gear, pool qualitatif,
+  étape « Équiper » du workshop ; `gearBonus`/`gearQual` neutralisés. Bonus affiché dans ⚙️. **TUNABLE** (`GEAR_STEP`).
+- **Split 📦 Inventaire / ⚗️ Atelier (mapping A possession/fabrication)** : Inventaire = héros **possédés**
+  (`renderInventaire`, clic → fiche) ; Atelier = l'ancien écran Codex (grille 18 → fiche + workshop 3 étapes
+  Invoquer/Renforcer/Placer). `openInventaire`/`#inventaireScreen`.
+- **Cash Flow compacté** : les **18 modules tiennent sur un écran** (titre/hint retirés, cartes/marges serrées,
+  synbar masquée si vide), écart Dex↔grille élargi, + **bouton 🤖 Auto-achat ON/OFF** placé sous la grille
+  (espace au-dessus de la nav, via flex).
+- **À VENIR** : **TUTO** (guidé & sautable — voir plus bas) ; le joueur retravaille **l'affichage Inventaire/
+  Atelier** ; checkpoint de tuning Margin Call + Pump ; **audio** (Pump/MAX, à concevoir).
+
+#### Tuto — design validé (2026-06-27, à coder)
+**Guidé & sautable.** **Bulle à chaque étape** du cycle cœur (~8 gestes, une fois), puis **un pop contextuel**
+la 1ʳᵉ fois pour les systèmes optionnels/avancés. **Cycle cœur** : 🏠 billet/Pump → 🔗 connecter+améliorer un
+module → 💎 acheter gemmes → ⚗️ invoquer→fusionner→placer un héros → 📈 prendre une Valo → (clôture « les 🔴 te
+guident »). **Découvertes contextuelles** (un pop) : ⚡ compétences, copies (largeur), 🎰 Margin Call, 📦 Inventaire.
+Le gear n'est **plus une action** (bonus passif) → hors tuto. Technique : machine à états `state.tuto`, surbrillance
++ bulle, avance au **vrai geste**, vieilles saves `tuto.done=true` en silence (cf. `seedObjectives`).
 
 ---
 
