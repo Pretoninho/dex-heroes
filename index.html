@@ -2655,7 +2655,22 @@
   document.getElementById("settingsBtn").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "flex"; render(); });
   document.getElementById("settingsClose").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "none"; });
   document.getElementById("settingsOv").addEventListener("click", (e) => { if (e.target.id === "settingsOv") e.currentTarget.style.display = "none"; });
-  document.getElementById("refreshBtn").addEventListener("click", () => location.reload());
+  document.getElementById("refreshBtn").addEventListener("click", async () => {
+    // Sauve d'abord (au cas où) puis force un rechargement SANS cache :
+    // sur iOS/PWA, location.reload() ressert souvent l'index.html depuis le cache HTTP.
+    try { save(); } catch (e) {}
+    try {
+      // Purge les caches d'un éventuel service worker.
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) {}
+    // Recharge avec un paramètre de version unique => nouvelle URL => vrai re-téléchargement.
+    const u = new URL(location.href);
+    u.searchParams.set("v", Date.now().toString(36));
+    location.replace(u.toString());
+  });
   // 💎 Achat de gemmes (modale depuis le compteur de l'en-tête)
   document.getElementById("gemsBtn").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "flex"; render(); });
   document.getElementById("gemsClose").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "none"; });
