@@ -528,6 +528,11 @@
     padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px)); }
   /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
   #lobbyScreen { flex: 1; flex-direction: column; }
+  /* Cash Flow remplit aussi la hauteur → le bouton Auto se cale dans l'espace restant, au-dessus de la nav. */
+  #screensPanel { flex: 1 1 auto; flex-direction: column; }
+  #overviewScreen { flex: 1; flex-direction: column; }
+  .cf-auto { display: flex; justify-content: center; margin-top: auto; padding-top: 14px; }
+  .cf-auto .btn { min-width: 200px; padding: 12px 18px; font-size: 15px; }
   .appmain > .panel { width: auto; }
 
   .bottomnav { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
@@ -648,6 +653,7 @@
         <div class="tabs" id="dexTabs"></div>
         <div class="synbar" id="synbar"></div>
         <div class="branches" id="branches"></div>
+        <div class="cf-auto"><button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button></div>
       </div>
 
       <!-- Page d'un module -->
@@ -804,7 +810,6 @@
       <div class="stat" style="margin:0 0 12px">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
       <div class="stat" style="margin:0 0 12px">🛠️ Équipement (passif) : <b id="gearReadout">+0 % prod</b> <span class="hint" id="gearReadoutSub"></span></div>
       <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button>
         <button class="btn" id="saveBtn">💾 Sauver</button>
         <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
       </div>
@@ -2095,8 +2100,8 @@
   function showScreen(name) {
     screen = name;
     document.getElementById("lobbyScreen").style.display = name === "lobby" ? "flex" : "none";
-    document.getElementById("screensPanel").style.display = name === "lobby" ? "none" : "block";
-    document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
+    document.getElementById("screensPanel").style.display = name === "lobby" ? "none" : "flex";
+    document.getElementById("overviewScreen").style.display = name === "overview" ? "flex" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
