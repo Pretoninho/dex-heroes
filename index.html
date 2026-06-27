@@ -1235,6 +1235,7 @@
       valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
       objectives: {},              // 🎯 (legacy one-shot, conservé pour compat ; remplacé par quests)
       quests: {},                  // 🎯 objectifs RECYCLABLES : { questKey: palier réclamé }
+      pumpMaxCount: 0,             // 💥 nb de fois où le Pump a atteint ×10 (objectif « MAX »)
       mc: { rep: 0, session: null, lastResult: null },   // 🎰 MARGIN CALL : OFF par défaut (session null = idle pur intouchable)
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
@@ -1298,6 +1299,7 @@
     if (typeof state.valoRank !== "number" || state.valoRank < 0) state.valoRank = 0;
     const hadObjectives = saved && saved.objectives && typeof saved.objectives === "object";
     if (!state.objectives || typeof state.objectives !== "object") state.objectives = {};
+    if (typeof state.pumpMaxCount !== "number" || state.pumpMaxCount < 0) state.pumpMaxCount = 0;
     if (!hadObjectives) seedObjectives();   // save d'avant la feature : marque les jalons déjà atteints SANS récompense
     seedQuests();   // 🎯 objectifs recyclables : amorce les paliers au niveau courant (silencieux, par type manquant)
     // 🎰 Margin Call : normalisation (OFF par défaut = saves d'avant la feature non concernées).
@@ -1478,11 +1480,17 @@
   // « action dispo »). Le palier monte à chaque réclamation. Récompense en gemmes, croissante.
   function totalLevels() { let n = 0; state.dexes.forEach(d => { if (d.levels) Object.keys(d.levels).forEach(id => n += d.levels[id] || 0); }); return n; }
   function totalBufferLevels() { let n = 0; ASSETS.forEach(a => n += bufferLvl(a.id)); return n; }
+  function totalCopies() { let n = 0; if (state.heroes) Object.keys(state.heroes).forEach(id => n += state.heroes[id] || 0); return n; }
   const QUESTS = [
-    { key: "prod", icon: "💵", label: "Production",          value: () => perSecond(),        base: 50, growth: 8, rw: 200, fmt: v => "$" + fmt(v) },
-    { key: "upg",  icon: "🔗", label: "Améliorations",       value: () => totalLevels(),       base: 30, growth: 4, rw: 150, fmt: v => fmt(Math.floor(v)) },
-    { key: "buff", icon: "🦸", label: "Niveaux de buffeurs", value: () => totalBufferLevels(), base: 5,  growth: 3, rw: 300, fmt: v => fmt(Math.floor(v)) },
-    { key: "valo", icon: "🏛️", label: "Rang d'entreprise",   value: () => valoRankNum(),       base: 1,  step: 1, linear: true, rw: 500, fmt: v => fmt(Math.floor(v)) },
+    { key: "prod", icon: "💵", label: "Production",          value: () => perSecond(),            base: 50,  growth: 8, rw: 200, fmt: v => "$" + fmt(v) },
+    { key: "upg",  icon: "🔗", label: "Améliorations",       value: () => totalLevels(),          base: 30,  growth: 4, rw: 150, fmt: v => fmt(Math.floor(v)) },
+    { key: "buff", icon: "🦸", label: "Niveaux de buffeurs", value: () => totalBufferLevels(),    base: 5,   growth: 3, rw: 300, fmt: v => fmt(Math.floor(v)) },
+    { key: "valo", icon: "🏛️", label: "Rang d'entreprise",   value: () => valoRankNum(),          base: 1,   step: 1, linear: true,  rw: 500, fmt: v => fmt(Math.floor(v)) },
+    { key: "gear", icon: "🛠️", label: "Équipement",          value: () => gearTier(),             base: 5,   step: 5, linear: true,  rw: 250, fmt: v => fmt(Math.floor(v)) },
+    { key: "coll", icon: "📦", label: "Collection",          value: () => totalCopies(),          base: 6,   step: 6, linear: true,  rw: 250, fmt: v => fmt(Math.floor(v)) },
+    { key: "rep",  icon: "🎰", label: "Réputation",          value: () => mcRep(),                base: 500, growth: 4, rw: 300, fmt: v => fmt(Math.floor(v)) },
+    { key: "trez", icon: "💎", label: "Trésor",              value: () => state.gems || 0,        base: 500, growth: 5, rw: 150, fmt: v => fmt(Math.floor(v)) },
+    { key: "max",  icon: "💥", label: "MAX (Pump)",          value: () => state.pumpMaxCount || 0, base: 1,  step: 2, linear: true,  rw: 200, fmt: v => fmt(Math.floor(v)) },
   ];
   function questThreshold(q, t) { return q.linear ? q.base + t * (q.step || 1) : Math.round(q.base * Math.pow(q.growth, t)); }
   function questPrev(q, t) { return t <= 0 ? 0 : questThreshold(q, t - 1); }
@@ -1887,7 +1895,7 @@
     if (pumpLocked()) return;
     pumpGauge = Math.min(1, pumpGauge + PUMP_PER_TAP);
     lastPumpTap = Date.now();
-    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; crashEffect(); toast("💥 MAX ! Production ×10 pendant 30 s"); }
+    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; state.pumpMaxCount = (state.pumpMaxCount || 0) + 1; crashEffect(); toast("💥 MAX ! Production ×10 pendant 30 s"); }
   }
   // 💥 Effet spectaculaire au sommet (MAX → ×10 verrouillé) : flash + secousse + gros texte.
   function crashEffect() {
