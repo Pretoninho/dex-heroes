@@ -1127,7 +1127,12 @@
   // plusieurs (anti set-and-forget : une session longue traverse BULL→…→CRASH). Pas de hand-
   // authoring infini — on boucle ; la prévisibilité est VOULUE (le joueur lit la météo). TUNABLE.
   const REGIME_CYCLE = ["CRABE", "BULL", "HYPE", "BULL", "CRABE", "BEAR", "CRASH", "BEAR"];
-  const REGIME_PHASE_SEC = 240;   // durée d'une phase (4 min) — TUNABLE (vitesse du cycle)
+  // POINT 1 (bloc 1) — VALIDÉ 2026-06-27 : durée d'une phase = 240 s (4 min). Cycle complet =
+  // 8 × 4 min = 32 min (cadence naturelle « je repasse dans la demi-heure »). Reste TUNABLE
+  // (seul levier : vitesse du cycle). ⚠️ INVARIANT anti-set-and-forget (#1 ↔ #5) :
+  // garder REGIME_PHASE_SEC < DUR_MIN (bloc 2) → même la session la plus courte traverse ≥ 1
+  // transition de régime. Le garde-fou runtime sera branché quand DUR_MIN existera.
+  const REGIME_PHASE_SEC = 240;
 
   // Index de phase global depuis l'epoch UTC (déterministe, partagé).
   function regimePhaseIndex(ms) { return Math.floor((ms / 1000) / REGIME_PHASE_SEC); }
