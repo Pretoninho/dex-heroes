@@ -600,13 +600,13 @@
   .pump-state { font-size: 13px; color: var(--accent-2); font-weight: 700; min-height: 16px; }
   .click-hint { color: var(--muted); font-size: 12px; }
 
-  /* ⚗️ Fiche Atelier (fabrication) : calage flex pour tenir sur un écran, bascule en bas */
-  #heroesScreen { flex: 1; flex-direction: column; }
-  #heroFiche { flex: 1; flex-direction: column; }
+  /* ⚗️ Fiche Atelier : flux naturel (hauteur = contenu, pas de grow/shrink) -> .appmain
+     defile toujours. Le flex:1 + margin-top:auto clippait le contenu sur iOS sans scroll. */
+  #heroesScreen { flex: 0 0 auto; flex-direction: column; }
+  #heroFiche { flex: 0 0 auto; flex-direction: column; }
   #heroFiche .fiche-emoji { font-size: 34px; } #heroFiche .fiche-name { font-size: 18px; }
   #heroFiche > #ficheBackBtn { align-self: flex-start; margin-bottom: 6px; }
-  /* atlWorkshop grandit pour remplir la fiche -> le toggle (margin-top:auto) s'epingle en bas, comme le bouton Auto de Cash Flow. */
-  #atlWorkshop { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  #atlWorkshop { display: flex; flex-direction: column; gap: 8px; }
   .atl-invoke { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 10px; }
   .atl-frag { font-size: 14px; margin-bottom: 8px; } .atl-frag b { color: var(--accent); }
   .atl-btnrow { display: flex; gap: 8px; margin-top: 6px; }
@@ -622,7 +622,7 @@
   @keyframes fusGlow { 50% { box-shadow: 0 0 26px rgba(52,209,122,.85); } }
   .atl-place { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 8px 10px; }
   .atl-place .atl-modrow { padding: 7px 2px; }
-  .atl-modeswitch { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
+  .atl-modeswitch { display: flex; gap: 10px; margin-top: 12px; }
   .atl-modeswitch .btn { flex: 1; padding: 12px; font-size: 15px; font-weight: 700; }
   .atl-modeswitch .btn.can { border-color: var(--accent); color: var(--accent); }
 
