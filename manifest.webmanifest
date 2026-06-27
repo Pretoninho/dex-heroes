@@ -1,0 +1,10 @@
+{
+  "name": "Dex Heroes",
+  "short_name": "Dex Heroes",
+  "description": "Idle game finance (parodie).",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1f17",
+  "theme_color": "#0d1f17"
+}
