@@ -553,7 +553,7 @@
   #cloudSlot .cloudtab { width: 100%; justify-content: center; border-radius: 8px; padding: 10px; font-size: 14px; }
 
   .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
-    padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px)); }
+    padding: 0 0 calc(120px + env(safe-area-inset-bottom, 0px)); }
   /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
   #lobbyScreen { flex: 1; flex-direction: column; }
   /* Cash Flow remplit aussi la hauteur → le bouton Auto se cale dans l'espace restant, au-dessus de la nav. */
@@ -597,7 +597,7 @@
 
   /* ⚗️ Fiche Atelier (fabrication) : calage flex pour tenir sur un écran, bascule en bas */
   #heroesScreen { flex: 1 0 auto; flex-direction: column; }
-  #heroFiche { flex: 0 0 auto; flex-direction: column; }
+  #heroFiche { flex: 1 0 auto; flex-direction: column; }
   #heroFiche .fiche-emoji { font-size: 34px; } #heroFiche .fiche-name { font-size: 18px; }
   #heroFiche > #ficheBackBtn { align-self: flex-start; margin-bottom: 6px; }
   #atlWorkshop { display: flex; flex-direction: column; gap: 8px; }
@@ -616,7 +616,7 @@
   @keyframes fusGlow { 50% { box-shadow: 0 0 26px rgba(52,209,122,.85); } }
   .atl-place { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 8px 10px; }
   .atl-place .atl-modrow { padding: 7px 2px; }
-  .atl-modeswitch { display: flex; gap: 10px; margin-top: 12px; }
+  .atl-modeswitch { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
   .atl-modeswitch .btn { flex: 1; padding: 12px; font-size: 15px; font-weight: 700; }
   .atl-modeswitch .btn.can { border-color: var(--accent); color: var(--accent); }
 
