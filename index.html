@@ -1016,6 +1016,7 @@
       autoBuy: false,              // automatisation : auto-améliorer le module le moins cher
       valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
       objectives: {},              // 🎯 jalons atteints { objId: true } (récompense versée une fois)
+      mc: { rep: 0, session: null, lastResult: null },   // 🎰 MARGIN CALL : OFF par défaut (session null = idle pur intouchable)
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
       gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
@@ -1077,6 +1078,11 @@
     const hadObjectives = saved && saved.objectives && typeof saved.objectives === "object";
     if (!state.objectives || typeof state.objectives !== "object") state.objectives = {};
     if (!hadObjectives) seedObjectives();   // save d'avant la feature : marque les jalons déjà atteints SANS récompense
+    // 🎰 Margin Call : normalisation (OFF par défaut = saves d'avant la feature non concernées).
+    if (!state.mc || typeof state.mc !== "object") state.mc = { rep: 0, session: null, lastResult: null };
+    if (typeof state.mc.rep !== "number" || state.mc.rep < 0) state.mc.rep = 0;
+    if (state.mc.session && typeof state.mc.session !== "object") state.mc.session = null;
+    if (!("lastResult" in state.mc)) state.mc.lastResult = null;
   }
 
   // Ancien gacha RNG (tirage de héros entiers) RETIRÉ — remplacé par l'invocation ciblée de
@@ -1413,6 +1419,122 @@
     save();
   }
 
+  // === 🎰 MARGIN CALL (phase 2) — pari ACTIF opt-in, par-dessus l'idle pur ==============
+  // OFF par défaut = idle pur INTOUCHABLE (zéro conso, zéro risque tant qu'aucune session
+  // n'est lancée). Le joueur ALLOUE du cash (carburant), choisit durée × montant × moment ;
+  // le RÉGIME — world(), partagé par tous — pilote le taux d'entretien ET le rendement en
+  // gemmes. Margin Call = carburant épuisé → activité en PAUSE jusqu'à relance ; fin de durée
+  // → clôture auto (rend le carburant non brûlé). On ne perd JAMAIS que le carburant misé ;
+  // le faucet de base du module n'est pas touché (moteur abstrait, n'altère pas la prod).
+  // ⚠️ ÉCONOMIE PROVISOIRE — à CALER au checkpoint de tuning final (avec le cycle world()).
+  const MC_MODULE         = "a1t0";   // module pilote : Bourse (bras trading)
+  const MC_MIN_DUR_H      = 0.25;     // durée mini d'une session (15 min)
+  const MC_BASE_MAX_DUR_H = 4;        // durée max de base (heures) — repoussée par la réputation
+  const MC_ALLOC_SECONDS  = 120;      // allocation max de base = 120 s de production — repoussée par la réputation
+  const MC_REP_BASE       = 500;      // gemmes cumulées pour franchir le 1er palier de réputation
+  // Multiplicateurs par régime (× taux neutre CRABE). Entretien : BULL cheap → CRASH violent.
+  const MC_BURN  = { BULL: 0.6, HYPE: 0.8, CRABE: 1.0, BEAR: 1.4, CRASH: 2.2 };
+  // Headroom de combustion : <1 → le carburant tient PLUS longtemps que la durée en régime
+  // neutre (marge de sécurité). 0,8 ⇒ ~27 % de margin call aux réglages MAX (4 h, alloc max),
+  // bien moins sur des sessions courtes/petites. Levier de tuning du risque.
+  const MC_BURN_BASE = 0.8;
+  // Rendement gemmes : généreux BULL/HYPE, maigre BEAR/CRASH. Calibré NET-POSITIF en moyenne
+  // (~×1,16 de gemmes vs achat direct, par cash réellement consommé). À affiner au checkpoint.
+  const MC_YIELD = { BULL: 1.9, HYPE: 2.25, CRABE: 1.25, BEAR: 0.88, CRASH: 0.63 };
+
+  function mcState() { return state.mc || (state.mc = { rep: 0, session: null, lastResult: null }); }
+  function mcRep() { return mcState().rep || 0; }
+  function mcRepTier() { return Math.floor(Math.log2(1 + mcRep() / MC_REP_BASE)); }   // 0 tant que rep < base
+  function mcMaxDurationH() { return MC_BASE_MAX_DUR_H * (1 + 0.5 * mcRepTier()); }    // +50 %/palier
+  function mcMaxAlloc() { return Math.ceil(perSecond(true) * MC_ALLOC_SECONDS * (1 + 0.5 * mcRepTier())); }  // indexé prod + rép
+  function mcRepYield() { return 0.05 * mcRepTier(); }                                 // +5 %/palier de rendement
+  function mcSession() { return mcState().session; }
+  function mcRunning() { const s = mcSession(); return !!(s && !s.blown); }            // session en cours (non blown)
+  function mcPending() { const s = mcSession(); return !!(s && s.blown); }             // margin call → gemmes à collecter
+
+  // Lance une session : ponctionne l'allocation (cash → carburant), borne par caps + cash dispo.
+  function mcLaunch(alloc, durH) {
+    const s = mcSession();
+    if (s && !s.blown) return false;            // déjà une session active
+    if (s && s.blown) mcCollect();              // collecte d'abord un margin call non résolu
+    alloc = Math.min(Math.max(0, Math.floor(alloc)), Math.floor(state.cash), mcMaxAlloc());
+    durH = Math.min(Math.max(MC_MIN_DUR_H, durH), mcMaxDurationH());
+    if (alloc <= 0) return false;
+    const now = Date.now();
+    state.cash -= alloc;
+    mcState().session = {
+      moduleId: MC_MODULE, alloc: alloc, fuel: alloc,
+      durSec: durH * 3600, startMs: now, endMs: now + durH * 3600 * 1000,
+      lastMs: now, gems: 0, blown: false, gemPrice0: gemPrice(),
+    };
+    return true;
+  }
+
+  // Collecte la session courante (clôture propre OU margin call) : verse gemmes + réputation.
+  function mcCollect() {
+    const s = mcSession(); if (!s) return 0;
+    const g = Math.floor(s.gems);
+    state.gems = (state.gems || 0) + g;
+    if (!s.blown) state.cash += Math.max(0, s.fuel);   // clôture propre : rend le carburant non brûlé
+    mcState().rep = (mcState().rep || 0) + g;           // réputation = gemmes gagnées (cumul, interne au mini-jeu)
+    mcState().lastResult = { gems: g, blown: !!s.blown, alloc: s.alloc, endMs: s.endMs };
+    mcState().session = null;
+    return g;
+  }
+
+  // Avance la session active de session.lastMs jusqu'à toMs, PAR PALIERS DE RÉGIME (world()).
+  // Online (loop) ET hors-ligne (load, NON capé : responsabilité assumée du joueur). Le régime
+  // étant déterministe, l'intégration hors-ligne reproduit exactement le déroulé en ligne.
+  function mcAdvance(toMs) {
+    const s = mcSession(); if (!s || s.blown) return;
+    let cursor = s.lastMs;
+    const hardEnd = Math.min(toMs, s.endMs);
+    let guard = 0;
+    while (cursor < hardEnd && !s.blown && guard++ < 20000) {
+      const w = world(cursor);
+      const chunkEnd = Math.min(hardEnd, w.until);
+      let secs = (chunkEnd - cursor) / 1000;
+      const burnPerSec = (s.alloc / s.durSec) * (MC_BURN[w.key] || 1) * MC_BURN_BASE;
+      const yieldMul = (MC_YIELD[w.key] || 1) * (1 + mcRepYield());
+      const tToBlow = burnPerSec > 0 ? s.fuel / burnPerSec : Infinity;
+      if (tToBlow <= secs) {                       // 💥 Margin Call dans ce palier
+        s.gems += (s.fuel / s.gemPrice0) * yieldMul;
+        s.fuel = 0; s.blown = true;
+        cursor += tToBlow * 1000;
+        break;
+      }
+      const burned = burnPerSec * secs;
+      s.fuel -= burned;
+      s.gems += (burned / s.gemPrice0) * yieldMul;
+      cursor = chunkEnd;
+    }
+    s.lastMs = cursor;
+    if (!s.blown && cursor >= s.endMs) mcCollect();   // fin de durée → clôture/auto-désactivation
+  }
+
+  // Projection AVANT lancement : déroule une session hypothétique sur la fenêtre choisie
+  // (mêmes formules que mcAdvance, régime déterministe) → gemmes estimées + risque de margin call.
+  function mcProject(alloc, durH) {
+    alloc = Math.min(Math.max(0, alloc), mcMaxAlloc());
+    durH = Math.min(Math.max(MC_MIN_DUR_H, durH), mcMaxDurationH());
+    const now = Date.now(), endMs = now + durH * 3600 * 1000, durSec = durH * 3600, gp = gemPrice();
+    let cursor = now, fuel = alloc, gems = 0, blown = false, blowAt = 0, guard = 0;
+    const regimes = [];
+    while (cursor < endMs && !blown && guard++ < 20000) {
+      const w = world(cursor);
+      if (!regimes.includes(w.key)) regimes.push(w.key);
+      const chunkEnd = Math.min(endMs, w.until);
+      const secs = (chunkEnd - cursor) / 1000;
+      const burnPerSec = (alloc / durSec) * (MC_BURN[w.key] || 1) * MC_BURN_BASE;
+      const yieldMul = (MC_YIELD[w.key] || 1) * (1 + mcRepYield());
+      const tToBlow = burnPerSec > 0 ? fuel / burnPerSec : Infinity;
+      if (tToBlow <= secs) { gems += (fuel / gp) * yieldMul; blown = true; blowAt = cursor + tToBlow * 1000; break; }
+      const burned = burnPerSec * secs;
+      fuel -= burned; gems += (burned / gp) * yieldMul; cursor = chunkEnd;
+    }
+    return { gems: Math.floor(gems), blown: blown, blowAt: blowAt, fuelLeft: Math.max(0, fuel), regimes: regimes, alloc: alloc, durH: durH };
+  }
+
   // --- Achat / gestion des Dex ------------------------------------------
   function nextDexIndex() { return state.dexes.length; }
   function canBuyDex() { return nextDexIndex() < DEX_DEFS.length; } // TODO: + tous les héros
@@ -1471,6 +1593,9 @@
           if (elapsed >= 60) pendingWelcome = { elapsed: elapsed, eff: eff, cap: cap, gained: gained, capped: elapsed > cap };
         }
       }
+      // 🎰 Margin Call hors-ligne : avance la session sur TOUTE l'absence, NON capée (la fenêtre
+      // de risque est choisie/assumée par le joueur). Régime déterministe → déroulé identique à l'online.
+      if (mcSession()) mcAdvance(Date.now());
     } catch (e) { console.warn("Sauvegarde illisible", e); }
   }
   function save() {
@@ -1898,6 +2023,7 @@
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
+    if (mcRunning()) mcAdvance(now);   // 🎰 Margin Call : avance la session active (inerte si OFF)
     if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
     checkObjectives();
     render();
