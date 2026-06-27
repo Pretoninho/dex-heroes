@@ -462,6 +462,33 @@ gemmes estimé + fenêtre de risque régime sur la durée choisie) → décision
 LOCAL** (cycle déterministe UTC, le champ `regime` des héros est gardé exprès) · **calibrer** le net-positif moyen +
 la courbe taux/régime + conversion allocation→gemmes.
 
+**Chiffres à figer (checklist — TUNABLE, à renseigner avant de coder la consommation).** Vrais leviers
+d'équilibrage = `k` (#11, vitesse de combustion), marge nette moyenne (#17), dispersion `maint`/`reward` (#3/#4).
+Décision **binaire** en suspens = **#26** (session hors-ligne plafonnée comme le cash, ou sans limite → margin-call
+pendant le sommeil).
+1. **Régime (déjà dans le code, à valider)** : (1) `REGIME_PHASE_SEC`=240 s · (2) `REGIME_CYCLE`=`CRABE,BULL,HYPE,
+   BULL,CRABE,BEAR,CRASH,BEAR` (8 phases=32 min, BULL×2/BEAR×2, 1 seul CRASH) · (3) `maint` ×5 = BULL 0.7 · HYPE 1.0
+   · CRABE 0.9 · BEAR 1.4 · CRASH 2.2 · (4) `reward` ×5 = BULL 1.30 · HYPE 1.60 · CRABE 1.00 · BEAR 0.85 · CRASH 0.60.
+2. **Bornes de session** : (5) `DUR_MIN` (sugg. 5 min) · (6) `DUR_MAX_BASE` (sugg. 30 min, repoussé par réput) ·
+   (7) `DUR_STEP` (sugg. 5 min) · (8) `ALLOC_MIN` (sugg. `perSecond×60`) · (9) `ALLOC_MAX_BASE` (sugg. 30 min de
+   prod ou 50 % du cash, repoussé par réput).
+3. **Consommation** : (10) `MAINT_BASE` (taux cash/s avant ×régime, indexé prod = `perSecond×k`) · (11) `k`
+   (combien d'heures de prod une session brûle en moyenne — à caler pour le net-positif) · (12) forme du coût
+   (sugg. linéaire v1 : `MAINT_BASE × maint(régime) × dt`).
+4. **Margin Call** : (13) seuil de déclenchement (sugg. allocation restante ≤ 0) · (14) pénalité = **toute
+   l'allocation restante** (verrouillé « jamais sous la base » — à confirmer) · (15) pause = relance **manuelle**
+   (verrouillé, pas un chiffre).
+5. **Récompense gemmes** : (16) `GEM_YIELD_BASE` (conversion alloc consommée→gemmes, base `gemPrice()`) ·
+   (17) **marge nette moyenne** (le « +X % » vs achat direct au cash — sugg. **+15 %** pondéré par le cycle) ·
+   (18) cadence de versement (sugg. fil de l'eau v1).
+6. **Réputation (interne)** : (19) `REP_PER_SESSION` (∝ durée × alloc survécue) · (20) courbe de paliers
+   (sugg. géométrique ×N/niveau) · (21) nb de niveaux (sugg. 10–20) · (22) **barème niveau→bonus** sur 5 pistes
+   (+durée max, +alloc max, +reward, +modules, meilleures conditions de marge).
+7. **Modules activables** : (23) nb au départ (sugg. 1) · (24) nb max via réput (sugg. 3–6) · (25) coût
+   d'activation (sugg. gratuit, réput = gate).
+8. **Hors-ligne** : (26) **DÉCISION BINAIRE** — session plafonnée comme le cash (`OFFLINE_CAP_H`) **ou** sans
+   limite (risque de margin-call pendant le sommeil = « responsabilité assumée » verrouillée). À trancher.
+
 ### Vision validée à implémenter (détails dans `docs/economy-vision.md`)
 Ordre suggéré : (1) **Éclats** ~~Phase 1~~ ✅ FAIT (local : faucet surplus→Éclats, fabrication ciblée,
 fusion de secours ; `state.shards`, `SHARD_PER_COPY`=8/6/4, `craftHero`, UI Codex). Reste **Phase 2** :
