@@ -897,6 +897,15 @@
         <div class="mc-last" id="mcLast"></div>
       </div>
 
+      <!-- 📊 Tableau de bord (écran plein) -->
+      <div id="statsScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="statsBackBtn">← Retour</button>
+          <div>📊 Tableau de bord</div>
+        </div>
+        <div id="statsBody"></div>
+      </div>
+
     </div>
   </main>
 
@@ -947,15 +956,6 @@
       <div id="dailyList"></div>
       <div class="daily-bonus" id="dailyBonus"></div>
       <button class="big-btn can" id="dailyClose" style="margin-top:14px">Fermer</button>
-    </div>
-  </div>
-
-  <!-- 📊 Tableau de bord : décomposition de la prod, courbe de richesse, ROI (lecture locale) -->
-  <div class="wb-overlay" id="statsOv" style="display:none">
-    <div class="wb-card" style="max-width:400px">
-      <h2 style="text-align:center">📊 Tableau de bord</h2>
-      <div id="statsBody"></div>
-      <button class="big-btn can" id="statsClose" style="margin-top:14px">Fermer</button>
     </div>
   </div>
 
@@ -1866,6 +1866,7 @@
 
   // --- 🎰 Margin Call (UI) ----------------------------------------------
   function openMarginCall() { navKey = "lobby"; showScreen("margincall"); render(); }
+  function openStats() { navKey = "lobby"; showScreen("stats"); render(); }
   function utcHM(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()); }
   // Lit les sliders → allocation (cash) + durée, bornées par les caps et le cash dispo.
   function mcLaunchInputs() {
@@ -2635,6 +2636,7 @@
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
     document.getElementById("inventaireScreen").style.display = name === "inventaire" ? "block" : "none";
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
+    document.getElementById("statsScreen").style.display = name === "stats" ? "block" : "none";
     // 🌍 Météo NON persistante : visible uniquement sur le Lobby et Margin Call.
     document.getElementById("worldBar").style.display = (name === "lobby" || name === "margincall") ? "" : "none";
     setActiveNav();
@@ -2789,6 +2791,7 @@
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
     else if (screen === "margincall") renderMarginCall();
+    else if (screen === "stats") renderStats();
     else if (screen === "inventaire") renderInventaire();
     else if (screen === "overview") renderOverview();
     // (lobby : pas de dispatch dédié)
@@ -2798,7 +2801,6 @@
     if (grs) grs.textContent = "(niv " + gearTier() + " · prochain " + gearTierCost(gearTier()) + " 🛠️ · " + Math.floor(state.gearFrags || 0) + " en stock)";
     renderLobby();
     if (document.getElementById("dailyOv").style.display === "flex") renderDaily();
-    if (document.getElementById("statsOv").style.display === "flex") renderStats();
     updateDots();
   }
 
@@ -3024,10 +3026,9 @@
   // 📜 Quêtes quotidiennes (modale depuis le Lobby)
   document.getElementById("dailyBtn").addEventListener("click", () => { rollDaily(); document.getElementById("dailyOv").style.display = "flex"; renderDaily(); });
   document.getElementById("dailyClose").addEventListener("click", () => { document.getElementById("dailyOv").style.display = "none"; });
-  // 📊 Tableau de bord (modale depuis le Lobby)
-  document.getElementById("statsBtn").addEventListener("click", () => { document.getElementById("statsOv").style.display = "flex"; renderStats(); });
-  document.getElementById("statsClose").addEventListener("click", () => { document.getElementById("statsOv").style.display = "none"; });
-  document.getElementById("statsOv").addEventListener("click", (e) => { if (e.target.id === "statsOv") e.currentTarget.style.display = "none"; });
+  // 📊 Tableau de bord (écran plein depuis le Lobby)
+  document.getElementById("statsBtn").addEventListener("click", openStats);
+  document.getElementById("statsBackBtn").addEventListener("click", openLobby);
   document.getElementById("dailyOv").addEventListener("click", (e) => {
     if (e.target.id === "dailyOv") { e.currentTarget.style.display = "none"; return; }
     const btn = e.target.closest("[data-daily]"); if (!btn) return;

@@ -536,8 +536,9 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   deux remplissent la largeur et restent alignées même pour une session courte. Insight exposé : temps avant rupture ≈
   `durée/(MC_BURN×0,8)` **indépendant de l'alloc** → le risque vient du **régime traversé**, pas de la taille du pari.
 - **📊 TABLEAU DE BORD — ✅ FAIT (2026-06-27)** : onglet **📊** dans un **rail vertical** à droite du Lobby (`.lobby-rail`,
-  **📜 puis 📊**, placé **sous la frise** → fix du chevauchement 📜/frise ; la frise repasse pleine largeur). Modale
-  `#statsOv` (`renderStats`, **lecture locale**, SVG/flex sans lib) : **en-tête** (prod/s + rang Valo) · **multiplicateurs
+  **📜 puis 📊**, placé **sous la frise** → fix du chevauchement 📜/frise ; la frise repasse pleine largeur). **ÉCRAN PLEIN**
+  `#statsScreen` (révisé : pas une modale — la modale serrait trop) via `openStats`/`showScreen("stats")`, ← Retour →
+  `openLobby`, météo cachée dessus. `renderStats` (**lecture locale**, SVG/flex sans lib) : **en-tête** (prod/s + rang Valo) · **multiplicateurs
   globaux** (chips ×Valo/×Gear/×Pump) · **« d'où vient la prod »** (`prodBreakdown` : contribution par module agrégée tous
   Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **courbe de richesse** (`sparkline` sur `prodHist`, historique roulant
   ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s = temps de retour,
