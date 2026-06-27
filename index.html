@@ -1817,12 +1817,12 @@
     if (pumpLocked()) return;
     pumpGauge = Math.min(1, pumpGauge + PUMP_PER_TAP);
     lastPumpTap = Date.now();
-    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; crashEffect(); toast("💥 CRASH ! Production ×10 pendant 30 s"); }
+    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; crashEffect(); toast("💥 MAX ! Production ×10 pendant 30 s"); }
   }
-  // 💥 Effet spectaculaire du CRASH (sommet atteint → ×10 verrouillé) : flash + secousse + gros texte.
+  // 💥 Effet spectaculaire au sommet (MAX → ×10 verrouillé) : flash + secousse + gros texte.
   function crashEffect() {
     const fx = document.getElementById("crashFx"); if (!fx) return;
-    fx.innerHTML = '<div class="crash-text">💥 CRASH<span>PRODUCTION ×10</span></div>';
+    fx.innerHTML = '<div class="crash-text">💥 MAX !<span>PRODUCTION ×10</span></div>';
     fx.classList.remove("go"); void fx.offsetWidth; fx.classList.add("go");
     const main = document.querySelector(".appmain");
     if (main) { main.classList.remove("shake"); void main.offsetWidth; main.classList.add("shake"); }
