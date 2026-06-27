@@ -1506,7 +1506,7 @@
     if (!state.quests) state.quests = {};
     state.quests[key] = t + 1;
     toast(`🎯 ${q.label} · palier ${t + 1} — +${g} 💎`);
-    render(); sortObjectives(); save();
+    render(); save();   // render() re-trie (le palier réclamé redescend)
   }
   // Amorçage silencieux (1ʳᵉ fois / par type) : place le palier au niveau courant SANS récompense.
   function seedQuests() {
@@ -1526,7 +1526,7 @@
       + `<div class="qrow-bar"><div class="qrow-fill" id="qf-${q.key}"></div></div>`
       + `<div class="qrow-sub"><span id="qv-${q.key}"></span><span id="qp-${q.key}"></span></div>`
       + `</div>`).join("");
-    objBuilt = true;
+    objBuilt = true; objOrder = "";   // force un re-tri au premier rendu
   }
   function renderObjectives() {
     if (!objBuilt) buildObjectives();
@@ -1544,18 +1544,24 @@
       else { cb.style.display = "none"; rw.style.display = ""; rw.textContent = "+" + questReward(q, t) + " 💎"; }
       document.getElementById("q-" + q.key).classList.toggle("claim", claim);
     });
+    sortObjectives();   // re-trie si l'ordre a changé (garde interne anti-churn)
   }
   // Trie les lignes par progression : réclamables en haut, puis % décroissant vers le palier.
-  // Appelé à l'ouverture + après une réclamation (pas à chaque frame → pas de saut sous le doigt).
+  // Garde « ordre inchangé » → ne touche le DOM QUE si l'ordre change (pas de saut à chaque frame),
+  // mais réagit à TOUT changement de progression (Valo, production, réclamation…). Appelé dans render.
+  let objOrder = "";
   function sortObjectives() {
     const list = document.getElementById("objList"); if (!list || !objBuilt) return;
-    QUESTS.map(q => {
+    const scored = QUESTS.map(q => {
       const t = questTier(q), thr = questThreshold(q, t), prev = questPrev(q, t), val = q.value();
       return { key: q.key, rank: val >= thr ? 1 : 0, pct: (val - prev) / (thr - prev || 1) };
-    }).sort((a, b) => b.rank - a.rank || b.pct - a.pct)
-      .forEach(s => { const el = document.getElementById("q-" + s.key); if (el) list.appendChild(el); });
+    }).sort((a, b) => b.rank - a.rank || b.pct - a.pct);
+    const sig = scored.map(s => s.key).join(",");
+    if (sig === objOrder) return;   // ordre identique → on ne réordonne pas (zéro churn par frame)
+    objOrder = sig;
+    scored.forEach(s => { const el = document.getElementById("q-" + s.key); if (el) list.appendChild(el); });
   }
-  function openObjectives() { navKey = "objectives"; showScreen("objectives"); render(); sortObjectives(); }
+  function openObjectives() { navKey = "objectives"; showScreen("objectives"); render(); }
 
   // --- 📦 Inventaire (possession) ---------------------------------------
   function openInventaire() { navKey = "inventaire"; showScreen("inventaire"); render(); }
