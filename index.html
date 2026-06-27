@@ -509,8 +509,13 @@
   .ah-pseudo { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; }
   .ah-sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
   .ah-res { display: flex; align-items: center; gap: 7px; }
-  .ah-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 5px 9px; font-size: 13px; white-space: nowrap; }
+  .ah-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 5px 9px; font-size: 13px; white-space: nowrap; color: var(--text); font-family: inherit; }
   .ah-chip b { font-variant-numeric: tabular-nums; }
+  button.ah-chip { cursor: pointer; }
+  .ah-plus { color: var(--accent); font-weight: 800; margin-left: 2px; }
+  .ah-promo { position: relative; margin-top: 5px; display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--accent-2); cursor: pointer; font-family: inherit; touch-action: manipulation; }
+  .ah-promo.can { border-color: var(--accent-2); }
+  .ah-promo .dot { top: -3px; right: -3px; }
   .ah-gear { position: relative; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 11px; width: 38px; height: 38px; font-size: 19px; cursor: pointer; color: var(--text); flex: 0 0 auto; }
 
   .appmain { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 0 96px; }
@@ -553,13 +558,14 @@
       <div class="ah-avatar" id="ahAvatar">💼</div>
       <div>
         <div class="ah-pseudo" id="ahPseudo">Joueur</div>
-        <div class="ah-sub"><span id="valoRank">Stagiaire</span> · <span id="perSec">$0/s</span></div>
+        <div class="ah-sub"><span id="valoRank">Stagiaire</span> ×<span id="valoMult">1.00</span> · <span id="perSec">$0/s</span></div>
+        <button class="ah-promo" id="valoBtn">📈 Promotion · <span id="valoCost">$100k</span><span class="dot" id="dotPromo"></span></button>
       </div>
     </div>
     <div class="ah-res">
       <div class="ah-chip">💵 <b id="cashCount">$0</b></div>
-      <div class="ah-chip">💎 <b id="gemCount">0</b></div>
-      <button class="ah-gear" id="settingsBtn" title="Réglages & profil">⚙️<span class="dot" id="dotSettings"></span></button>
+      <button class="ah-chip" id="gemsBtn" title="Acheter des gemmes">💎 <b id="gemCount">0</b> <span class="ah-plus">＋</span></button>
+      <button class="ah-gear" id="settingsBtn" title="Réglages">⚙️<span class="dot" id="dotSettings"></span></button>
     </div>
   </header>
 
@@ -755,19 +761,7 @@
   <!-- ⚙️ Réglages & profil (modale) : Valorisation, achat gemmes, auto, sauvegarde, reset -->
   <div class="wb-overlay" id="settingsOv" style="display:none">
     <div class="wb-card" style="max-width:340px;text-align:left">
-      <h2 style="text-align:center;margin-bottom:12px">⚙️ Réglages &amp; profil</h2>
-      <div class="valo" id="valoBox" style="margin:0 0 12px">
-        <div class="valobal">🏛️ prod globale <span class="vmult" id="valoMult">×1.00</span></div>
-        <button class="btn" id="valoBtn" style="margin-top:6px">📈 Promotion · <span id="valoCost">$100k</span></button>
-        <div class="valohint">Dépense du cash pour un rang permanent (+10 % prod globale). Aucun reset.</div>
-      </div>
-      <div class="gems" style="margin:0 0 12px">
-        <div class="gembuy" style="display:flex;gap:8px">
-          <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
-          <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
-        </div>
-        <div class="gemhint" id="gemHint"></div>
-      </div>
+      <h2 style="text-align:center;margin-bottom:12px">⚙️ Réglages</h2>
       <div class="stat" style="margin:0 0 12px">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
       <div class="stat" style="margin:0 0 12px">🛠️ Équipement (passif) : <b id="gearReadout">+0 % prod</b> <span class="hint" id="gearReadoutSub"></span></div>
       <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -775,7 +769,22 @@
         <button class="btn" id="saveBtn">💾 Sauver</button>
         <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
       </div>
-      <button class="big-btn can" id="settingsClose" style="margin-top:14px">Fermer</button>
+      <button class="btn" id="refreshBtn" style="width:100%;margin-top:10px">🔄 Mettre à jour (recharger le jeu)</button>
+      <button class="big-btn can" id="settingsClose" style="margin-top:12px">Fermer</button>
+    </div>
+  </div>
+
+  <!-- 💎 Achat de gemmes (modale, ouverte depuis le compteur 💎 de l'en-tête) -->
+  <div class="wb-overlay" id="gemsOv" style="display:none">
+    <div class="wb-card" style="max-width:340px">
+      <h2 style="text-align:center">💎 Acheter des gemmes</h2>
+      <p class="hint" style="text-align:center">Prix indexé sur ta production.</p>
+      <div class="gembuy" style="display:flex;gap:8px;justify-content:center;margin:10px 0">
+        <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
+        <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
+      </div>
+      <div class="gemhint" id="gemHint" style="text-align:center"></div>
+      <button class="big-btn can" id="gemsClose" style="margin-top:14px">Fermer</button>
     </div>
   </div>
 
@@ -796,7 +805,7 @@
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=23"></script>
+<script src="cloud.js?v=24"></script>
 <script src="heroes.data.js?v=9"></script>
 <script>
 (() => {
@@ -1825,7 +1834,8 @@
     setDot("dotSkills", skillsAllReady());
     setDot("dotMc", mcCollect);
     setDot("dotLobby", skillsAllReady() || mcCollect);
-    setDot("dotSettings", state.cash >= valoCost());
+    setDot("dotPromo", state.cash >= valoCost());   // Promotion (Valo) abordable
+    setDot("dotSettings", false);                   // plus d'action dans les réglages
   }
 
   // --- Achat / gestion des Dex ------------------------------------------
@@ -2384,6 +2394,11 @@
   document.getElementById("settingsBtn").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "flex"; render(); });
   document.getElementById("settingsClose").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "none"; });
   document.getElementById("settingsOv").addEventListener("click", (e) => { if (e.target.id === "settingsOv") e.currentTarget.style.display = "none"; });
+  document.getElementById("refreshBtn").addEventListener("click", () => location.reload());
+  // 💎 Achat de gemmes (modale depuis le compteur de l'en-tête)
+  document.getElementById("gemsBtn").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "flex"; render(); });
+  document.getElementById("gemsClose").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "none"; });
+  document.getElementById("gemsOv").addEventListener("click", (e) => { if (e.target.id === "gemsOv") e.currentTarget.style.display = "none"; });
 
   // 🏠 Lobby : compétences groupées + accès Margin Call
   document.getElementById("skillsBtn").addEventListener("click", fireAllSkills);
