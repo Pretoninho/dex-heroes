@@ -527,8 +527,15 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   restante si en cours) → on **voit quels régimes la session traverse** ; horizon adaptatif `max(8, ceil(durée+1))`.
 - **⚠️ Météo NON-persistante (demandé)** : `#worldBar` ne s'affiche **plus partout** → **uniquement Lobby + Margin Call**
   (toggle dans `showScreen`). Ligne `#mcWeather` (doublon du worldBar sur MC) **retirée**.
-- **RESTE (dataviz, pas codé)** : 🥈 **courbe de risque Margin Call** (carburant dans le temps, sous la frise, même axe) ·
-  décomposition de la prod · courbe de richesse · ROI du prochain achat · récap hors-ligne.
+- **🥈 COURBE DE RISQUE Margin Call — ✅ FAIT (2026-06-27)** : `mcFuelCurve(alloc,durSec,startMs,endMs,fuel0)`
+  échantillonne le carburant aux frontières de régime (mêmes formules que `mcAdvance`/`mcProject`) → série de points ;
+  `renderRiskCurve(el,horizonH,curve)` trace un **SVG inline** (polyline + aire, `vector-effect:non-scaling-stroke`)
+  sous la frise (`#mcRiskCurve`), **même axe de temps**. Vert « tient la durée ✓ » / rouge + marqueur + ⚠️ « Carburant
+  épuisé vers HH:MM UTC » si margin call. **Décision : Margin Call reste à UNE session** (multi-session = idée bornée par
+  réputation, repoussée). **Zoom MC** : frise + courbe en horizon **= durée de session ×1,15** (le Lobby garde 8 h) → les
+  deux remplissent la largeur et restent alignées même pour une session courte. Insight exposé : temps avant rupture ≈
+  `durée/(MC_BURN×0,8)` **indépendant de l'alloc** → le risque vient du **régime traversé**, pas de la taille du pari.
+- **RESTE (dataviz, pas codé)** : décomposition de la prod · courbe de richesse · ROI du prochain achat · récap hors-ligne.
 
 #### 📊 (archive) IDÉES DATAVIZ — discutées le 2026-06-27
 Idées de **visualisations** pour le joueur (thème finance → très naturel). **100 % idle** (affichage seul, n'exige
