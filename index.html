@@ -1756,7 +1756,7 @@
       + `<div class="sub" id="atlPlaceHint" style="display:none;color:var(--accent-2)">💡 Forge une copie pour pouvoir la placer.</div></div>`
       // Bascule Buffeur / Copies (en bas, au-dessus de la nav)
       + `<div class="atl-modeswitch"><button class="btn" id="atlModeBuff" data-atlmode="buff">🦸 Buffeur</button>`
-      + `<button class="btn" id="atlModeCopies" data-atlmode="copies">📦 Copies</button></div>`;
+      + `<button class="btn" id="atlModeCopies" data-atlmode="copies">👥 Copies</button></div>`;
   }
   function updateAtelierWorkshop(id) {
     const R = rarityOf(id);
@@ -1783,7 +1783,7 @@
       set("atlPreview", atMax ? `<b>🦸 Buffeur niv ${L}</b> · niveau max`
         : `<b>🦸 Buffeur</b> &nbsp; niv ${L} <span class="muted">(+${L}%)</span> <span class="fus-arrow">➜</span> niv ${L + 1} <span class="acc">(+${L + 1}%)</span>`);
     } else {
-      set("atlPreview", `<b>📦 Forger une copie</b> &nbsp; <span class="muted">${owned} possédée(s) · ${free} libre(s)</span>`);
+      set("atlPreview", `<b>👥 Forger une copie</b> &nbsp; <span class="muted">${owned} possédée(s) · ${free} libre(s)</span>`);
     }
     set("atlSlots", (buff && atMax) ? "" : fusSlots(frags, need));
     set("atlCount", (buff && atMax) ? "niveau max atteint"
