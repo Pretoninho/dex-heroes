@@ -43,7 +43,7 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), **gains hors-ligne + auto-amélioration**, horloge UTC, pont `window.DEX`. ⚠️ Exchange/régime **retirés** (2026-06-24). |
+| `index.html` | **Tout le jeu** (HTML/CSS/JS inline) : cash flow, modules, dexes, gacha, héros, **fusion + Éclats** (`state.shards`, `SHARD_PER_COPY`, `craftHero`), **surnoms** (`state.nicknames`, `heroName`/`heroNameFull`), **Valorisation** (`state.valoRank`, `valoMult`/`buyValo` — soft-prestige sans reset), **Objectifs** (`state.objectives`, `OBJECTIVES`, `checkObjectives`/`seedObjectives`, écran `🎯`), **gains hors-ligne + auto-amélioration**, horloge UTC, pont `window.DEX`, **🌍 `world()` (cycle de marché déterministe partagé, fonction pure UTC) + bandeau météo**, **🎰 Margin Call** (`state.mc`, `mcLaunch`/`mcAdvance`/`mcCollect`/`mcProject`, écran `#margincallScreen`). ⚠️ Exchange/régime backend **retirés** (2026-06-24) — le `world()` régime est **reconstruit en LOCAL**, sans serveur. |
 | `heroes.data.js` | `window.HERO_META` + `window.HERO_DATA` (18 héros : passif, signature, synergies, klass, `regime`). Le champ `regime` n'est **plus utilisé** par le front (régime retiré) mais conservé pour réemploi. |
 | `cloud.js` | Intégration Supabase : auth, cloud save, classement, pseudo. **Le terminal Exchange (`Cloud.economy.*`) a été retiré** (2026-06-24, pivot 100 % Idle). |
 | `backend/*.sql` | Schéma + fonctions Postgres de l'économie (voir ordre de déploiement) |
@@ -404,7 +404,41 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
   atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.
 
-### 🎰 MARGIN CALL — design VERROUILLÉ en conception (le **prochain chantier**, demandé 2026-06-26)
+### 🌍 SYNCHRO ENTRE JOUEURS + 🎰 MARGIN CALL — **EN COURS (2026-06-27, branche `claude/player-sync-solution-rsb0q5`)**
+
+> **Phase 1 (`world()`) + Phase 2a/2b (Margin Call) FAITES & poussées.** Reste le **checkpoint de
+> tuning** (calage des leviers feel-critiques) + polish réputation/UX. Décision : « synchroniser les
+> joueurs entre eux » = **cycle déterministe sans backend** (le choix 100 % idle ; rien à stocker, rien
+> à falsifier). Margin Call en est le 1ᵉʳ consommateur.
+
+- **Phase 1 — `world(utc)` (FAIT)** : fonction **PURE** de l'horloge UTC dans `index.html` (PRNG mulberry32
+  seedé par **époque** = `floor(utc/WORLD_CYCLE_MS)` + 5 régimes pondérés `REGIMES` + **hystérésis Markov
+  bornée** `WORLD_LOOKBACK`). Tous les clients calculent le **même régime au même instant** → synchro
+  « entre joueurs » **sans qu'aucune donnée ne circule**. Renvoie `{key,label,emoji,color,since,until,next}`.
+  **Bandeau météo** `#worldBar` sous la topnav (régime · fin de run UTC · suivant), rafraîchi /s. Exposé
+  `window.DEX.world`. **NON-BREAKING** : affichage seul, n'agit PAS sur la prod (l'ancien régime→prod
+  reste retiré). Constantes **PROVISOIRES** (`WORLD_SEED`, `WORLD_CYCLE_MS`=20min, `WORLD_STICKY`=0,62,
+  poids des régimes). Mesuré : durée moy d'un régime ~68 min, **98 % des sessions de 4 h croisent ≥2 régimes**.
+- **Phase 2a — socle Margin Call (FAIT)** : `state.mc {rep, session, lastResult}` **OFF par défaut**
+  (session null = idle pur intouchable). Module pilote **Bourse `a1t0`**, **moteur abstrait** (allocation ×
+  durée × régime → gemmes, pas de knapsack). `mcAdvance` intègre la session **par paliers de régime**,
+  online (`loop`) **et hors-ligne** (`load`, **NON capé** = responsabilité assumée) → déroulé identique
+  (régime déterministe). `mcLaunch`/`mcCollect`/`mcProject`. Margin call = carburant épuisé → pause ;
+  fin de durée → clôture auto (rend le carburant non brûlé). On ne perd **que le carburant misé**, jamais
+  sous la base. Caps alloc/durée **indexés prod + repoussés par la réputation** (+50 %/palier) ; réputation
+  = gemmes gagnées (cumul, **interne**, pas un mult global). Éco **PROVISOIRE** calibrée net-positive
+  (`MC_BURN`/`MC_YIELD`/`MC_BURN_BASE`=0,8 → ~×1,16 vs achat direct sur cash consommé, ~28 % de margin call
+  aux réglages max).
+- **Phase 2b — UI (FAIT)** : onglet 🎰 + écran `#margincallScreen` (météo, sliders alloc×durée, **projection
+  live**, panneau session actif/blown, collecte). Listeners attachés une fois ; `renderMarginCall` met à jour
+  les valeurs seulement (sliders non clobberés par le game loop 10×/s).
+- **RESTE** : **checkpoint de tuning** (4 leviers feel — vitesse du cycle/poids régimes, courbe entretien/régime,
+  conversion alloc→gemmes/net-positif, caps réputation) à valider **avec le joueur** ; polish réputation
+  (afficher le palier) + UX. Bump `?v=` **non requis** (tout est dans `index.html`, `cloud.js` intact).
+
+---
+
+### 🎰 MARGIN CALL — design verrouillé (conception d'origine, 2026-06-26) — *implémenté ci-dessus*
 Réconciliation des mini-jeux avec le cap **100 % IDLE** : au lieu de cliquer (actif), on **alloue du cash** (passif).
 Le skill = **dosage stratégique** d'une décision qu'on pose et qui tourne ensuite seule. (Les docs Banque=knapsack /
 Bourse=assignment peuvent devenir l'**activité passive sous-jacente** du module, résolue auto, nourrie par l'allocation.)
