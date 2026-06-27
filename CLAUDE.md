@@ -517,6 +517,29 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
 - **TUNABLE** : `DAILY_POOL` (cibles/récompenses), `DAILY_BONUS`. **PROVISOIRE** (à playtester). ⚠️ Le joueur note que
   **les quêtes quotidiennes pourraient rendre le tuto inutile** (fil conducteur naturel) — à réévaluer à l'usage.
 
+#### 📊 GRAPHIQUES / DATAVIZ JOUEUR — EN CONCEPTION (2026-06-27, discuté, pas codé)
+Idées de **visualisations** pour le joueur (thème finance → très naturel). **100 % idle** (affichage seul, n'exige
+aucune action) ; **faisable en SVG/canvas inline, sans dépendance** (jeu vanilla). À ranger dans un onglet/écran
+**📊 Stats** pour ne pas alourdir le Lobby. ⚠️ **Garde-fou** : lire l'**état LOCAL** uniquement (honnête, non
+comparatif) — **pas** de classement de prod temps réel (rouvrirait la boîte online/anti-triche fermée au pivot).
+Par ordre de valeur estimée :
+- **🥇 Frise de PRÉVISION météo de marché** — *la pépite* : `world()` est une **fonction pure du temps UTC** → le jeu
+  **connaît déjà les régimes futurs**. Afficher les **6–12 prochaines heures** de régimes (frise horodatée UTC). Unique
+  (aucun autre idle ne peut le faire honnêtement) + rend **Margin Call lisible** (« Krach dans 40 min → session courte »).
+- **🥈 Courbe de RISQUE Margin Call** — avant lancement, tracer le **carburant dans le temps** superposé au calendrier
+  des régimes → on **voit** la fenêtre où le carburant peut toucher 0. Données déjà calculées (`mcProject`).
+- **🥉 Décomposition de la PRODUCTION** — camembert/barre empilée : part de Valo / buffeurs / gear / Pump / par module /
+  par Dex. Répond à « d'où vient mon argent ? » et oriente les achats. (Lecture directe des facteurs de `perSecond()`.)
+- **Secondaires** : courbe de **richesse** (cash cumulé / prod-s, sparkline vivante — demande un historique léger à
+  bufferiser) · **ROI du prochain achat** par module (« +X $/s pour Y $ → temps de retour », visualise le mur `1,15^N`) ·
+  **récap hors-ligne** en mini-graphe dans la modale « Bon retour ».
+- **Repère maths** (contexte de ces graphes, cf. discussion) : deux exponentielles opposées (`GROWTH=1,15` vs empilement
+  multiplicatif) · **prix indexé prod** (`gemPrice=perSecond×0,10` → coûts ≈ constants en « secondes de prod ») ·
+  perception **log** (rangs Valo ×8, tiers rep `log2`) · **hasard déterministe** (`world()`/quêtes = PRNG seedé sur le
+  temps + Markov à hystérésis) · Margin Call = **ruine du joueur** (EV net ~×1,16, ~28 % de margin call aux réglages max).
+- **Repère implémentation** suggéré (si on code) : commencer par **frise prévision + courbe de risque Margin Call**
+  (même source `world()`, fort impact gameplay, très « finance »), puis décomposition de prod.
+
 #### Tuto — design validé (2026-06-27, à coder) — ⚠️ peut-être SUPERFLU avec les quêtes quotidiennes (à réévaluer)
 **Guidé & sautable.** **Bulle à chaque étape** du cycle cœur (~8 gestes, une fois), puis **un pop contextuel**
 la 1ʳᵉ fois pour les systèmes optionnels/avancés. **Cycle cœur** : 🏠 billet/Pump → 🔗 connecter+améliorer un
