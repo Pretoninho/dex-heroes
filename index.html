@@ -431,9 +431,10 @@
 
   .toast {
     position: fixed;
-    bottom: 20px;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));   /* au-dessus de la nav du bas */
     left: 50%;
     transform: translateX(-50%);
+    z-index: 300;                                            /* devant la nav (z 100) */
     background: var(--panel-2);
     border: 1px solid #2a4d3a;
     padding: 10px 18px;
@@ -522,13 +523,14 @@
   /* bouton compte ☁️ (injecté par cloud.js) dans la modale ⚙️ Réglages */
   #cloudSlot .cloudtab { width: 100%; justify-content: center; border-radius: 8px; padding: 10px; font-size: 14px; }
 
-  .appmain { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 0 80px; }
+  .appmain { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px)); }
   .appmain > .panel { width: auto; }
 
-  .bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 900px;
+  .bottomnav { position: fixed; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
+    width: calc(100% - 16px); max-width: 884px;
     display: flex; justify-content: space-around; gap: 2px; z-index: 100;
-    padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
-    background: rgba(13,31,23,.96); backdrop-filter: blur(8px); border: 1px solid #1d3d2c; border-bottom: none; border-radius: 16px 16px 0 0; }
+    padding: 8px 6px;
+    background: rgba(13,31,23,.96); backdrop-filter: blur(8px); border: 1px solid #1d3d2c; border-radius: 16px; box-shadow: var(--shadow); }
   .bottomnav button { position: relative; flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
     background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 4px 2px; touch-action: manipulation; }
   .bottomnav .bn-ic { font-size: 22px; line-height: 1; }
@@ -542,7 +544,7 @@
 
   /* Lobby — compact pour tenir sur un écran sans défilement */
   .lobby-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 12px 2px; }
-  .pump-gauge { position: relative; width: 92px; height: 132px; margin-right: 32px; }
+  .pump-gauge { position: relative; width: 90px; height: 122px; margin-right: 32px; }
   .pump-tube { position: absolute; inset: 0; border: 3px solid #20402f; border-radius: 14px; background: #0d1f17; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
   .pump-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(0deg, #ff5470 0%, #e0853a 38%, #7bd16a 70%, #ffd24d 100%); transition: height .1s linear; }
   .pump-mark { position: absolute; right: -30px; transform: translateY(50%); font-weight: 800; font-size: 16px; color: var(--muted); }
