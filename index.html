@@ -22,10 +22,11 @@
     background: radial-gradient(circle at 50% -10%, #16382a, var(--bg));
     color: var(--text);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 24px 16px 96px;
+    padding: 14px 16px 0;
     touch-action: manipulation;
   }
 
@@ -523,7 +524,10 @@
   /* bouton compte ☁️ (injecté par cloud.js) dans la modale ⚙️ Réglages */
   #cloudSlot .cloudtab { width: 100%; justify-content: center; border-radius: 8px; padding: 10px; font-size: 14px; }
 
-  .appmain { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px)); }
+  .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; display: flex; flex-direction: column;
+    padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px)); }
+  /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
+  #lobbyScreen { flex: 1; flex-direction: column; }
   .appmain > .panel { width: auto; }
 
   .bottomnav { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
@@ -543,14 +547,14 @@
   .lobby-btn .dot { top: 8px; right: 12px; }
 
   /* Lobby — compact pour tenir sur un écran sans défilement */
-  .lobby-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 12px 2px; }
+  .lobby-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 12px 2px; flex: 1; width: 100%; }
   .pump-gauge { position: relative; width: 90px; height: 110px; margin-right: 32px; }
   .pump-tube { position: absolute; inset: 0; border: 3px solid #20402f; border-radius: 14px; background: #0d1f17; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
   .pump-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(0deg, #ff5470 0%, #e0853a 38%, #7bd16a 70%, #ffd24d 100%); transition: height .1s linear; }
   .pump-mark { position: absolute; right: -30px; transform: translateY(50%); font-weight: 800; font-size: 16px; color: var(--muted); }
   .pump-gauge.locked .pump-tube { border-color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.5); }
   .pump-label { font-weight: 900; font-style: italic; font-size: 18px; color: #ffd24d; letter-spacing: 1px; text-shadow: 1px 1px 0 #b35a00; margin-top: 2px; }
-  .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; width: 100%; }
+  .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: auto; padding-top: 10px; width: 100%; }
   .lobby-btn { position: relative; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 14px; padding: 10px 14px; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; flex: 1 1 0; min-width: 130px; max-width: 220px; text-align: center; touch-action: manipulation; }
   .lobby-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
@@ -2053,7 +2057,7 @@
   let ficheId = null;         // id du héros dont la fiche est ouverte
   function showScreen(name) {
     screen = name;
-    document.getElementById("lobbyScreen").style.display = name === "lobby" ? "block" : "none";
+    document.getElementById("lobbyScreen").style.display = name === "lobby" ? "flex" : "none";
     document.getElementById("screensPanel").style.display = name === "lobby" ? "none" : "block";
     document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
