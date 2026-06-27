@@ -557,7 +557,7 @@
   /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
   #lobbyScreen { flex: 1; flex-direction: column; }
   /* Cash Flow remplit aussi la hauteur → le bouton Auto se cale dans l'espace restant, au-dessus de la nav. */
-  #screensPanel { flex: 1 1 auto; flex-direction: column; min-height: 0; }
+  #screensPanel { flex: 1 0 auto; flex-direction: column; }
   #overviewScreen { flex: 1; flex-direction: column; }
   .cf-auto { display: flex; justify-content: center; margin-top: auto; padding-top: 14px; }
   .cf-auto .btn { min-width: 200px; padding: 12px 18px; font-size: 15px; }
@@ -596,11 +596,11 @@
   .click-hint { color: var(--muted); font-size: 12px; }
 
   /* ⚗️ Fiche Atelier (fabrication) : calage flex pour tenir sur un écran, bascule en bas */
-  #heroesScreen { flex: 1; flex-direction: column; min-height: 0; }
-  #heroFiche { flex: 1; flex-direction: column; min-height: 0; }
+  #heroesScreen { flex: 1 0 auto; flex-direction: column; }
+  #heroFiche { flex: 0 0 auto; flex-direction: column; }
   #heroFiche .fiche-emoji { font-size: 34px; } #heroFiche .fiche-name { font-size: 18px; }
   #heroFiche > #ficheBackBtn { align-self: flex-start; margin-bottom: 6px; }
-  #atlWorkshop { display: flex; flex-direction: column; flex: 1; gap: 8px; min-height: 0; }
+  #atlWorkshop { display: flex; flex-direction: column; gap: 8px; }
   .atl-invoke { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 10px; }
   .atl-frag { font-size: 14px; margin-bottom: 8px; } .atl-frag b { color: var(--accent); }
   .atl-btnrow { display: flex; gap: 8px; margin-top: 6px; }
@@ -616,7 +616,7 @@
   @keyframes fusGlow { 50% { box-shadow: 0 0 26px rgba(52,209,122,.85); } }
   .atl-place { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 8px 10px; }
   .atl-place .atl-modrow { padding: 7px 2px; }
-  .atl-modeswitch { display: flex; gap: 10px; margin-top: auto; }
+  .atl-modeswitch { display: flex; gap: 10px; margin-top: 12px; }
   .atl-modeswitch .btn { flex: 1; padding: 12px; font-size: 15px; font-weight: 700; }
   .atl-modeswitch .btn.can { border-color: var(--accent); color: var(--accent); }
 
