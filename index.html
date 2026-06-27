@@ -1123,9 +1123,15 @@
     BEAR:  { label: "Baissier", emoji: "🐻", maint: 1.4, reward: 0.85 },
     CRASH: { label: "Krach",    emoji: "💥", maint: 2.2, reward: 0.60 },
   };
-  // Cycle déterministe : séquence fixe de phases. Assez RAPIDE pour qu'une session en croise
-  // plusieurs (anti set-and-forget : une session longue traverse BULL→…→CRASH). Pas de hand-
-  // authoring infini — on boucle ; la prévisibilité est VOULUE (le joueur lit la météo). TUNABLE.
+  // POINT 2 (bloc 1) — VALIDÉ 2026-06-27 : séquence fixe de 8 phases qui raconte un cycle de
+  // marché complet : CRABE (accumulation) → BULL (markup) → HYPE (euphorie/sommet) → BULL
+  // (distribution) → CRABE (topping) → BEAR (déclin) → CRASH (capitulation/creux) → BEAR
+  // (bear traînant → reprise). Balance VOULUE = 3 bons (BULL×2 + HYPE) / 3 mauvais (BEAR×2 +
+  // CRASH) / 2 neutres (CRABE×2) ; les extrêmes HYPE & CRASH sont UNIQUES (événements, pas
+  // l'état normal). Déterministe + bouclé : pas de hand-authoring infini, et la prévisibilité
+  // est VOULUE (le joueur lit la météo avant de lancer ; les caps + le hors-ligne sont les
+  // vrais garde-fous, pas l'aléatoire). Assez rapide (cf. point 1) pour qu'une session croise
+  // plusieurs phases (golden window phases 1-3 = 12 min · danger window phases 5-7 = 12 min). TUNABLE.
   const REGIME_CYCLE = ["CRABE", "BULL", "HYPE", "BULL", "CRABE", "BEAR", "CRASH", "BEAR"];
   // POINT 1 (bloc 1) — VALIDÉ 2026-06-27 : durée d'une phase = 240 s (4 min). Cycle complet =
   // 8 × 4 min = 32 min (cadence naturelle « je repasse dans la demi-heure »). Reste TUNABLE
