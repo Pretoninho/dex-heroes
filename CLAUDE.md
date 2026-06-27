@@ -546,7 +546,11 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **courbe de richesse** (`sparkline` sur `prodHist`, historique roulant
   ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s = temps de retour,
   trié, top 6). `.wb-card` rendu **défilable** (`max-height:88vh; overflow-y:auto`). **TUNABLE/PROVISOIRE**.
-- **RESTE (dataviz, pas codé)** : récap hors-ligne en mini-graphe · (idée) frise dépliable ailleurs.
+- **📊 RÉCAP HORS-LIGNE (mini-graphe) — ✅ FAIT (2026-06-27)** : dans la modale « Bon retour », `renderWelcomeGraph(info)`
+  trace le **cash cumulé sur l'absence** (SVG, `#wbGraph`) : **rampe verte jusqu'au plafond** puis **plat pointillé gris +
+  marqueur jaune** = potentiel perdu au-delà du cap (4 h × héros `offlineCap`). Pied : « X h créditées · Y h au-delà du
+  plafond » (ou « crédité sur toute l'absence »). Lit clairement le cap → motive les héros hors-ligne.
+- **RESTE (dataviz, pas codé)** : (idée) frise dépliable ailleurs · décompo prod par Dex.
 
 #### 📊 (archive) IDÉES DATAVIZ — discutées le 2026-06-27
 Idées de **visualisations** pour le joueur (thème finance → très naturel). **100 % idle** (affichage seul, n'exige

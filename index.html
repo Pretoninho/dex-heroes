@@ -972,6 +972,7 @@
       <div class="wb-sub" id="wbAway">Absent pendant —</div>
       <div class="wb-gain">+$<span id="wbGain">0</span></div>
       <div class="wb-line">Production hors-ligne : <b id="wbRate">$0/s</b></div>
+      <div class="frieze-wrap" id="wbGraph" style="margin: 10px 0 2px"></div>
       <div class="wb-cap" id="wbCap"></div>
       <button class="big-btn can" id="wbClose">Encaisser</button>
     </div>
@@ -2457,7 +2458,32 @@
     capEl.innerHTML = info.capped
       ? `⏳ Plafond atteint (${fmtDuration(info.cap)}) — crédité jusqu'au plafond. <span class="wb-hint">Des héros « hors-ligne » l'étendent.</span>`
       : "";
+    renderWelcomeGraph(info);
     document.getElementById("welcomeBack").style.display = "flex";
+  }
+  // 📊 Mini-graphe hors-ligne : cash cumulé sur l'absence — rampe verte jusqu'au plafond,
+  // puis plat (pointillé gris = potentiel perdu au-delà du cap). Lit clairement le plafond.
+  function renderWelcomeGraph(info) {
+    const el = document.getElementById("wbGraph"); if (!el) return;
+    const total = info.elapsed, capT = Math.min(info.cap, total), gained = info.gained;
+    if (total <= 0 || gained <= 0) { el.innerHTML = ""; el.style.display = "none"; return; }
+    el.style.display = "";
+    const W = 100, H = 34, pad = 3;
+    const xs = t => total > 0 ? t / total * W : 0;
+    const ys = v => H - pad - (gained > 0 ? v / gained : 0) * (H - 2 * pad);
+    const ramp = `0,${ys(0).toFixed(1)} ${xs(capT).toFixed(1)},${ys(gained).toFixed(1)}`;
+    const area = `0,${H} ${ramp} ${xs(capT).toFixed(1)},${H}`;
+    let extra = "";
+    if (info.capped && total > capT) {
+      const cx = xs(capT).toFixed(1), gy = ys(gained).toFixed(1);
+      extra = `<line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#ffd24d" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`
+        + `<polyline points="${cx},${gy} ${W},${gy}" fill="none" stroke="#8fb7a3" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`;
+    }
+    el.innerHTML = `<svg class="riskcurve" style="height:42px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`
+      + `<polygon points="${area}" fill="#34d17a" opacity="0.13"/>`
+      + `<polyline points="${ramp}" fill="none" stroke="#34d17a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`
+      + extra + `</svg>`
+      + `<div class="frieze-foot">${info.capped ? `⏳ ${fmtDuration(capT)} créditées · ${fmtDuration(total - capT)} au-delà du plafond` : `Crédité sur toute l'absence (${fmtDuration(total)})`}</div>`;
   }
   function load() {
     try {
