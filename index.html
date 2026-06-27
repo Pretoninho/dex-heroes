@@ -21,8 +21,9 @@
     font-family: "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 50% -10%, #16382a, var(--bg));
     color: var(--text);
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;            /* shell : hauteur fixe → la zone principale défile, header/nav restent en place */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -551,12 +552,12 @@
   /* bouton compte ☁️ (injecté par cloud.js) dans la modale ⚙️ Réglages */
   #cloudSlot .cloudtab { width: 100%; justify-content: center; border-radius: 8px; padding: 10px; font-size: 14px; }
 
-  .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; display: flex; flex-direction: column;
+  .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
     padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px)); }
   /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
   #lobbyScreen { flex: 1; flex-direction: column; }
   /* Cash Flow remplit aussi la hauteur → le bouton Auto se cale dans l'espace restant, au-dessus de la nav. */
-  #screensPanel { flex: 1 1 auto; flex-direction: column; }
+  #screensPanel { flex: 1 1 auto; flex-direction: column; min-height: 0; }
   #overviewScreen { flex: 1; flex-direction: column; }
   .cf-auto { display: flex; justify-content: center; margin-top: auto; padding-top: 14px; }
   .cf-auto .btn { min-width: 200px; padding: 12px 18px; font-size: 15px; }
@@ -593,6 +594,31 @@
   .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
   .pump-state { font-size: 13px; color: var(--accent-2); font-weight: 700; min-height: 16px; }
   .click-hint { color: var(--muted); font-size: 12px; }
+
+  /* ⚗️ Fiche Atelier (fabrication) : calage flex pour tenir sur un écran, bascule en bas */
+  #heroesScreen { flex: 1; flex-direction: column; min-height: 0; }
+  #heroFiche { flex: 1; flex-direction: column; min-height: 0; }
+  #heroFiche .fiche-emoji { font-size: 34px; } #heroFiche .fiche-name { font-size: 18px; }
+  #heroFiche > #ficheBackBtn { align-self: flex-start; margin-bottom: 6px; }
+  #atlWorkshop { display: flex; flex-direction: column; flex: 1; gap: 8px; min-height: 0; }
+  .atl-invoke { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 10px; }
+  .atl-frag { font-size: 14px; margin-bottom: 8px; } .atl-frag b { color: var(--accent); }
+  .atl-btnrow { display: flex; gap: 8px; margin-top: 6px; }
+  .atl-btnrow .btn { flex: 1; }
+  .atl-fusion { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 14px; padding: 14px; text-align: center; }
+  .fus-preview { font-size: 15px; margin-bottom: 12px; } .fus-preview .muted { color: var(--muted); } .fus-preview .acc { color: var(--accent); } .fus-arrow { color: var(--accent-2); margin: 0 4px; }
+  .fus-slots { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
+  .fus-slot { width: 38px; height: 38px; border-radius: 9px; border: 2px dashed #2a4d3a; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #0d1f17; }
+  .fus-slot.on { border-style: solid; border-color: var(--accent); box-shadow: inset 0 0 8px rgba(52,209,122,.35); }
+  .fus-count { font-size: 13px; color: var(--muted); margin-bottom: 12px; } .fus-count .acc { color: var(--accent); }
+  .fus-btn { width: 100%; font-size: 16px; font-weight: 800; border: 2px solid #2a4d3a; opacity: .55; transition: opacity .2s, box-shadow .25s, border-color .2s; }
+  .fus-btn.ready { opacity: 1; border-color: var(--accent); color: var(--accent); box-shadow: 0 0 16px rgba(52,209,122,.55); animation: fusGlow 1.3s ease-in-out infinite; }
+  @keyframes fusGlow { 50% { box-shadow: 0 0 26px rgba(52,209,122,.85); } }
+  .atl-place { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 8px 10px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .atl-place .atl-modrow { padding: 6px 2px; }
+  .atl-modeswitch { display: flex; gap: 10px; margin-top: auto; }
+  .atl-modeswitch .btn { flex: 1; padding: 12px; font-size: 15px; font-weight: 700; }
+  .atl-modeswitch .btn.can { border-color: var(--accent); color: var(--accent); }
 
   /* 💥 Effet CRASH du Pump : flash plein écran + gros texte + secousse */
   #crashFx { position: fixed; inset: 0; z-index: 400; pointer-events: none; display: flex; align-items: center; justify-content: center; opacity: 0; }
@@ -714,7 +740,7 @@
       <!-- Écran Gacha -->
       <!-- Écran Codex (fiches des héros) -->
       <div id="heroesScreen" style="display:none">
-        <div class="mnav">
+        <div class="mnav" id="heroesMnav">
           <button class="btn" id="heroesBackBtn">← Retour</button>
           <div>🦸 <b id="heroesOwned">0</b>/18</div>
         </div>
@@ -733,21 +759,23 @@
               <div class="fiche-canon" id="ficheCanon" style="display:none"></div>
             </div>
           </div>
-          <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
-          <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
-          <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
-          <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
-          <div class="fiche-block">
-            <div class="fiche-k">Surnom <span style="color:var(--muted);font-weight:400">(perso, le nom canonique reste la vérité)</span></div>
-            <div class="nick-edit">
-              <input id="ficheNickInput" maxlength="20" placeholder="Donne-lui un surnom…" autocomplete="off">
-              <button class="btn" id="ficheNickSave">Renommer</button>
-              <button class="btn" id="ficheNickClear">Effacer</button>
+          <div id="ficheConsult">
+            <div class="fiche-row"><span class="fiche-k">Module</span><span id="ficheModule"></span></div>
+            <div class="fiche-block"><div class="fiche-k">Effet Cash Flow</div><div id="fichePassive"></div></div>
+            <div class="fiche-block"><div class="fiche-k">Signature</div><div id="ficheSig"></div></div>
+            <div class="fiche-block"><div class="fiche-k">Synergies</div><div id="ficheSyn"></div></div>
+            <div class="fiche-block">
+              <div class="fiche-k">Surnom <span style="color:var(--muted);font-weight:400">(perso, le nom canonique reste la vérité)</span></div>
+              <div class="nick-edit">
+                <input id="ficheNickInput" maxlength="20" placeholder="Donne-lui un surnom…" autocomplete="off">
+                <button class="btn" id="ficheNickSave">Renommer</button>
+                <button class="btn" id="ficheNickClear">Effacer</button>
+              </div>
             </div>
+            <div class="fiche-status" id="ficheStatus"></div>
+            <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
           </div>
-          <div class="fiche-status" id="ficheStatus"></div>
           <div id="atlWorkshop"></div>
-          <button class="btn" id="ficheGotoModule">Aller au module ↗</button>
         </div>
       </div>
 
@@ -1690,7 +1718,7 @@
   // Parcours de création de héros (Invoquer → Renforcer → Placer). Vit DANS la fiche Codex :
   // `atelierHero` suit `ficheId`. Structure construite UNE fois par héros (anti-reconstruction
   // 10×/s du game loop → clics fiables) ; ensuite seules les valeurs sont mises à jour.
-  let atelierHero = null, atlBuiltFor = null;
+  let atelierHero = null, atlBuiltFor = null, atlMode = "buff";   // atlMode : "buff" (profondeur) | "copies" (largeur)
   function renderAtelier() {
     const ws = document.getElementById("atlWorkshop");
     if (!ws) return;
@@ -1698,24 +1726,37 @@
     if (atlBuiltFor !== atelierHero) { buildAtelierWorkshop(atelierHero); atlBuiltFor = atelierHero; }
     updateAtelierWorkshop(atelierHero);
   }
+  // Slots symboliques (6 cases) remplis au prorata de have/need.
+  function fusSlots(have, need) {
+    const N = 6, filled = need > 0 ? Math.max(0, Math.min(N, Math.floor(have / need * N))) : N;
+    let s = ""; for (let i = 0; i < N; i++) s += `<span class="fus-slot${i < filled ? " on" : ""}">${i < filled ? "🧬" : ""}</span>`;
+    return s;
+  }
   function buildAtelierWorkshop(id) {
     const R = rarityOf(id);
-    const rows = ASSETS.filter(x => x.tier === R).map(x =>
+    const placeRows = ASSETS.filter(x => x.tier === R).map(x =>
       `<div class="atl-modrow"><span class="atl-modname">${x.emoji} ${x.name} <span class="mr">slots <span class="atl-slots" id="atlslot-${x.id}"></span></span></span>`
       + `<button class="btn" id="atlplace-${x.id}" data-atl="place" data-mod="${x.id}">Placer</button></div>`
     ).join("");
     document.getElementById("atlWorkshop").innerHTML =
-      `<div class="atl-step"><div class="atl-stat" id="atlStat"></div></div>`
-      + `<div class="atl-step"><h3>1️⃣ 🧬 Invoquer</h3><div class="sub">Étape A : achète des gemmes avec ton cash. Étape B : transforme-les en fragments ciblés.</div>`
+      // Invoquer (compact, toujours visible — alimente la fusion)
+      `<div class="atl-invoke"><div class="atl-frag">🧬 <b id="atlFrags">0</b> fragments</div>`
+      + `<div class="atl-btnrow"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button></div>`
       + `<div class="atl-btnrow"><button class="btn" id="atlBuy1" data-atl="buy200"></button><button class="btn" id="atlBuy10" data-atl="buy2000"></button></div>`
-      + `<div class="atl-btnrow" style="margin-top:8px"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button></div>`
-      + `<div class="sub" id="atlHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Pas assez de gemmes — achète-en ci-dessus (avec ton cash) pour pouvoir invoquer.</div></div>`
-      + `<div class="atl-step"><h3>2️⃣ ⚒️ Renforcer</h3><div class="sub">Le choix : dépense tes fragments en <b>force</b> (niveau) ou en <b>largeur</b> (copies).</div>`
-      + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv" id="atlFortVal"></div><div class="ct" id="atlFortFrags" style="margin-bottom:8px"></div><button class="btn" id="atlFuse" data-atl="fuse"></button></div>`
-      + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv" id="atlLargeVal"></div><div class="ct" id="atlLargeFrags" style="margin-bottom:8px"></div><button class="btn" id="atlMint" data-atl="mint"></button></div></div></div>`
-      + `<div class="atl-step"><h3>3️⃣ 📍 Placer</h3><div class="sub">Occupe un slot buffeur d'un module de même rareté (1 copie libre par slot).</div>${rows}`
-      + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`;
-    // (Étape « Équiper » retirée : l'équipement est désormais un bonus de prod PASSIF auto, voir ⚙️ Réglages.)
+      + `<div class="sub" id="atlHint" style="display:none;color:var(--accent-2)">💡 Pas assez de gemmes — achète-en pour invoquer.</div></div>`
+      // Zone de fusion (dépend du mode)
+      + `<div class="atl-fusion">`
+      + `<div class="fus-preview" id="atlPreview"></div>`
+      + `<div class="fus-slots" id="atlSlots"></div>`
+      + `<div class="fus-count" id="atlCount"></div>`
+      + `<button class="big-btn fus-btn" id="atlFuseBtn" data-atl="fusebtn">FUSIONNER</button>`
+      + `</div>`
+      // Placement (mode Copies)
+      + `<div class="atl-place" id="atlPlaceWrap"><div class="sub">Placer une copie sur un module de même rareté :</div>${placeRows}`
+      + `<div class="sub" id="atlPlaceHint" style="display:none;color:var(--accent-2)">💡 Forge une copie pour pouvoir la placer.</div></div>`
+      // Bascule Buffeur / Copies (en bas, au-dessus de la nav)
+      + `<div class="atl-modeswitch"><button class="btn" id="atlModeBuff" data-atlmode="buff">🦸 Buffeur</button>`
+      + `<button class="btn" id="atlModeCopies" data-atlmode="copies">📦 Copies</button></div>`;
   }
   function updateAtelierWorkshop(id) {
     const R = rarityOf(id);
@@ -1725,29 +1766,41 @@
     const owned = copiesOwned(id), free = copiesFree(id), cc = copyCost(id);
     const set = (elId, html) => { const e = document.getElementById(elId); if (e) e.innerHTML = html; };
     const able = (elId, can) => { const e = document.getElementById(elId); if (e) { e.disabled = !can; e.classList.toggle("can", can); } };
-    set("atlStat", `💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)`);
+    set("atlFrags", fmt(frags));
     set("atlBuy1", `Acheter 200💎 · ≈$${fmt(buy1)}`); able("atlBuy1", state.cash >= buy1);
     set("atlBuy10", `2000💎 · ≈$${fmt(buy10)}`); able("atlBuy10", state.cash >= buy10);
-    able("atlPull1", gems >= PULL_COST);
-    able("atlPull10", gems >= PULL_COST * 10);
+    able("atlPull1", gems >= PULL_COST); able("atlPull10", gems >= PULL_COST * 10);
     const hint = document.getElementById("atlHint"); if (hint) hint.style.display = gems < PULL_COST ? "block" : "none";
-    set("atlFortVal", `niv ${L}/${BUFFER_MAX_LVL} · +${L}%`);
-    set("atlFortFrags", atMax ? "niveau max atteint"
-      : (frags >= step ? `<span style="color:var(--accent)">🧬 ${frags} / ${step} · prêt ✓</span>`
-                       : `🧬 ${frags} / ${step} · <span style="color:var(--accent-2)">manque ${step - frags}</span>`));
-    set("atlFuse", atMax ? "Niveau max" : `Fusionner +1% · ${step} 🧬`); able("atlFuse", !atMax && frags >= step);
-    set("atlLargeVal", `${owned} copie(s) · ${free} libre(s)`);
-    set("atlLargeFrags", frags >= cc ? `<span style="color:var(--accent)">🧬 ${frags} / ${cc} · prêt ✓</span>`
-                                     : `🧬 ${frags} / ${cc} · <span style="color:var(--accent-2)">manque ${cc - frags}</span>`);
-    set("atlMint", `Forger une copie · ${cc} 🧬`); able("atlMint", frags >= cc);
-    ASSETS.filter(x => x.tier === R).forEach(x => {
-      const on = isPlacedOn(id, x.id), used = slotsOf(x.id).length, dis = !on && ((used >= 2) || free <= 0);
-      set("atlslot-" + x.id, (used >= 1 ? "●" : '<span class="off">○</span>') + (used >= 2 ? "●" : '<span class="off">○</span>'));
-      const b = document.getElementById("atlplace-" + x.id);
-      if (b) { b.textContent = on ? "Retirer" : "Placer"; b.disabled = dis; b.classList.toggle("can", on); }
-    });
-    const ph = document.getElementById("atlPlaceHint"); if (ph) ph.style.display = free <= 0 ? "block" : "none";
-    // (Gear retiré du workshop : équipement = bonus passif auto, affiché dans ⚙️ Réglages.)
+    // bascule
+    document.getElementById("atlModeBuff").classList.toggle("can", atlMode === "buff");
+    document.getElementById("atlModeCopies").classList.toggle("can", atlMode === "copies");
+    document.getElementById("atlPlaceWrap").style.display = atlMode === "copies" ? "block" : "none";
+    // zone de fusion selon le mode
+    const buff = atlMode === "buff";
+    const need = buff ? step : cc;
+    const ready = buff ? (!atMax && frags >= step) : (frags >= cc);
+    if (buff) {
+      set("atlPreview", atMax ? `<b>🦸 Buffeur niv ${L}</b> · niveau max`
+        : `<b>🦸 Buffeur</b> &nbsp; niv ${L} <span class="muted">(+${L}%)</span> <span class="fus-arrow">➜</span> niv ${L + 1} <span class="acc">(+${L + 1}%)</span>`);
+    } else {
+      set("atlPreview", `<b>📦 Forger une copie</b> &nbsp; <span class="muted">${owned} possédée(s) · ${free} libre(s)</span>`);
+    }
+    set("atlSlots", (buff && atMax) ? "" : fusSlots(frags, need));
+    set("atlCount", (buff && atMax) ? "niveau max atteint"
+      : `🧬 ${fmt(Math.min(frags, need))} / ${fmt(need)}` + (frags >= need ? ` · <span class="acc">prêt ✓</span>` : ` · manque ${fmt(need - frags)}`));
+    const fb = document.getElementById("atlFuseBtn");
+    fb.textContent = buff ? (atMax ? "Niveau max" : `FUSIONNER  ·  ${fmt(step)} 🧬`) : `FORGER  ·  ${fmt(cc)} 🧬`;
+    fb.classList.toggle("ready", ready); fb.disabled = !ready;
+    // placement (mode copies)
+    if (atlMode === "copies") {
+      ASSETS.filter(x => x.tier === R).forEach(x => {
+        const on = isPlacedOn(id, x.id), used = slotsOf(x.id).length, dis = !on && ((used >= 2) || free <= 0);
+        set("atlslot-" + x.id, (used >= 1 ? "●" : '<span class="off">○</span>') + (used >= 2 ? "●" : '<span class="off">○</span>'));
+        const b = document.getElementById("atlplace-" + x.id);
+        if (b) { b.textContent = on ? "Retirer" : "Placer"; b.disabled = dis; b.classList.toggle("can", on); }
+      });
+      const ph = document.getElementById("atlPlaceHint"); if (ph) ph.style.display = free <= 0 ? "block" : "none";
+    }
   }
 
   function perSecond(noBuffs) {
@@ -2241,7 +2294,7 @@
     document.getElementById("screensPanel").style.display = name === "lobby" ? "none" : "flex";
     document.getElementById("overviewScreen").style.display = name === "overview" ? "flex" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
-    document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
+    document.getElementById("heroesScreen").style.display = name === "heroes" ? "flex" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
     document.getElementById("inventaireScreen").style.display = name === "inventaire" ? "block" : "none";
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
@@ -2270,6 +2323,7 @@
   // --- Codex des héros (fiches) -----------------------------------------
   function openHeroes() {
     ficheId = null;
+    document.getElementById("heroesMnav").style.display = "flex";
     document.getElementById("heroList").style.display = "block";
     document.getElementById("heroFiche").style.display = "none";
     showScreen("heroes");
@@ -2278,6 +2332,7 @@
   function backToList() {
     ficheId = null;
     if (ficheSource === "inventaire") { openInventaire(); return; }   // revient à la grille d'inventaire
+    document.getElementById("heroesMnav").style.display = "flex";
     document.getElementById("heroFiche").style.display = "none";
     document.getElementById("heroList").style.display = "block";
     render();
@@ -2306,11 +2361,12 @@
       (h.synergies || []).map(k => { const s = HMETA.synergies.find(x => x.key === k); return s ? s.name : k; }).join(" · ") || "—";
     ficheSource = (source === "inventaire") ? "inventaire" : "atelier";
     const fromInv = ficheSource === "inventaire";
-    document.getElementById("atlWorkshop").style.display = fromInv ? "none" : "";      // pas d'atelier en consultation
-    document.getElementById("ficheGotoModule").style.display = fromInv ? "none" : "";
+    document.getElementById("heroesMnav").style.display = "none";   // un seul retour (← Liste) dans la fiche
+    document.getElementById("ficheConsult").style.display = fromInv ? "" : "none";     // infos (lore) en consultation seulement
+    document.getElementById("atlWorkshop").style.display = fromInv ? "none" : "";      // atelier (fabrication) hors consultation
     navKey = fromInv ? "inventaire" : "atelier";   // depuis l'Inventaire on y reste (surbrillance)
     document.getElementById("heroList").style.display = "none";
-    document.getElementById("heroFiche").style.display = "block";
+    document.getElementById("heroFiche").style.display = "flex";
     showScreen("heroes");
     render();
   }
@@ -2653,20 +2709,16 @@
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
   // Parcours méta V2 dans la fiche : un seul listener délégué sur le workshop (boutons data-atl).
   document.getElementById("atlWorkshop").addEventListener("click", (ev) => {
+    const mode = ev.target.closest("[data-atlmode]");
+    if (mode && atelierHero) { atlMode = mode.getAttribute("data-atlmode"); updateAtelierWorkshop(atelierHero); return; }
     const btn = ev.target.closest("[data-atl]"); if (!btn || !atelierHero) return;
     const act = btn.getAttribute("data-atl");
     if (act === "buy200") buyGems(PULL_COST);
     else if (act === "buy2000") buyGems(PULL_COST * 10);
     else if (act === "pull1") pullFrags(atelierHero, 1);
     else if (act === "pull10") pullFrags(atelierHero, 10);
-    else if (act === "fuse") fuseBuffer(atelierHero);
-    else if (act === "mint") mintCopy(atelierHero);
+    else if (act === "fusebtn") { if (atlMode === "buff") fuseBuffer(atelierHero); else mintCopy(atelierHero); }
     else if (act === "place") toggleBuffer(atelierHero, btn.getAttribute("data-mod"));
-    else if (act === "gear") upgradeGearSlot(atelierHero, parseInt(btn.getAttribute("data-slot"), 10));
-  });
-  document.getElementById("atlWorkshop").addEventListener("change", (ev) => {
-    const sel = ev.target.closest("select[data-gfx]"); if (!sel || !atelierHero) return;
-    assignGearFx(atelierHero, parseInt(sel.getAttribute("data-gfx"), 10), sel.value);
   });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
   function applyNick() {
