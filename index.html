@@ -597,6 +597,16 @@
   .lobby-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
   .pump-state { font-size: 13px; color: var(--accent-2); font-weight: 700; min-height: 16px; }
+  /* 📜 Quêtes quotidiennes : petit bouton en haut à droite du Lobby, sous la météo, proche du bord (pas collé) */
+  #lobbyScreen { position: relative; }
+  .daily-btn { position: absolute; top: 6px; right: 14px; z-index: 6; width: 46px; height: 46px; border-radius: 13px;
+    background: var(--panel-2); border: 1px solid #2a4d3a; color: var(--text); font-size: 23px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+  .daily-btn:active { transform: scale(.94); }
+  .daily-btn .dot { top: -3px; right: -3px; }
+  .daily-reset { text-align: center; color: var(--muted); font-size: 12px; margin: -2px 0 10px; }
+  .daily-bonus { margin-top: 10px; padding: 11px 13px; border: 1px dashed #2a4d3a; border-radius: 12px; background: var(--panel-2); text-align: center; font-size: 13px; }
+  .daily-bonus.can { border-style: solid; border-color: var(--accent); box-shadow: 0 0 10px rgba(52,209,122,.25); }
   .click-hint { color: var(--muted); font-size: 12px; }
 
   /* ⚗️ Fiche Atelier : flux naturel (hauteur = contenu, pas de grow/shrink) -> .appmain
@@ -683,6 +693,7 @@
 
     <!-- 🏠 LOBBY : le hub d'action (billet + Pump + compétences + Margin Call) -->
     <div id="lobbyScreen">
+      <button class="daily-btn" id="dailyBtn" aria-label="Quêtes quotidiennes">📜<span class="dot" id="dotDaily"></span></button>
       <div class="lobby-wrap">
         <div class="pump-gauge" id="pumpGauge">
           <div class="pump-tube"><div class="pump-fill" id="pumpFill"></div></div>
@@ -894,6 +905,17 @@
       </div>
       <div class="gemhint" id="gemHint" style="text-align:center"></div>
       <button class="big-btn can" id="gemsClose" style="margin-top:14px">Fermer</button>
+    </div>
+  </div>
+
+  <!-- 📜 Quêtes quotidiennes (set du jour identique pour tous, reset UTC) -->
+  <div class="wb-overlay" id="dailyOv" style="display:none">
+    <div class="wb-card" style="max-width:380px">
+      <h2 style="text-align:center">📜 Quêtes du jour</h2>
+      <div class="daily-reset">Renouvellement dans <b id="dailyReset">—</b> · les mêmes pour tous les joueurs</div>
+      <div id="dailyList"></div>
+      <div class="daily-bonus" id="dailyBonus"></div>
+      <button class="big-btn can" id="dailyClose" style="margin-top:14px">Fermer</button>
     </div>
   </div>
 
@@ -1222,8 +1244,10 @@
     const cost = PULL_COST * n;
     if ((state.gems || 0) < cost) { toast("Pas assez de gemmes !"); return; }
     state.gems -= cost;
+    dailyAdd("spend", cost);   // 📜 quête « dépenser des gemmes »
     const got = n * (1 + gearQual().frag);   // gear "trouvaille de fragments" (pool 4c, capé +50 %)
     state.heroFrags[id] = (state.heroFrags[id] || 0) + got;
+    dailyAdd("frags", got);    // 📜 quête « invoquer des fragments »
     toast(`🧬 +${got % 1 ? got.toFixed(1) : got} fragment${got > 1 ? "s" : ""} · ${heroName(id)}`);
     render(); save();
   }
@@ -1300,6 +1324,7 @@
       bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod du module où placé) }
       bufSlots: {},                // { moduleId: [heroId, heroId] } — 2 slots buffeurs/module (même rareté)
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
+      daily: null,                 // 📜 quêtes quotidiennes : { day, keys, tgt, base, prog, claimed, bonus } (régénéré par rollDaily)
       lastSeen: Date.now()
     };
   }
@@ -1552,6 +1577,114 @@
   function questTier(q) { return (state.quests && state.quests[q.key]) || 0; }
   function questClaimable(q) { return q.value() >= questThreshold(q, questTier(q)); }
   function anyQuestClaimable() { return QUESTS.some(q => questClaimable(q)); }
+
+  // ============ 📜 QUÊTES QUOTIDIENNES (complémentaires des Objectifs) =============
+  // « faire X aujourd'hui » (compteurs du jour) qui RESETENT chaque jour UTC, set
+  // DÉTERMINISTE & PARTAGÉ (seedé sur le jour, comme world()) → mêmes 3 quêtes pour tous.
+  // Récompense 💎 par quête + coffre bonus quand les 3 sont réclamées. 1 quête IDLE garantie.
+  const DAILY_BONUS = 400;   // 💎 coffre versé quand les 3 quêtes du jour sont réclamées (PROVISOIRE)
+  // kind "base" = différentiel sur une stat monotone (cur - baseline figé au reset) ;
+  // kind "counter" = compteur incrémenté pendant la journée (prog[key]).
+  const DAILY_POOL = [
+    { key: "earn",  icon: "🏭", idle: true,  kind: "counter", label: "Produire du cash",        rw: 200, target: ps => Math.max(1000, Math.round(ps * 1800)), fmt: v => "$" + fmt(v) },
+    { key: "upg",   icon: "🔗", kind: "base", cur: () => totalLevels(),        label: "Acheter des améliorations", rw: 150, target: () => 15, fmt: v => fmt(Math.floor(v)) },
+    { key: "buff",  icon: "🦸", kind: "base", cur: () => totalBufferLevels(),  label: "Fusionner des buffeurs",    rw: 250, target: () => 5,  fmt: v => fmt(Math.floor(v)) },
+    { key: "maxp",  icon: "💥", kind: "base", cur: () => state.pumpMaxCount || 0, label: "Atteindre le MAX du Pump", rw: 200, target: () => 2, fmt: v => fmt(Math.floor(v)) },
+    { key: "frags", icon: "🧬", kind: "counter", label: "Invoquer des fragments",  rw: 200, target: () => 5,   fmt: v => fmt(Math.floor(v)) },
+    { key: "spend", icon: "💎", kind: "counter", label: "Dépenser des gemmes",     rw: 150, target: () => 600, fmt: v => fmt(Math.floor(v)) },
+    { key: "mc",    icon: "🎰", kind: "counter", label: "Lancer un Margin Call",   rw: 250, target: () => 1,   fmt: v => fmt(Math.floor(v)) },
+  ];
+  const DAILY_BY_KEY = {}; DAILY_POOL.forEach(q => DAILY_BY_KEY[q.key] = q);
+  function dailyDayKey() { return Math.floor(Date.now() / 86400000); }   // jour UTC (le numéraire de l'horloge est déjà en UTC)
+  function msToDailyReset() { return (dailyDayKey() + 1) * 86400000 - Date.now(); }
+  // Tirage déterministe : "earn" (idle garanti) + 2 autres, mélange seedé par le jour.
+  function dailyPick(day) {
+    const rnd = mulberry32((0x0DA17 ^ (day >>> 0)) >>> 0);
+    const rest = DAILY_POOL.filter(q => q.key !== "earn");
+    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = rest[i]; rest[i] = rest[j]; rest[j] = t; }
+    return ["earn", rest[0].key, rest[1].key];
+  }
+  // (Re)génère le set du jour si le jour a changé. Amorçage SILENCIEUX (baselines figées,
+  // compteurs à 0) → les vieilles saves ne réclament rien d'office.
+  function rollDaily() {
+    const day = dailyDayKey();
+    if (state.daily && state.daily.day === day && Array.isArray(state.daily.keys)) return;
+    const keys = dailyPick(day), ps = perSecond(), tgt = {}, base = {}, prog = {}, claimed = {};
+    keys.forEach(k => { const q = DAILY_BY_KEY[k]; tgt[k] = q.target(ps); if (q.kind === "base") base[k] = q.cur(); prog[k] = 0; claimed[k] = false; });
+    state.daily = { day, keys, tgt, base, prog, claimed, bonus: false };
+  }
+  function dailyAdd(k, amt) { if (state.daily && state.daily.keys && state.daily.keys.indexOf(k) >= 0) state.daily.prog[k] = (state.daily.prog[k] || 0) + amt; }
+  function dailyValue(k) { const q = DAILY_BY_KEY[k]; if (!state.daily) return 0; return q.kind === "base" ? Math.max(0, q.cur() - (state.daily.base[k] || 0)) : (state.daily.prog[k] || 0); }
+  function dailyDone(k) { return state.daily && dailyValue(k) >= state.daily.tgt[k]; }
+  function dailyClaimable(k) { return dailyDone(k) && !state.daily.claimed[k]; }
+  function dailyAllClaimed() { return state.daily && state.daily.keys.every(k => state.daily.claimed[k]); }
+  function dailyBonusClaimable() { return dailyAllClaimed() && !state.daily.bonus; }
+  function anyDailyClaimable() { rollDaily(); return state.daily.keys.some(k => dailyClaimable(k)) || dailyBonusClaimable(); }
+  function claimDaily(key) {
+    rollDaily(); if (!dailyClaimable(key)) return;
+    const q = DAILY_BY_KEY[key];
+    state.daily.claimed[key] = true;
+    state.gems = (state.gems || 0) + q.rw;
+    toast("📜 " + q.label + " — +" + q.rw + " 💎");
+    render(); save();
+  }
+  function claimDailyBonus() {
+    rollDaily(); if (!dailyBonusClaimable()) return;
+    state.daily.bonus = true;
+    state.gems = (state.gems || 0) + DAILY_BONUS;
+    toast("📜 Toutes les quêtes ! Coffre +" + DAILY_BONUS + " 💎");
+    render(); save();
+  }
+  // Build-once + update-in-place (le game loop appelle render 10×/s → ne JAMAIS reconstruire
+  // le HTML sous le doigt, sinon clic perdu ; on ne met à jour que les valeurs/états).
+  let dailyBuiltFor = "";
+  function buildDaily() {
+    const list = document.getElementById("dailyList"); if (!list) return;
+    list.innerHTML = state.daily.keys.map(k => {
+      const q = DAILY_BY_KEY[k];
+      return `<div class="qrow" id="dq-${k}">`
+        + `<div class="qrow-top"><span>${q.icon} ${q.label}${q.idle ? ' <span class="qtier">idle</span>' : ""}</span>`
+        + `<span class="dq-act">`
+        + `<button class="btn" data-daily="${k}" style="padding:5px 10px;display:none"></button>`
+        + `<span class="dq-rw" style="color:var(--muted)">+${q.rw} 💎</span>`
+        + `<span class="dq-ok" style="color:var(--accent);display:none">✓ réclamé</span>`
+        + `</span></div>`
+        + `<div class="qrow-bar"><div class="qrow-fill" id="dqf-${k}"></div></div>`
+        + `<div class="qrow-sub"><span id="dqv-${k}"></span><span id="dqp-${k}"></span></div>`
+        + `</div>`;
+    }).join("");
+    const b = document.getElementById("dailyBonus");
+    if (b) b.innerHTML = `<button class="btn can" data-daily="__bonus" style="width:100%;display:none"></button><span class="dq-bmsg"></span>`;
+    dailyBuiltFor = state.daily.keys.join(",");
+  }
+  function renderDaily() {
+    rollDaily();
+    if (dailyBuiltFor !== state.daily.keys.join(",")) buildDaily();
+    state.daily.keys.forEach(k => {
+      const q = DAILY_BY_KEY[k], val = dailyValue(k), tgt = state.daily.tgt[k];
+      const done = val >= tgt, claimed = state.daily.claimed[k], claim = done && !claimed;
+      const pct = Math.max(0, Math.min(100, tgt > 0 ? val / tgt * 100 : 100));
+      const row = document.getElementById("dq-" + k); if (!row) return;
+      row.classList.toggle("claim", claim);
+      document.getElementById("dqf-" + k).style.width = pct + "%";
+      document.getElementById("dqv-" + k).textContent = q.fmt(val) + " / " + q.fmt(tgt);
+      document.getElementById("dqp-" + k).textContent = done ? "terminé ✓" : Math.floor(pct) + " %";
+      const btn = row.querySelector("[data-daily]"), rw = row.querySelector(".dq-rw"), ok = row.querySelector(".dq-ok");
+      btn.style.display = claim ? "" : "none"; if (claim) btn.textContent = "Réclamer +" + q.rw + " 💎";
+      rw.style.display = (!claim && !claimed) ? "" : "none";
+      ok.style.display = claimed ? "" : "none";
+    });
+    const b = document.getElementById("dailyBonus");
+    if (b) {
+      const canB = dailyBonusClaimable();
+      b.classList.toggle("can", canB);
+      const bb = b.querySelector("[data-daily]"), msg = b.querySelector(".dq-bmsg");
+      bb.style.display = canB ? "" : "none"; if (canB) bb.textContent = `🎁 Coffre 3/3 · +${DAILY_BONUS} 💎`;
+      msg.style.display = canB ? "none" : "";
+      msg.textContent = state.daily.bonus ? "🎁 Coffre du jour récupéré ✓" : `🎁 Termine les 3 quêtes → coffre +${DAILY_BONUS} 💎`;
+    }
+    const rs = document.getElementById("dailyReset"); if (rs) rs.textContent = fmtDuration(Math.max(0, msToDailyReset() / 1000));
+  }
   function claimQuest(key) {
     const q = QUESTS.find(x => x.key === key); if (!q) return;
     const t = questTier(q); if (q.value() < questThreshold(q, t)) return;
@@ -1925,6 +2058,7 @@
       durSec: durH * 3600, startMs: now, endMs: now + durH * 3600 * 1000,
       lastMs: now, gems: 0, blown: false, gemPrice0: gemPrice(),
     };
+    dailyAdd("mc", 1);   // 📜 quête « lancer un Margin Call »
     return true;
   }
 
@@ -2081,6 +2215,7 @@
     const mcCollect = mcPending();
     setDot("dotOverview", ASSETS.some(n => actionable(n)));
     setDot("dotObjectives", anyQuestClaimable());
+    setDot("dotDaily", anyDailyClaimable());
     setDot("dotAtelier", atelierActionable());
     setDot("dotInventaire", false);     // slice 1 : rien de « réclamable » côté inventaire
     setDot("dotSkills", skillsAllReady());
@@ -2134,6 +2269,7 @@
       const saved = JSON.parse(raw);
       const prevSeen = saved.lastSeen;
       adopt(saved);
+      rollDaily();   // 📜 set du jour (régénéré si on a changé de jour UTC depuis la dernière session)
       const elapsed = (Date.now() - (prevSeen || Date.now())) / 1000;
       if (elapsed > 1) {
         const fx = globalHeroFx();
@@ -2145,6 +2281,7 @@
         const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult * (1 + gq.offmult);   // 50 % × héros offlineMult × gear
         if (gained > 0) {
           state.cash += gained;
+          dailyAdd("earn", gained);   // 📜 les gains hors-ligne comptent pour la quête « produire »
           // Modale seulement pour une vraie absence (>= 60 s) ; sinon on crédite en silence
           if (elapsed >= 60) pendingWelcome = { elapsed: elapsed, eff: eff, cap: cap, gained: gained, capped: elapsed > cap };
         }
@@ -2463,6 +2600,7 @@
     const grs = document.getElementById("gearReadoutSub");
     if (grs) grs.textContent = "(niv " + gearTier() + " · prochain " + gearTierCost(gearTier()) + " 🛠️ · " + Math.floor(state.gearFrags || 0) + " en stock)";
     renderLobby();
+    if (document.getElementById("dailyOv").style.display === "flex") renderDaily();
     updateDots();
   }
 
@@ -2601,9 +2739,12 @@
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     cleanBuffs();
+    rollDaily();     // 📜 quêtes du jour : régénère le set si on a changé de jour UTC
     pumpDecay(dt);   // 🔽 la jauge de Pump redescend si on arrête de taper
     const fx = globalHeroFx();
-    state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
+    const tickGain = (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
+    state.cash += tickGain;
+    dailyAdd("earn", tickGain);   // 📜 quête « produire du cash » (chemin idle garanti)
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
     gearAutoLevel();   // 🛠️ investit auto les fragments en paliers (bonus prod passif)
@@ -2680,6 +2821,17 @@
   document.getElementById("gemsBtn").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "flex"; render(); });
   document.getElementById("gemsClose").addEventListener("click", () => { document.getElementById("gemsOv").style.display = "none"; });
   document.getElementById("gemsOv").addEventListener("click", (e) => { if (e.target.id === "gemsOv") e.currentTarget.style.display = "none"; });
+
+  // 📜 Quêtes quotidiennes (modale depuis le Lobby)
+  document.getElementById("dailyBtn").addEventListener("click", () => { rollDaily(); document.getElementById("dailyOv").style.display = "flex"; renderDaily(); });
+  document.getElementById("dailyClose").addEventListener("click", () => { document.getElementById("dailyOv").style.display = "none"; });
+  document.getElementById("dailyOv").addEventListener("click", (e) => {
+    if (e.target.id === "dailyOv") { e.currentTarget.style.display = "none"; return; }
+    const btn = e.target.closest("[data-daily]"); if (!btn) return;
+    const k = btn.getAttribute("data-daily");
+    if (k === "__bonus") claimDailyBonus(); else claimDaily(k);
+    renderDaily();
+  });
 
   // 🏠 Lobby : compétences groupées + accès Margin Call
   document.getElementById("skillsBtn").addEventListener("click", fireAllSkills);

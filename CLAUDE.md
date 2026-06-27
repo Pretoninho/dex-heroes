@@ -497,7 +497,27 @@ Bloc de **correctifs mobiles/PWA** débogués avec le joueur (captures iPhone à
   toggle en `margin-top` normal). **Header `sticky` + nav `fixed`** restent en place. **Leçon retenue (consigne joueur)** :
   quand une modif ne règle pas le souci, **remonter au commit responsable / revert** plutôt qu'empiler des correctifs.
 
-#### Tuto — design validé (2026-06-27, à coder)
+#### 📜 QUÊTES QUOTIDIENNES — ✅ FAIT (2026-06-27)
+Branche le **sink récurrent / boucle de retour quotidienne**, **complémentaire** des Objectifs 🎯 (qui restent des
+paliers d'**état** permanents recyclables). Décisions verrouillées avec le joueur :
+- **« Faire X aujourd'hui »** (compteurs du jour) qui **RESETENT à 00:00 UTC** (`dailyDayKey = floor(Date.now()/86400000)`,
+  donc minuit UTC pile, du jour au lendemain comme demandé). **3 quêtes/jour**, **set DÉTERMINISTE & PARTAGÉ**
+  (`dailyPick(day)` via `mulberry32` seedé sur le jour → **mêmes 3 quêtes pour tous les joueurs**, prolonge le thème
+  synchro `world()`, zéro backend).
+- **Pool `DAILY_POOL`** (`DAILY_BY_KEY`) : `earn` (🏭 produire — **toujours incluse = garantie 100 % IDLE**), `upg`,
+  `buff`, `maxp`, `frags`, `spend`, `mc`. Deux types de suivi : **`base`** = différentiel sur stat monotone
+  (`cur()-baseline` figé au reset ; ex. `totalLevels`/`totalBufferLevels`/`pumpMaxCount`) · **`counter`** = compteur
+  incrémenté en jeu via `dailyAdd(key,amt)` (hooks : `loop` & `load`→`earn`, `pullFrags`→`spend`+`frags`, `mcLaunch`→`mc`).
+  Cibles **figées au reset** (les prod-indexées via `perSecond()` au moment du reset → pas de goalpost mobile).
+- **Récompense** : 💎 par quête + **coffre bonus 3/3** (`DAILY_BONUS`=400 💎). Amorçage **silencieux** des vieilles saves
+  (`rollDaily` pose baselines/compteurs à 0 → rien crédité d'office). `state.daily = {day,keys,tgt,base,prog,claimed,bonus}`.
+- **UI** : petit bouton **📜** flotté en haut-droite du Lobby (`.daily-btn`, sous la météo, proche du bord, `#dotDaily`
+  rouge si réclamable) → **modale `#dailyOv`** (compte à rebours reset UTC + 3 lignes `.qrow` + coffre). **Build-once +
+  update-in-place** (`buildDaily`/`renderDaily`, `dailyBuiltFor`) pour clics fiables sous le game loop 10×/s.
+- **TUNABLE** : `DAILY_POOL` (cibles/récompenses), `DAILY_BONUS`. **PROVISOIRE** (à playtester). ⚠️ Le joueur note que
+  **les quêtes quotidiennes pourraient rendre le tuto inutile** (fil conducteur naturel) — à réévaluer à l'usage.
+
+#### Tuto — design validé (2026-06-27, à coder) — ⚠️ peut-être SUPERFLU avec les quêtes quotidiennes (à réévaluer)
 **Guidé & sautable.** **Bulle à chaque étape** du cycle cœur (~8 gestes, une fois), puis **un pop contextuel**
 la 1ʳᵉ fois pour les systèmes optionnels/avancés. **Cycle cœur** : 🏠 billet/Pump → 🔗 connecter+améliorer un
 module → 💎 acheter gemmes → ⚗️ invoquer→fusionner→placer un héros → 📈 prendre une Valo → (clôture « les 🔴 te
