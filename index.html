@@ -601,11 +601,12 @@
   .click-hint { color: var(--muted); font-size: 12px; }
 
   /* ⚗️ Fiche Atelier (fabrication) : calage flex pour tenir sur un écran, bascule en bas */
-  #heroesScreen { flex: 1 0 auto; flex-direction: column; }
-  #heroFiche { flex: 1 0 auto; flex-direction: column; }
+  #heroesScreen { flex: 1; flex-direction: column; }
+  #heroFiche { flex: 1; flex-direction: column; }
   #heroFiche .fiche-emoji { font-size: 34px; } #heroFiche .fiche-name { font-size: 18px; }
   #heroFiche > #ficheBackBtn { align-self: flex-start; margin-bottom: 6px; }
-  #atlWorkshop { display: flex; flex-direction: column; gap: 8px; }
+  /* atlWorkshop grandit pour remplir la fiche -> le toggle (margin-top:auto) s'epingle en bas, comme le bouton Auto de Cash Flow. */
+  #atlWorkshop { display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .atl-invoke { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 10px; }
   .atl-frag { font-size: 14px; margin-bottom: 8px; } .atl-frag b { color: var(--accent); }
   .atl-btnrow { display: flex; gap: 8px; margin-top: 6px; }
