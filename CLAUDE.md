@@ -535,7 +535,14 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   réputation, repoussée). **Zoom MC** : frise + courbe en horizon **= durée de session ×1,15** (le Lobby garde 8 h) → les
   deux remplissent la largeur et restent alignées même pour une session courte. Insight exposé : temps avant rupture ≈
   `durée/(MC_BURN×0,8)` **indépendant de l'alloc** → le risque vient du **régime traversé**, pas de la taille du pari.
-- **RESTE (dataviz, pas codé)** : décomposition de la prod · courbe de richesse · ROI du prochain achat · récap hors-ligne.
+- **📊 TABLEAU DE BORD — ✅ FAIT (2026-06-27)** : onglet **📊** dans un **rail vertical** à droite du Lobby (`.lobby-rail`,
+  **📜 puis 📊**, placé **sous la frise** → fix du chevauchement 📜/frise ; la frise repasse pleine largeur). Modale
+  `#statsOv` (`renderStats`, **lecture locale**, SVG/flex sans lib) : **en-tête** (prod/s + rang Valo) · **multiplicateurs
+  globaux** (chips ×Valo/×Gear/×Pump) · **« d'où vient la prod »** (`prodBreakdown` : contribution par module agrégée tous
+  Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **courbe de richesse** (`sparkline` sur `prodHist`, historique roulant
+  ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s = temps de retour,
+  trié, top 6). `.wb-card` rendu **défilable** (`max-height:88vh; overflow-y:auto`). **TUNABLE/PROVISOIRE**.
+- **RESTE (dataviz, pas codé)** : récap hors-ligne en mini-graphe · (idée) frise dépliable ailleurs.
 
 #### 📊 (archive) IDÉES DATAVIZ — discutées le 2026-06-27
 Idées de **visualisations** pour le joueur (thème finance → très naturel). **100 % idle** (affichage seul, n'exige

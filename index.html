@@ -505,6 +505,7 @@
   .wb-card {
     background: var(--panel); border: 1px solid #2a4d3a; border-radius: 16px;
     box-shadow: var(--shadow); padding: 24px 22px; max-width: 360px; width: 100%;
+    max-height: 88vh; overflow-y: auto;   /* défile si le contenu dépasse (ex. 📊 tableau de bord) */
     text-align: center; animation: pop .25s ease;
   }
   .wb-card h2 { margin: 6px 0 2px; }
@@ -611,13 +612,24 @@
   .lobby-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
   .pump-state { font-size: 13px; color: var(--accent-2); font-weight: 700; min-height: 16px; }
-  /* 📜 Quêtes quotidiennes : petit bouton en haut à droite du Lobby, sous la météo, proche du bord (pas collé) */
+  /* 📜 Quêtes / 📊 Stats : rail vertical d'icônes à droite du Lobby, SOUS la frise météo (plus de chevauchement) */
   #lobbyScreen { position: relative; }
-  .daily-btn { position: absolute; top: 6px; right: 14px; z-index: 6; width: 46px; height: 46px; border-radius: 13px;
+  .lobby-rail { position: absolute; right: 10px; top: 72px; z-index: 6; display: flex; flex-direction: column; gap: 8px; }
+  .daily-btn { position: relative; width: 46px; height: 46px; border-radius: 13px;
     background: var(--panel-2); border: 1px solid #2a4d3a; color: var(--text); font-size: 23px; line-height: 1; cursor: pointer;
     display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
   .daily-btn:active { transform: scale(.94); }
   .daily-btn .dot { top: -3px; right: -3px; }
+  /* 📊 Tableau de bord (modale stats) */
+  .stat-head { text-align: center; font-size: 14px; margin-bottom: 8px; }
+  .stat-head b { color: var(--accent); }
+  .stat-sec { margin: 14px 0; }
+  .stat-t { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-row { display: flex; align-items: center; font-size: 13px; margin: 5px 0; }
+  .stat-lbl { width: 116px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat-val { width: 58px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat-chip { display: inline-block; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 4px 11px; margin: 3px 5px 0 0; font-size: 13px; }
+  .stat-chip b { color: var(--accent-2); }
   .daily-reset { text-align: center; color: var(--muted); font-size: 12px; margin: -2px 0 10px; }
   .daily-bonus { margin-top: 10px; padding: 11px 13px; border: 1px dashed #2a4d3a; border-radius: 12px; background: var(--panel-2); text-align: center; font-size: 13px; }
   .daily-bonus.can { border-style: solid; border-color: var(--accent); box-shadow: 0 0 10px rgba(52,209,122,.25); }
@@ -707,8 +719,11 @@
 
     <!-- 🏠 LOBBY : le hub d'action (billet + Pump + compétences + Margin Call) -->
     <div id="lobbyScreen">
-      <button class="daily-btn" id="dailyBtn" aria-label="Quêtes quotidiennes">📜<span class="dot" id="dotDaily"></span></button>
-      <div class="frieze-wrap" id="lobbyForecast" style="margin: 2px 56px 8px 0"></div>
+      <div class="frieze-wrap" id="lobbyForecast" style="margin: 2px 0 8px"></div>
+      <div class="lobby-rail">
+        <button class="daily-btn" id="dailyBtn" aria-label="Quêtes quotidiennes">📜<span class="dot" id="dotDaily"></span></button>
+        <button class="daily-btn" id="statsBtn" aria-label="Tableau de bord">📊</button>
+      </div>
       <div class="lobby-wrap">
         <div class="pump-gauge" id="pumpGauge">
           <div class="pump-tube"><div class="pump-fill" id="pumpFill"></div></div>
@@ -932,6 +947,15 @@
       <div id="dailyList"></div>
       <div class="daily-bonus" id="dailyBonus"></div>
       <button class="big-btn can" id="dailyClose" style="margin-top:14px">Fermer</button>
+    </div>
+  </div>
+
+  <!-- 📊 Tableau de bord : décomposition de la prod, courbe de richesse, ROI (lecture locale) -->
+  <div class="wb-overlay" id="statsOv" style="display:none">
+    <div class="wb-card" style="max-width:400px">
+      <h2 style="text-align:center">📊 Tableau de bord</h2>
+      <div id="statsBody"></div>
+      <button class="big-btn can" id="statsClose" style="margin-top:14px">Fermer</button>
     </div>
   </div>
 
@@ -2235,6 +2259,67 @@
       + (blown ? `<div class="frieze-foot" style="color:#ff5470">⚠️ Carburant épuisé vers ${utcHM(Date.now() + curve.blowMs)} UTC</div>` : "");
   }
 
+  // ===================== 📊 TABLEAU DE BORD (dataviz, lecture locale) =====================
+  // Décomposition de la prod : contribution par module (lvl×rate×rateMult×moduleMult, agrégée
+  // tous Dex) + multiplicateurs globaux (Valo/Gear/Pump). Part = c/somme (les globaux sont uniformes).
+  function prodBreakdown() {
+    const agg = {}; let sum = 0;
+    state.dexes.forEach((d, di) => ASSETS.forEach(n => {
+      const lvl = d.levels[n.id] || 0; if (!lvl) return;
+      const c = lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d);
+      sum += c;
+      if (!agg[n.id]) agg[n.id] = { name: n.name, emoji: n.emoji, c: 0 };
+      agg[n.id].c += c;
+    }));
+    return { mods: Object.values(agg).sort((a, b) => b.c - a.c), sum: sum, valo: valoMult(), gear: gearMult(), pump: pumpMult(), total: perSecond() };
+  }
+  function sparkline(hist) {
+    if (!hist || hist.length < 2) return `<div class="frieze-foot">Reviens dans un instant — l'historique se remplit…</div>`;
+    const vals = hist.map(p => p.v), mn = Math.min(...vals), mx = Math.max(...vals), W = 100, H = 30, pad = 2, n = hist.length;
+    const ys = v => mx > mn ? H - pad - ((v - mn) / (mx - mn)) * (H - 2 * pad) : H / 2;
+    const pl = hist.map((p, i) => (i / (n - 1) * W).toFixed(2) + "," + ys(p.v).toFixed(2)).join(" ");
+    return `<svg class="riskcurve" style="height:40px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`
+      + `<polygon points="0,${H} ${pl} ${W},${H}" fill="#34d17a" opacity="0.12"/>`
+      + `<polyline points="${pl}" fill="none" stroke="#34d17a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
+      + `<div class="frieze-foot">de $${fmt(mn)}/s à $${fmt(mx)}/s sur ~${Math.round((n - 1) * 5 / 60)} min</div>`;
+  }
+  // ROI : pour chaque module débloqué, retour = coût du prochain niveau / gain $/s de ce niveau.
+  function roiRows() {
+    const d = dex(state.currentDex), rm = DEX_DEFS[state.currentDex].rateMult, gmul = valoMult() * gearMult() * pumpMult();
+    const list = ASSETS.filter(n => !n.source && isUnlocked(n)).map(n => {
+      const gain = n.rate * rm * moduleMult(n, d) * gmul, cost = costOf(n);
+      return { n: n, pb: gain > 0 ? cost / gain : Infinity };
+    }).filter(x => isFinite(x.pb)).sort((a, b) => a.pb - b.pb).slice(0, 6);
+    if (!list.length) return `<div class="frieze-foot">—</div>`;
+    const worst = Math.max(...list.map(x => x.pb));
+    return list.map(x => {
+      const pct = worst > 0 ? (1 - x.pb / worst) * 100 : 100;   // retour court = barre pleine
+      return `<div class="stat-row"><span class="stat-lbl">${x.n.emoji} ${x.n.name}</span>`
+        + `<div class="qrow-bar" style="flex:1;margin:0 8px"><div class="qrow-fill" style="width:${Math.max(6, pct)}%"></div></div>`
+        + `<span class="stat-val">${fmtDuration(x.pb)}</span></div>`;
+    }).join("");
+  }
+  function renderStats() {
+    const el = document.getElementById("statsBody"); if (!el) return;
+    const bd = prodBreakdown();
+    let html = `<div class="stat-head">⚡ <b>$${fmt(bd.total)}</b> /s · 🏛️ ${valoName(valoRankNum())}</div>`;
+    html += `<div class="stat-sec"><div class="stat-t">Multiplicateurs globaux</div>`
+      + `<span class="stat-chip">🏛️ Valo <b>×${bd.valo.toFixed(2)}</b></span>`
+      + `<span class="stat-chip">🛠️ Gear <b>×${bd.gear.toFixed(2)}</b></span>`
+      + `<span class="stat-chip">💵 Pump <b>×${bd.pump}</b></span></div>`;
+    html += `<div class="stat-sec"><div class="stat-t">D'où vient la production</div>`;
+    if (bd.mods.length) bd.mods.slice(0, 8).forEach(m => {
+      const pct = bd.sum > 0 ? m.c / bd.sum * 100 : 0;
+      html += `<div class="stat-row"><span class="stat-lbl">${m.emoji} ${m.name}</span>`
+        + `<div class="qrow-bar" style="flex:1;margin:0 8px"><div class="qrow-fill" style="width:${pct}%"></div></div>`
+        + `<span class="stat-val">${pct.toFixed(0)} %</span></div>`;
+    }); else html += `<div class="frieze-foot">Connecte des modules pour produire.</div>`;
+    html += `</div>`;
+    html += `<div class="stat-sec"><div class="stat-t">📈 Production (récent)</div>${sparkline(prodHist)}</div>`;
+    html += `<div class="stat-sec"><div class="stat-t">🎯 Meilleurs achats (temps de retour)</div>${roiRows()}</div>`;
+    el.innerHTML = html;
+  }
+
   // === 🏠 LOBBY : Pump + compétences groupées (refonte 2026-06-27) ======================
   // PUMP : taper le billet remplit une jauge ; le palier atteint donne un MULTIPLICATEUR
   // VIVANT sur la prod (×2/×3/×5). Au sommet → CRASH : ×10 verrouillé 30 s, jauge inactive
@@ -2247,6 +2332,7 @@
   let pumpGauge = 0;             // 0..1 (éphémère, non sauvegardé)
   let pumpLockUntil = 0;         // fin du ×10 verrouillé
   let lastPumpTap = 0;
+  let prodHist = [], lastProdSample = 0;   // 📊 historique roulant de la prod/s (éphémère, non sauvegardé)
   function pumpLocked() { return Date.now() < pumpLockUntil; }
   function pumpMult() {
     if (pumpLocked()) return 10;
@@ -2712,6 +2798,7 @@
     if (grs) grs.textContent = "(niv " + gearTier() + " · prochain " + gearTierCost(gearTier()) + " 🛠️ · " + Math.floor(state.gearFrags || 0) + " en stock)";
     renderLobby();
     if (document.getElementById("dailyOv").style.display === "flex") renderDaily();
+    if (document.getElementById("statsOv").style.display === "flex") renderStats();
     updateDots();
   }
 
@@ -2859,6 +2946,7 @@
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
     gearAutoLevel();   // 🛠️ investit auto les fragments en paliers (bonus prod passif)
+    if (now - lastProdSample > 5000) { lastProdSample = now; prodHist.push({ v: perSecond() }); if (prodHist.length > 60) prodHist.shift(); }   // 📊 historique prod/s (~5 min)
     if (mcRunning()) {   // 🎰 Margin Call : avance la session active (inerte si OFF)
       mcAdvance(now);
       if (!mcRunning()) { save(); toast(mcPending() ? "💥 Margin Call ! Carburant épuisé." : "🎰 Session clôturée (gemmes collectées)."); }
@@ -2936,6 +3024,10 @@
   // 📜 Quêtes quotidiennes (modale depuis le Lobby)
   document.getElementById("dailyBtn").addEventListener("click", () => { rollDaily(); document.getElementById("dailyOv").style.display = "flex"; renderDaily(); });
   document.getElementById("dailyClose").addEventListener("click", () => { document.getElementById("dailyOv").style.display = "none"; });
+  // 📊 Tableau de bord (modale depuis le Lobby)
+  document.getElementById("statsBtn").addEventListener("click", () => { document.getElementById("statsOv").style.display = "flex"; renderStats(); });
+  document.getElementById("statsClose").addEventListener("click", () => { document.getElementById("statsOv").style.display = "none"; });
+  document.getElementById("statsOv").addEventListener("click", (e) => { if (e.target.id === "statsOv") e.currentTarget.style.display = "none"; });
   document.getElementById("dailyOv").addEventListener("click", (e) => {
     if (e.target.id === "dailyOv") { e.currentTarget.style.display = "none"; return; }
     const btn = e.target.closest("[data-daily]"); if (!btn) return;
