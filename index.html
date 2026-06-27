@@ -428,6 +428,16 @@
   .objrow .obj-name { font-weight: 700; }
   .objrow .obj-desc { color: var(--muted); font-size: 12px; }
   .objrow .obj-rw { color: var(--accent-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  /* 🎯 Objectifs recyclables : une ligne par type + barre de progression */
+  .qrow { display: flex; flex-direction: column; gap: 6px; padding: 11px 13px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: var(--panel-2); }
+  .qrow.claim { border-color: var(--accent); box-shadow: 0 0 10px rgba(52,209,122,.25); }
+  .qrow-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+  .qtier { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+  .qrw { color: var(--accent-2); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .qclaim { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+  .qrow-bar { height: 9px; border-radius: 999px; background: #0d1f17; border: 1px solid #2a4d3a; overflow: hidden; }
+  .qrow-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+  .qrow-sub { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
   .objrow.done .obj-rw { color: var(--accent); }
 
   .toast {
@@ -728,10 +738,10 @@
       <div id="objectivesScreen" style="display:none">
         <div class="mnav">
           <button class="btn" id="objBackBtn">← Retour</button>
-          <div>🎯 <b id="objDone">0</b>/<span id="objTotal">0</span></div>
+          <div>🎯 <b id="objHead">0</b> paliers</div>
         </div>
         <h2>🎯 Objectifs</h2>
-        <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes.</p>
+        <p class="hint">Des paliers qui se renouvellent. Réclame ta récompense quand la barre est pleine.</p>
         <div class="objlist" id="objList"></div>
       </div>
 
@@ -1223,7 +1233,8 @@
       currentDex: 0,               // Dex affiché
       autoBuy: false,              // automatisation : auto-améliorer le module le moins cher
       valoRank: 0,                 // 🏛️ rang de Valorisation (niveau permanent, puits de cash)
-      objectives: {},              // 🎯 jalons atteints { objId: true } (récompense versée une fois)
+      objectives: {},              // 🎯 (legacy one-shot, conservé pour compat ; remplacé par quests)
+      quests: {},                  // 🎯 objectifs RECYCLABLES : { questKey: palier réclamé }
       mc: { rep: 0, session: null, lastResult: null },   // 🎰 MARGIN CALL : OFF par défaut (session null = idle pur intouchable)
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
@@ -1288,6 +1299,7 @@
     const hadObjectives = saved && saved.objectives && typeof saved.objectives === "object";
     if (!state.objectives || typeof state.objectives !== "object") state.objectives = {};
     if (!hadObjectives) seedObjectives();   // save d'avant la feature : marque les jalons déjà atteints SANS récompense
+    seedQuests();   // 🎯 objectifs recyclables : amorce les paliers au niveau courant (silencieux, par type manquant)
     // 🎰 Margin Call : normalisation (OFF par défaut = saves d'avant la feature non concernées).
     if (!state.mc || typeof state.mc !== "object") state.mc = { rep: 0, session: null, lastResult: null };
     if (typeof state.mc.rep !== "number" || state.mc.rep < 0) state.mc.rep = 0;
@@ -1460,15 +1472,70 @@
     });
     if (changed) { save(); if (screen === "objectives") renderObjectives(); }
   }
+  // === 🎯 OBJECTIFS RECYCLABLES (templates à seuils croissants) ==========================
+  // Remplace la liste figée one-shot par des *types* de milestone recyclés à seuils croissants
+  // → progression infinie sans hand-authoring. Réclamation MANUELLE (cohérent avec la pastille
+  // « action dispo »). Le palier monte à chaque réclamation. Récompense en gemmes, croissante.
+  function totalLevels() { let n = 0; state.dexes.forEach(d => { if (d.levels) Object.keys(d.levels).forEach(id => n += d.levels[id] || 0); }); return n; }
+  function totalBufferLevels() { let n = 0; ASSETS.forEach(a => n += bufferLvl(a.id)); return n; }
+  const QUESTS = [
+    { key: "prod", icon: "💵", label: "Production",          value: () => perSecond(),        base: 50, growth: 8, rw: 200, fmt: v => "$" + fmt(v) },
+    { key: "upg",  icon: "🔗", label: "Améliorations",       value: () => totalLevels(),       base: 30, growth: 4, rw: 150, fmt: v => fmt(Math.floor(v)) },
+    { key: "buff", icon: "🦸", label: "Niveaux de buffeurs", value: () => totalBufferLevels(), base: 5,  growth: 3, rw: 300, fmt: v => fmt(Math.floor(v)) },
+    { key: "valo", icon: "🏛️", label: "Rang d'entreprise",   value: () => valoRankNum(),       base: 1,  step: 1, linear: true, rw: 500, fmt: v => fmt(Math.floor(v)) },
+  ];
+  function questThreshold(q, t) { return q.linear ? q.base + t * (q.step || 1) : Math.round(q.base * Math.pow(q.growth, t)); }
+  function questPrev(q, t) { return t <= 0 ? 0 : questThreshold(q, t - 1); }
+  function questReward(q, t) { return Math.round(q.rw * (t + 1)); }
+  function questTier(q) { return (state.quests && state.quests[q.key]) || 0; }
+  function questClaimable(q) { return q.value() >= questThreshold(q, questTier(q)); }
+  function anyQuestClaimable() { return QUESTS.some(q => questClaimable(q)); }
+  function claimQuest(key) {
+    const q = QUESTS.find(x => x.key === key); if (!q) return;
+    const t = questTier(q); if (q.value() < questThreshold(q, t)) return;
+    const g = questReward(q, t);
+    state.gems = (state.gems || 0) + g;
+    if (!state.quests) state.quests = {};
+    state.quests[key] = t + 1;
+    toast(`🎯 ${q.label} · palier ${t + 1} — +${g} 💎`);
+    render(); save();
+  }
+  // Amorçage silencieux (1ʳᵉ fois / par type) : place le palier au niveau courant SANS récompense.
+  function seedQuests() {
+    if (!state.quests || typeof state.quests !== "object") state.quests = {};
+    QUESTS.forEach(q => {
+      if (typeof state.quests[q.key] !== "number") { let t = 0; while (q.value() >= questThreshold(q, t) && t < 500) t++; state.quests[q.key] = t; }
+    });
+  }
+  // Construit la structure UNE fois (build-once) → boutons stables (le game loop ne reconstruit plus).
+  let objBuilt = false;
+  function buildObjectives() {
+    document.getElementById("objList").innerHTML = QUESTS.map(q =>
+      `<div class="qrow" id="q-${q.key}">`
+      + `<div class="qrow-top"><span>${q.icon} ${q.label} <span class="qtier" id="qt-${q.key}"></span></span>`
+      + `<button class="btn can qclaim" id="qc-${q.key}" data-q="${q.key}" style="display:none"></button>`
+      + `<span class="qrw" id="qr-${q.key}"></span></div>`
+      + `<div class="qrow-bar"><div class="qrow-fill" id="qf-${q.key}"></div></div>`
+      + `<div class="qrow-sub"><span id="qv-${q.key}"></span><span id="qp-${q.key}"></span></div>`
+      + `</div>`).join("");
+    objBuilt = true;
+  }
   function renderObjectives() {
-    document.getElementById("objDone").textContent = OBJECTIVES.filter(o => state.objectives[o.id]).length;
-    document.getElementById("objTotal").textContent = OBJECTIVES.length;
-    document.getElementById("objList").innerHTML = OBJECTIVES.map(o => {
-      const ok = !!state.objectives[o.id];
-      return '<div class="objrow' + (ok ? " done" : "") + '"><div class="obj-ic">' + (ok ? "✅" : "⬜") + "</div>"
-        + '<div class="obj-main"><div class="obj-name">' + o.label + '</div><div class="obj-desc">' + o.desc + "</div></div>"
-        + '<div class="obj-rw">' + (ok ? "Obtenu" : objReward(o.reward)) + "</div></div>";
-    }).join("");
+    if (!objBuilt) buildObjectives();
+    const head = document.getElementById("objHead"); if (head) head.textContent = QUESTS.reduce((s, q) => s + questTier(q), 0);
+    QUESTS.forEach(q => {
+      const t = questTier(q), thr = questThreshold(q, t), prev = questPrev(q, t), val = q.value();
+      const pct = Math.max(0, Math.min(100, 100 * (val - prev) / (thr - prev || 1)));
+      const claim = val >= thr;
+      document.getElementById("qt-" + q.key).textContent = "palier " + t;
+      document.getElementById("qf-" + q.key).style.width = pct + "%";
+      document.getElementById("qv-" + q.key).textContent = q.fmt(val) + " / " + q.fmt(thr);
+      document.getElementById("qp-" + q.key).textContent = Math.floor(pct) + " %";
+      const cb = document.getElementById("qc-" + q.key), rw = document.getElementById("qr-" + q.key);
+      if (claim) { cb.style.display = ""; cb.textContent = "Réclamer +" + questReward(q, t) + " 💎"; rw.style.display = "none"; }
+      else { cb.style.display = "none"; rw.style.display = ""; rw.textContent = "+" + questReward(q, t) + " 💎"; }
+      document.getElementById("q-" + q.key).classList.toggle("claim", claim);
+    });
   }
   function openObjectives() { navKey = "objectives"; showScreen("objectives"); render(); }
 
@@ -1884,7 +1951,7 @@
   function updateDots() {
     const mcCollect = mcPending();
     setDot("dotOverview", ASSETS.some(n => actionable(n)));
-    setDot("dotObjectives", OBJECTIVES.some(o => !state.objectives[o.id] && o.check()));
+    setDot("dotObjectives", anyQuestClaimable());
     setDot("dotAtelier", atelierActionable());
     setDot("dotInventaire", false);     // slice 1 : rien de « réclamable » côté inventaire
     setDot("dotSkills", skillsAllReady());
@@ -2406,7 +2473,7 @@
       if (!mcRunning()) { save(); toast(mcPending() ? "💥 Margin Call ! Carburant épuisé." : "🎰 Session clôturée (gemmes collectées)."); }
     }
     if (state.autoBuy && now - lastAuto >= AUTO_BUY_MS) { lastAuto = now; autoBuyStep(); }
-    checkObjectives();
+    // (objectifs recyclables = réclamation MANUELLE ; la pastille 🔴 signale quand c'est dispo)
     render();
   }
 
@@ -2430,6 +2497,10 @@
   document.getElementById("heroesBackBtn").addEventListener("click", openLobby);
   document.getElementById("objBackBtn").addEventListener("click", openLobby);
   document.getElementById("invBackBtn").addEventListener("click", openLobby);
+  // 🎯 Objectifs recyclables : réclamation déléguée
+  document.getElementById("objList").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-q]"); if (btn) claimQuest(btn.getAttribute("data-q"));
+  });
   // Inventaire : toucher un héros → ouvre sa fiche dans l'Atelier (fabrication)
   document.getElementById("invGrid").addEventListener("click", (e) => {
     const c = e.target.closest("[data-inv]"); if (!c) return;
