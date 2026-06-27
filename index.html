@@ -117,6 +117,18 @@
     .worldbar #topClock { display: none; }   /* compact : l'heure UTC est déjà dans « jusqu'à … » */
   }
 
+  /* 📊 Frise de prévision météo (régimes futurs déterministes via world()) */
+  .frieze-wrap { width: 100%; }
+  .frieze-title { font-size: 11px; color: var(--muted); margin: 0 2px 4px; display: flex; justify-content: space-between; }
+  .frieze { position: relative; display: flex; height: 38px; border-radius: 9px; overflow: hidden; border: 1px solid #2a4d3a; background: #0d1f17; }
+  .frieze-blk { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 10px; overflow: hidden; border-right: 1px solid rgba(0,0,0,.35); gap: 1px; }
+  .frieze-blk:last-child { border-right: none; }
+  .frieze-blk .fb-emoji { font-size: 15px; line-height: 1; }
+  .frieze-blk .fb-time { font-size: 8px; color: rgba(255,255,255,.7); white-space: nowrap; }
+  .frieze-now { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 4px #fff; left: 0; }
+  .frieze-session { position: absolute; top: 0; bottom: 0; border: 2px solid var(--accent); border-radius: 7px; box-shadow: 0 0 8px rgba(52,209,122,.5); pointer-events: none; }
+  .frieze-foot { font-size: 10px; color: var(--muted); margin-top: 3px; text-align: center; }
+
   /* 🎰 Margin Call */
   .mc-weather { padding: 10px 14px; border-radius: 12px; background: var(--panel-2); border: 1px solid #2a4d3a; margin: 4px 0 16px; font-size: 14px; }
   .mc-field { margin: 12px 0; }
@@ -694,6 +706,7 @@
     <!-- 🏠 LOBBY : le hub d'action (billet + Pump + compétences + Margin Call) -->
     <div id="lobbyScreen">
       <button class="daily-btn" id="dailyBtn" aria-label="Quêtes quotidiennes">📜<span class="dot" id="dotDaily"></span></button>
+      <div class="frieze-wrap" id="lobbyForecast" style="margin: 2px 56px 8px 0"></div>
       <div class="lobby-wrap">
         <div class="pump-gauge" id="pumpGauge">
           <div class="pump-tube"><div class="pump-fill" id="pumpFill"></div></div>
@@ -829,7 +842,7 @@
         <h2>🎰 Margin Call</h2>
         <p class="hint">Pari <b>actif optionnel</b> par-dessus l'idle pur. Tu alloues du cash (carburant) sur une durée : le <b>régime mondial</b> (le même pour tous les joueurs) pilote l'entretien <i>et</i> le rendement en 💎. Rien lancé = idle pur intouchable.</p>
 
-        <div class="mc-weather" id="mcWeather"></div>
+        <div class="frieze-wrap" id="mcForecast" style="margin: 4px 0 16px"></div>
 
         <!-- Lancement (aucune session) -->
         <div id="mcLaunchPanel">
@@ -1072,6 +1085,37 @@
       since: startE * WORLD_CYCLE_MS, until: (endE + 1) * WORLD_CYCLE_MS,
       next: { key: nx.key, label: nx.label, emoji: nx.emoji, color: nx.color },
     };
+  }
+
+  // 📊 Frise de prévision : régimes contigus de maintenant à +horizon (world() donne since/until par bloc).
+  function forecastBlocks(horizonMs) {
+    const now = Date.now(), end = now + horizonMs, blocks = [];
+    let t = now, guard = 0;
+    while (t < end && guard++ < 200) {
+      const w = world(t);
+      blocks.push({ key: w.key, label: w.label, emoji: w.emoji, color: w.color, start: Math.max(now, w.since), end: Math.min(end, w.until) });
+      t = w.until + 1;
+    }
+    return blocks;
+  }
+  // Rend la frise dans `el`. horizonH = fenêtre affichée (h) ; sessionH (optionnel) = surligne la
+  // tranche [maintenant, maintenant+sessionH] (overlay « ma session traverse ces régimes »).
+  function renderForecast(el, horizonH, sessionH) {
+    if (!el) return;
+    const horizonMs = horizonH * 3600000, now = Date.now();
+    const blocks = forecastBlocks(horizonMs);
+    const segs = blocks.map(b => {
+      const frac = (b.end - b.start) / horizonMs * 100;
+      const wide = frac > 13;
+      return `<div class="frieze-blk" style="flex:${(b.end - b.start)} 0 0; background:${b.color}33" title="${b.emoji} ${b.label} · ${utcHM(b.start)}–${utcHM(b.end)} UTC">`
+        + `<span class="fb-emoji">${b.emoji}</span>`
+        + (wide ? `<span class="fb-time">${utcHM(b.start)}</span>` : "")
+        + `</div>`;
+    }).join("");
+    const sess = (sessionH > 0) ? `<div class="frieze-session" style="left:0; width:${Math.min(100, sessionH / horizonH * 100)}%"></div>` : "";
+    el.innerHTML = `<div class="frieze-title"><span>📊 Prévision de marché (UTC)</span><span>${horizonH} h</span></div>`
+      + `<div class="frieze"><div class="frieze-now"></div>${segs}${sess}</div>`
+      + (sessionH > 0 ? `<div class="frieze-foot">Cadre vert = la fenêtre de ta session (${sessionH.toFixed(2)} h)</div>` : "");
   }
 
   // Migration one-shot : crédite les stocks V2 depuis l'ancien état. NON-DESTRUCTIF pour
@@ -1807,8 +1851,6 @@
   function renderMarginCall() {
     const w = world();
     document.getElementById("mcRep").textContent = fmt(mcRep());
-    document.getElementById("mcWeather").innerHTML =
-      `<span style="font-size:20px">${w.emoji}</span> Marché mondial : <b style="color:${w.color}">${w.label}</b> · jusqu'à ${utcHM(w.until)} UTC · puis ${w.next.emoji} ${w.next.label}`;
     const s = mcSession();
     const launch = document.getElementById("mcLaunchPanel");
     const active = document.getElementById("mcActivePanel");
@@ -1844,6 +1886,11 @@
       }
       document.getElementById("mcLaunchBtn").classList.toggle("can", inp.alloc > 0);
     }
+    // 📊 Frise de prévision : surligne la fenêtre de session (durée choisie, ou restante si en cours).
+    let fcSess = 0;
+    if (mcRunning()) fcSess = Math.max(0, (s.endMs - Date.now()) / 3600000);
+    else if (!mcPending()) fcSess = mcLaunchInputs().durH;
+    renderForecast(document.getElementById("mcForecast"), Math.max(8, Math.ceil(fcSess + 1)), fcSess);
     const lr = mcState().lastResult;
     document.getElementById("mcLast").innerHTML = lr
       ? `Dernière session : ${lr.blown ? "💥 margin call" : "✅ clôturée"} · 💎 ${lr.gems} gagnées`
@@ -2207,6 +2254,7 @@
     if (sub) sub.textContent = l.length ? (ready + "/" + l.length + " prêtes") : "aucun héros déployé";
     document.getElementById("skillsBtn").classList.toggle("ready", skillsAllReady());
     document.getElementById("mcRepLobby").textContent = fmt(mcRep());
+    if (screen === "lobby") renderForecast(document.getElementById("lobbyForecast"), 8);   // 📊 frise prévision (8 h)
   }
 
   // Pastilles rouges = action POSSIBLE (ÉTEINTES par défaut). Calcul à la volée, jamais décoratif.
@@ -2440,6 +2488,8 @@
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
     document.getElementById("inventaireScreen").style.display = name === "inventaire" ? "block" : "none";
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
+    // 🌍 Météo NON persistante : visible uniquement sur le Lobby et Margin Call.
+    document.getElementById("worldBar").style.display = (name === "lobby" || name === "margincall") ? "" : "none";
     setActiveNav();
   }
   // Surbrillance de la nav du bas : pilotée par navKey (les écrans internes — module, fiche,

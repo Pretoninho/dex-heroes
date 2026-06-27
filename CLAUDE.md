@@ -517,7 +517,20 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
 - **TUNABLE** : `DAILY_POOL` (cibles/récompenses), `DAILY_BONUS`. **PROVISOIRE** (à playtester). ⚠️ Le joueur note que
   **les quêtes quotidiennes pourraient rendre le tuto inutile** (fil conducteur naturel) — à réévaluer à l'usage.
 
-#### 📊 GRAPHIQUES / DATAVIZ JOUEUR — EN CONCEPTION (2026-06-27, discuté, pas codé)
+#### 📊 FRISE DE PRÉVISION MÉTÉO — ✅ FAIT (2026-06-27) + météo rendue NON-PERSISTANTE
+- **Frise** : `forecastBlocks(horizonMs)` (blocs de régimes **contigus** de maintenant à +horizon via `world()` qui
+  donne `since/until` par bloc) + `renderForecast(el, horizonH, sessionH)` (flex inline, largeur ∝ durée, couleur/emoji
+  `REGIMES`, marqueur **« maintenant »**, heure UTC sur blocs larges, `title` au survol). Déterministe (mêmes régimes
+  futurs pour tous) · sans lib · lecture locale.
+- **Lobby** : frise 8 h read-only (`#lobbyForecast`, haut de `#lobbyScreen`, `margin-right:56px` pour dégager le 📜).
+  **Margin Call** : frise (`#mcForecast`) avec **overlay vert** = fenêtre de session (`sessionH` = durée du slider, ou
+  restante si en cours) → on **voit quels régimes la session traverse** ; horizon adaptatif `max(8, ceil(durée+1))`.
+- **⚠️ Météo NON-persistante (demandé)** : `#worldBar` ne s'affiche **plus partout** → **uniquement Lobby + Margin Call**
+  (toggle dans `showScreen`). Ligne `#mcWeather` (doublon du worldBar sur MC) **retirée**.
+- **RESTE (dataviz, pas codé)** : 🥈 **courbe de risque Margin Call** (carburant dans le temps, sous la frise, même axe) ·
+  décomposition de la prod · courbe de richesse · ROI du prochain achat · récap hors-ligne.
+
+#### 📊 (archive) IDÉES DATAVIZ — discutées le 2026-06-27
 Idées de **visualisations** pour le joueur (thème finance → très naturel). **100 % idle** (affichage seul, n'exige
 aucune action) ; **faisable en SVG/canvas inline, sans dépendance** (jeu vanilla). À ranger dans un onglet/écran
 **📊 Stats** pour ne pas alourdir le Lobby. ⚠️ **Garde-fou** : lire l'**état LOCAL** uniquement (honnête, non
