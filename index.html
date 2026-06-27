@@ -96,7 +96,7 @@
 
   /* 🌍 Bandeau météo de marché mondiale (partagé par tous les joueurs) */
   .worldbar {
-    width: 100%; max-width: 900px; margin: -8px auto 18px;
+    width: 100%; max-width: 900px; margin: 10px auto 16px;
     display: flex; align-items: center; gap: 10px;
     padding: 8px 14px; border-radius: 12px;
     background: rgba(13, 31, 23, .6); border: 1px solid #1d3d2c;
@@ -499,60 +499,103 @@
   .atl-modname .mr { font-size: 11px; color: var(--muted); }
   .atl-select { background: #0f1521; color: var(--fg); border: 1px solid #2a3550; border-radius: 8px; padding: 6px 8px; font-size: 12px; max-width: 220px; }
   .atl-select:focus { border-color: var(--accent); outline: none; }
+
+  /* ===== Nouveau shell (refonte 2026-06-27) : header haut + nav du bas + Lobby + Pump ===== */
+  .appheader { position: sticky; top: 0; z-index: 100; width: 100%; max-width: 900px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px;
+    background: rgba(13,31,23,.92); backdrop-filter: blur(8px); border: 1px solid #1d3d2c; border-top: none; border-radius: 0 0 14px 14px; }
+  .ah-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ah-avatar { width: 40px; height: 40px; border-radius: 11px; background: var(--panel-2); border: 1px solid #2a4d3a; display: flex; align-items: center; justify-content: center; font-size: 20px; flex: 0 0 auto; }
+  .ah-pseudo { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; }
+  .ah-sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .ah-res { display: flex; align-items: center; gap: 7px; }
+  .ah-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 5px 9px; font-size: 13px; white-space: nowrap; }
+  .ah-chip b { font-variant-numeric: tabular-nums; }
+  .ah-gear { position: relative; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 11px; width: 38px; height: 38px; font-size: 19px; cursor: pointer; color: var(--text); flex: 0 0 auto; }
+
+  .appmain { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 0 96px; }
+  .appmain > .panel { width: auto; }
+
+  .bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 900px;
+    display: flex; justify-content: space-around; gap: 2px; z-index: 100;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(13,31,23,.96); backdrop-filter: blur(8px); border: 1px solid #1d3d2c; border-bottom: none; border-radius: 16px 16px 0 0; }
+  .bottomnav button { position: relative; flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 4px 2px; touch-action: manipulation; }
+  .bottomnav .bn-ic { font-size: 22px; line-height: 1; }
+  .bottomnav button.active { color: var(--accent); }
+
+  .dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: #ff5470; box-shadow: 0 0 0 1.5px #0d1f17; display: none; }
+  .dot.on { display: block; }
+  .bottomnav .dot { top: 0; left: 50%; margin-left: 6px; }
+  .ah-gear .dot { top: -2px; right: -2px; }
+  .lobby-btn .dot { top: 8px; right: 12px; }
+
+  /* Lobby */
+  .lobby-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 12px 8px; }
+  .pump-gauge { position: relative; width: 116px; height: 270px; margin-right: 40px; }
+  .pump-tube { position: absolute; inset: 0; border: 3px solid #20402f; border-radius: 14px; background: #0d1f17; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
+  .pump-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(0deg, #ff5470 0%, #e0853a 38%, #7bd16a 70%, #ffd24d 100%); transition: height .1s linear; }
+  .pump-mark { position: absolute; right: -38px; transform: translateY(50%); font-weight: 800; font-size: 20px; color: var(--muted); }
+  .pump-gauge.locked .pump-tube { border-color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.5); }
+  .pump-label { font-weight: 900; font-style: italic; font-size: 22px; color: #ffd24d; letter-spacing: 1px; text-shadow: 1px 1px 0 #b35a00; }
+  .lobby-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+  .lobby-btn { position: relative; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 14px; padding: 12px 18px; color: var(--text); font-size: 15px; font-weight: 700; cursor: pointer; min-width: 150px; text-align: center; touch-action: manipulation; }
+  .lobby-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
+  .pump-state { font-size: 14px; color: var(--accent-2); font-weight: 700; min-height: 18px; }
 </style>
 </head>
 <body>
-  <nav class="topnav">
-    <div class="brand">💵 Dex Heroes</div>
-    <div class="clock" id="topClock">—</div>
-    <div class="navtabs">
-      <button class="navtab" data-nav="overview">🔗<span>Cash Flow</span></button>
-      <button class="navtab" data-nav="heroes">📖<span>Codex</span></button>
-      <button class="navtab" data-nav="objectives">🎯<span>Objectifs</span></button>
-      <button class="navtab" data-nav="margincall">🎰<span>Margin Call</span></button>
+  <!-- En-tête permanent : identité + ressources + réglages -->
+  <header class="appheader">
+    <div class="ah-id">
+      <div class="ah-avatar" id="ahAvatar">💼</div>
+      <div>
+        <div class="ah-pseudo" id="ahPseudo">Joueur</div>
+        <div class="ah-sub"><span id="valoRank">Stagiaire</span> · <span id="perSec">$0/s</span></div>
+      </div>
     </div>
-  </nav>
+    <div class="ah-res">
+      <div class="ah-chip">💵 <b id="cashCount">$0</b></div>
+      <div class="ah-chip">💎 <b id="gemCount">0</b></div>
+      <button class="ah-gear" id="settingsBtn" title="Réglages & profil">⚙️<span class="dot" id="dotSettings"></span></button>
+    </div>
+  </header>
 
   <!-- 🌍 Météo de marché mondiale : la MÊME pour tous les joueurs (horloge UTC, sans serveur) -->
   <div class="worldbar" id="worldBar" title="Météo de marché mondiale — identique pour tous les joueurs, calculée sur l'horloge UTC">
     <span class="wb-emoji" id="wbEmoji">🌍</span>
     <span>Marché mondial : <b id="wbLabel">—</b> · <span class="wb-until" id="wbUntil">—</span></span>
     <span class="wb-next" id="wbNext"></span>
+    <span class="wb-until" id="topClock" style="margin-left:8px">—</span>
   </div>
 
-  <div class="layout">
-    <!-- Source / clic -->
-    <div class="panel counter">
-      <div class="cash" id="cashCount">$0</div>
-      <div class="per-sec" id="perSec">$0 / sec</div>
-      <button class="bill-btn" id="billBtn" aria-label="Gagner du cash">💵</button>
-      <div class="click-hint">+$<span id="clickPower">1</span> par clic</div>
-      <div class="stat">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
+  <main class="appmain">
 
-      <div class="gems">
-        <div class="gembal">💎 <b id="gemCount">0</b> gemmes</div>
-        <div class="gembuy">
-          <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
-          <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
+    <!-- 🏠 LOBBY : le hub d'action (billet + Pump + compétences + Margin Call) -->
+    <div id="lobbyScreen">
+      <div class="lobby-wrap">
+        <div class="pump-gauge" id="pumpGauge">
+          <div class="pump-tube"><div class="pump-fill" id="pumpFill"></div></div>
+          <div class="pump-mark" style="bottom:100%">×10</div>
+          <div class="pump-mark" style="bottom:75%">×5</div>
+          <div class="pump-mark" style="bottom:50%">×3</div>
+          <div class="pump-mark" style="bottom:25%">×2</div>
         </div>
-        <div class="gemhint" id="gemHint">Prix des gemmes indexé sur ta production. Tirages dans l'onglet 🎲 Gacha.</div>
-      </div>
-
-      <div class="valo" id="valoBox">
-        <div class="valobal">🏛️ <b id="valoRank">Stagiaire</b> · prod globale <span class="vmult" id="valoMult">×1.00</span></div>
-        <button class="btn" id="valoBtn">📈 Promotion · <span id="valoCost">$100k</span></button>
-        <div class="valohint">Dépense du cash pour un rang permanent (+10 % prod globale). Aucun reset.</div>
-      </div>
-
-      <div class="controls">
-        <button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button>
-        <button class="btn" id="saveBtn">💾 Sauver</button>
-        <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
+        <div class="pump-label">PUMP IT</div>
+        <button class="bill-btn" id="billBtn" aria-label="Gagner du cash">💵</button>
+        <div class="click-hint">+$<span id="clickPower">1</span> par clic</div>
+        <div class="pump-state" id="pumpState"></div>
+        <div class="lobby-actions">
+          <button class="lobby-btn" id="skillsBtn">⚡ Compétences<small id="skillsSub">—</small><span class="dot" id="dotSkills"></span></button>
+          <button class="lobby-btn" id="lobbyMcBtn">🎰 Margin Call<small>Réputation <b id="mcRepLobby">0</b></small><span class="dot" id="dotMc"></span></button>
+        </div>
       </div>
     </div>
 
-    <!-- Graphe de cash flow -->
-    <div class="panel">
+    <!-- Graphe de cash flow + autres écrans -->
+    <div class="panel" id="screensPanel">
       <!-- Vue d'ensemble -->
       <div id="overviewScreen">
         <h2>🔗 Cash Flow</h2>
@@ -685,6 +728,41 @@
         <div class="mc-last" id="mcLast"></div>
       </div>
 
+    </div>
+  </main>
+
+  <!-- Nav du bas (5 destinations) ; pastilles = action possible (éteintes par défaut) -->
+  <nav class="bottomnav">
+    <button data-nav="overview"><span class="bn-ic">🔗</span>Cash Flow<span class="dot" id="dotOverview"></span></button>
+    <button data-nav="objectives"><span class="bn-ic">🎯</span>Objectifs<span class="dot" id="dotObjectives"></span></button>
+    <button data-nav="lobby"><span class="bn-ic">🏠</span>Lobby<span class="dot" id="dotLobby"></span></button>
+    <button data-nav="inventaire"><span class="bn-ic">📦</span>Inventaire<span class="dot" id="dotInventaire"></span></button>
+    <button data-nav="atelier"><span class="bn-ic">⚗️</span>Atelier<span class="dot" id="dotAtelier"></span></button>
+  </nav>
+
+  <!-- ⚙️ Réglages & profil (modale) : Valorisation, achat gemmes, auto, sauvegarde, reset -->
+  <div class="wb-overlay" id="settingsOv" style="display:none">
+    <div class="wb-card" style="max-width:340px;text-align:left">
+      <h2 style="text-align:center;margin-bottom:12px">⚙️ Réglages &amp; profil</h2>
+      <div class="valo" id="valoBox" style="margin:0 0 12px">
+        <div class="valobal">🏛️ prod globale <span class="vmult" id="valoMult">×1.00</span></div>
+        <button class="btn" id="valoBtn" style="margin-top:6px">📈 Promotion · <span id="valoCost">$100k</span></button>
+        <div class="valohint">Dépense du cash pour un rang permanent (+10 % prod globale). Aucun reset.</div>
+      </div>
+      <div class="gems" style="margin:0 0 12px">
+        <div class="gembuy" style="display:flex;gap:8px">
+          <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
+          <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
+        </div>
+        <div class="gemhint" id="gemHint"></div>
+      </div>
+      <div class="stat" style="margin:0 0 12px">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
+      <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button>
+        <button class="btn" id="saveBtn">💾 Sauver</button>
+        <button class="btn danger" id="resetBtn">🗑️ Réinitialiser</button>
+      </div>
+      <button class="big-btn can" id="settingsClose" style="margin-top:14px">Fermer</button>
     </div>
   </div>
 
@@ -1319,10 +1397,10 @@
         + '<div class="obj-rw">' + (ok ? "Obtenu" : objReward(o.reward)) + "</div></div>";
     }).join("");
   }
-  function openObjectives() { showScreen("objectives"); render(); }
+  function openObjectives() { navKey = "objectives"; showScreen("objectives"); render(); }
 
   // --- 🎰 Margin Call (UI) ----------------------------------------------
-  function openMarginCall() { showScreen("margincall"); render(); }
+  function openMarginCall() { navKey = "lobby"; showScreen("margincall"); render(); }
   function utcHM(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()); }
   // Lit les sliders → allocation (cash) + durée, bornées par les caps et le cash dispo.
   function mcLaunchInputs() {
@@ -1477,7 +1555,9 @@
         if (lvl) total += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d, noBuffs);
       });
     });
-    return total * valoMult();   // × rang de Valorisation (buffeurs méta V2 = localisés dans moduleMult)
+    // × Valorisation, puis × Pump (multiplicateur vivant / ×10 verrouillé) — SAUF en mode noBuffs
+    // (le prix des gemmes lit perSecond(true) : le Pump ne doit pas gonfler l'indice).
+    return total * valoMult() * (noBuffs ? 1 : pumpMult());
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1652,6 +1732,96 @@
     return { gems: Math.floor(gems), blown: blown, blowAt: blowAt, fuelLeft: Math.max(0, fuel), regimes: regimes, alloc: alloc, durH: durH };
   }
 
+  // === 🏠 LOBBY : Pump + compétences groupées (refonte 2026-06-27) ======================
+  // PUMP : taper le billet remplit une jauge ; le palier atteint donne un MULTIPLICATEUR
+  // VIVANT sur la prod (×2/×3/×5). Au sommet → CRASH : ×10 verrouillé 30 s, jauge inactive
+  // pendant ce temps, puis réarmement. La jauge redescend si on arrête de taper. 100 % OPTIONNEL
+  // (ne jamais pomper ne pénalise rien). PROVISOIRE : à équilibrer.
+  const PUMP_PER_TAP = 0.13;     // ~8 taps pour remplir (0→1)
+  const PUMP_DECAY   = 0.34;     // /s : la jauge se vide en ~3 s sans taper
+  const PUMP_LOCK_MS = 30000;    // durée du ×10 verrouillé
+  const PUMP_PALIERS = [ { at: 0.25, m: 2 }, { at: 0.50, m: 3 }, { at: 0.75, m: 5 } ];  // sommet (1.0) = ×10
+  let pumpGauge = 0;             // 0..1 (éphémère, non sauvegardé)
+  let pumpLockUntil = 0;         // fin du ×10 verrouillé
+  let lastPumpTap = 0;
+  function pumpLocked() { return Date.now() < pumpLockUntil; }
+  function pumpMult() {
+    if (pumpLocked()) return 10;
+    let m = 1;
+    for (const p of PUMP_PALIERS) if (pumpGauge >= p.at) m = p.m;
+    return m;
+  }
+  function pumpTap() {
+    if (pumpLocked()) return;
+    pumpGauge = Math.min(1, pumpGauge + PUMP_PER_TAP);
+    lastPumpTap = Date.now();
+    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; toast("🚀 PUMP ! Production ×10 pendant 30 s"); }
+  }
+  function pumpDecay(dt) {
+    if (!pumpLocked() && pumpGauge > 0 && Date.now() - lastPumpTap > 150) pumpGauge = Math.max(0, pumpGauge - PUMP_DECAY * dt);
+  }
+
+  // Compétences groupées : un seul bouton déclenche toutes les signatures prêtes des héros déployés.
+  function deployedSigs() {
+    const d = dex(state.currentDex);
+    return ASSETS.filter(n => d.placed && d.placed[n.id] && HDATA_BY_ID[n.id] && HDATA_BY_ID[n.id].signature && HDATA_BY_ID[n.id].signature.effect);
+  }
+  function skillsAllReady() { const l = deployedSigs(); return l.length > 0 && l.every(n => sigReady(n.id)); }
+  function fireAllSkills() {
+    const ready = deployedSigs().filter(n => sigReady(n.id));
+    if (!ready.length) { toast("Aucune compétence prête"); return; }
+    ready.forEach(n => triggerSig(NODE[n.id]));
+  }
+
+  // Une action est-elle dispo dans l'Atelier ? (fusion / copie libre à placer / slot gear payable)
+  function atelierActionable() {
+    for (const n of ASSETS) {
+      const id = n.id;
+      if (ownsHero(id) && bufferLvl(id) < BUFFER_MAX_LVL && heroFragsOf(id) >= bufferStepCost(id)) return true;
+      if (ownsHero(id) && copiesFree(id) > 0 &&
+          ASSETS.some(m => rarityOf(m.id) === rarityOf(id) && (2 - slotsOf(m.id).length) > 0 && !isPlacedOn(id, m.id))) return true;
+      if (ownsHero(id)) {
+        const gl = (state.gearLvl && state.gearLvl[id]) || [0, 0, 0];
+        for (let i = 0; i < 3; i++) if ((gl[i] || 0) < GEAR_MAX_LVL && state.gearFrags >= gearSlotCost(gl[i] || 0)) return true;
+      }
+    }
+    return false;
+  }
+
+  function openLobby() { navKey = "lobby"; showScreen("lobby"); render(); }
+  function renderLobby() {
+    document.getElementById("ahPseudo").textContent = (localStorage.getItem("dexCloudName") || "Joueur");
+    const fill = document.getElementById("pumpFill");
+    const gauge = document.getElementById("pumpGauge");
+    if (fill) fill.style.height = (pumpLocked() ? 100 : pumpGauge * 100) + "%";
+    if (gauge) gauge.classList.toggle("locked", pumpLocked());
+    const ps = document.getElementById("pumpState");
+    if (ps) {
+      if (pumpLocked()) ps.textContent = "🚀 Production ×10 — " + Math.ceil((pumpLockUntil - Date.now()) / 1000) + " s";
+      else { const m = pumpMult(); ps.textContent = m > 1 ? ("Production ×" + m + " — continue à pomper !") : "Tape le billet pour pomper ↑"; }
+    }
+    const sub = document.getElementById("skillsSub");
+    const l = deployedSigs();
+    const ready = l.filter(n => sigReady(n.id)).length;
+    if (sub) sub.textContent = l.length ? (ready + "/" + l.length + " prêtes") : "aucun héros déployé";
+    document.getElementById("skillsBtn").classList.toggle("ready", skillsAllReady());
+    document.getElementById("mcRepLobby").textContent = fmt(mcRep());
+  }
+
+  // Pastilles rouges = action POSSIBLE (ÉTEINTES par défaut). Calcul à la volée, jamais décoratif.
+  function setDot(id, on) { const e = document.getElementById(id); if (e) e.classList.toggle("on", !!on); }
+  function updateDots() {
+    const mcCollect = mcPending();
+    setDot("dotOverview", ASSETS.some(n => actionable(n)));
+    setDot("dotObjectives", OBJECTIVES.some(o => !state.objectives[o.id] && o.check()));
+    setDot("dotAtelier", atelierActionable());
+    setDot("dotInventaire", false);     // slice 1 : rien de « réclamable » côté inventaire
+    setDot("dotSkills", skillsAllReady());
+    setDot("dotMc", mcCollect);
+    setDot("dotLobby", skillsAllReady() || mcCollect);
+    setDot("dotSettings", state.cash >= valoCost());
+  }
+
   // --- Achat / gestion des Dex ------------------------------------------
   function nextDexIndex() { return state.dexes.length; }
   function canBuyDex() { return nextDexIndex() < DEX_DEFS.length; } // TODO: + tous les héros
@@ -1733,6 +1903,7 @@
   function click(e) {
     const gain = state.clickPower * globalHeroFx().clickMult;
     state.cash += gain;
+    pumpTap();   // 🔼 chaque clic alimente la pompe (multiplicateur vivant sur la prod)
     spawnFloat(e, "+$" + fmt(gain));
     render();
   }
@@ -1849,11 +2020,14 @@
   }
 
   // --- Navigation entre écrans ------------------------------------------
-  let screen = "overview";    // "overview" | "module" | "heroes" | "objectives" | "atelier"
+  let screen = "lobby";       // "lobby" | "overview" | "module" | "heroes" | "objectives" | "margincall"
+  let navKey = "lobby";       // onglet de la nav du bas à mettre en surbrillance (piloté par les clics nav)
   let currentModule = null;   // id du module ouvert
   let ficheId = null;         // id du héros dont la fiche est ouverte
   function showScreen(name) {
     screen = name;
+    document.getElementById("lobbyScreen").style.display = name === "lobby" ? "block" : "none";
+    document.getElementById("screensPanel").style.display = name === "lobby" ? "none" : "block";
     document.getElementById("overviewScreen").style.display = name === "overview" ? "block" : "none";
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
@@ -1861,9 +2035,10 @@
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
     setActiveNav();
   }
+  // Surbrillance de la nav du bas : pilotée par navKey (les écrans internes — module, fiche,
+  // margin call — ne changent pas l'onglet actif au-delà de ce que fixe le clic d'origine).
   function setActiveNav() {
-    const key = screen === "module" ? "overview" : screen;   // le module fait partie de "Cash Flow"
-    document.querySelectorAll(".navtab").forEach(b => b.classList.toggle("active", b.dataset.nav === key));
+    document.querySelectorAll(".bottomnav button").forEach(b => b.classList.toggle("active", b.dataset.nav === navKey));
   }
   function openModule(id) {
     currentModule = id;
@@ -1874,10 +2049,11 @@
     rar.textContent = RARITY[n.tier];
     rar.className = "mrarity r" + n.tier;
     document.getElementById("mpDex").textContent = DEX_DEFS[state.currentDex].name;
+    navKey = "overview";   // une page module fait partie de « Cash Flow »
     showScreen("module");
     render();
   }
-  function backToOverview() { currentModule = null; showScreen("overview"); render(); }
+  function backToOverview() { currentModule = null; navKey = "overview"; showScreen("overview"); render(); }
 
   // --- Codex des héros (fiches) -----------------------------------------
   function openHeroes() {
@@ -1999,8 +2175,10 @@
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
     else if (screen === "margincall") renderMarginCall();
-    else renderOverview();
-    renderAbilities();
+    else if (screen === "overview") renderOverview();
+    // (lobby : pas de dispatch dédié)
+    renderLobby();
+    updateDots();
   }
 
   // Barre d'abilities : signatures des héros déployés (Dex courant)
@@ -2138,6 +2316,7 @@
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     cleanBuffs();
+    pumpDecay(dt);   // 🔽 la jauge de Pump redescend si on arrête de taper
     const fx = globalHeroFx();
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
@@ -2156,6 +2335,7 @@
   buildOverview();
   buildHeroGrid();
   renderTabs();
+  showScreen("lobby");   // écran d'accueil = Lobby
   render();
   renderAutoBtn();
   if (pendingWelcome) { showWelcomeBack(pendingWelcome); pendingWelcome = null; }
@@ -2167,18 +2347,29 @@
   document.getElementById("valoBtn").addEventListener("click", buyValo);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
-  document.getElementById("heroesBackBtn").addEventListener("click", backToOverview);
-  document.getElementById("objBackBtn").addEventListener("click", backToOverview);
-  document.querySelectorAll(".navtab").forEach(b => b.addEventListener("click", () => {
+  document.getElementById("heroesBackBtn").addEventListener("click", openLobby);
+  document.getElementById("objBackBtn").addEventListener("click", openLobby);
+  // Nav du bas : 5 destinations (Inventaire & Atelier → Codex pour l'instant ; split = slice suivante)
+  document.querySelectorAll(".bottomnav button").forEach(b => b.addEventListener("click", () => {
     const nav = b.dataset.nav;
-    if (nav === "heroes") openHeroes();
+    navKey = nav;
+    if (nav === "lobby") openLobby();
     else if (nav === "objectives") openObjectives();
-    else if (nav === "margincall") openMarginCall();
-    else backToOverview();
+    else if (nav === "inventaire" || nav === "atelier") openHeroes();
+    else backToOverview();   // overview (Cash Flow)
   }));
 
+  // ⚙️ Réglages & profil (modale)
+  document.getElementById("settingsBtn").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "flex"; render(); });
+  document.getElementById("settingsClose").addEventListener("click", () => { document.getElementById("settingsOv").style.display = "none"; });
+  document.getElementById("settingsOv").addEventListener("click", (e) => { if (e.target.id === "settingsOv") e.currentTarget.style.display = "none"; });
+
+  // 🏠 Lobby : compétences groupées + accès Margin Call
+  document.getElementById("skillsBtn").addEventListener("click", fireAllSkills);
+  document.getElementById("lobbyMcBtn").addEventListener("click", openMarginCall);
+
   // 🎰 Margin Call : listeners (attachés une fois ; renderMarginCall ne met à jour que les valeurs)
-  document.getElementById("mcBackBtn").addEventListener("click", backToOverview);
+  document.getElementById("mcBackBtn").addEventListener("click", openLobby);
   document.getElementById("mcAllocSlider").addEventListener("input", () => { if (screen === "margincall") renderMarginCall(); });
   document.getElementById("mcDurSlider").addEventListener("input", () => { if (screen === "margincall") renderMarginCall(); });
   document.getElementById("mcLaunchBtn").addEventListener("click", () => {
