@@ -2277,11 +2277,13 @@
   }
   function backToList() {
     ficheId = null;
+    if (ficheSource === "inventaire") { openInventaire(); return; }   // revient à la grille d'inventaire
     document.getElementById("heroFiche").style.display = "none";
     document.getElementById("heroList").style.display = "block";
     render();
   }
-  function openFiche(id) {
+  let ficheSource = "atelier";   // d'où vient la fiche : "atelier" (avec workshop) | "inventaire" (consultation seule)
+  function openFiche(id, source) {
     const h = HDATA_BY_ID[id];
     if (!h) return;
     ficheId = id;
@@ -2302,6 +2304,11 @@
       `<b>${h.signature.name}</b> — ${h.signature.text} <span style="color:var(--muted)">(recharge ${h.signature.cooldown}s)</span>`;
     document.getElementById("ficheSyn").textContent =
       (h.synergies || []).map(k => { const s = HMETA.synergies.find(x => x.key === k); return s ? s.name : k; }).join(" · ") || "—";
+    ficheSource = (source === "inventaire") ? "inventaire" : "atelier";
+    const fromInv = ficheSource === "inventaire";
+    document.getElementById("atlWorkshop").style.display = fromInv ? "none" : "";      // pas d'atelier en consultation
+    document.getElementById("ficheGotoModule").style.display = fromInv ? "none" : "";
+    navKey = fromInv ? "inventaire" : "atelier";   // depuis l'Inventaire on y reste (surbrillance)
     document.getElementById("heroList").style.display = "none";
     document.getElementById("heroFiche").style.display = "block";
     showScreen("heroes");
@@ -2345,8 +2352,8 @@
       document.getElementById("ficheStatus").innerHTML = copies > 0
         ? `Possédé · ${copies} copie(s)${deployed ? " · 🦸 déployé (signature)" : ""}`
         : `Non obtenu — invoque ses fragments puis forge une copie`;
-      // Parcours méta V2 (Invoquer → Renforcer → Placer) rendu dans le workshop intégré à la fiche.
-      atelierHero = ficheId;
+      // Workshop (Invoquer → Renforcer → Placer) UNIQUEMENT depuis l'Atelier, pas en consultation Inventaire.
+      atelierHero = (ficheSource === "inventaire") ? null : ficheId;
       renderAtelier();
     }
   }
@@ -2575,7 +2582,7 @@
   // Inventaire : toucher un héros → ouvre sa fiche dans l'Atelier (fabrication)
   document.getElementById("invGrid").addEventListener("click", (e) => {
     const c = e.target.closest("[data-inv]"); if (!c) return;
-    navKey = "atelier"; openFiche(c.getAttribute("data-inv"));
+    openFiche(c.getAttribute("data-inv"), "inventaire");   // consultation depuis l'Inventaire (sans atelier)
   });
   // Nav du bas : 5 destinations (Inventaire & Atelier → Codex pour l'instant ; split = slice suivante)
   document.querySelectorAll(".bottomnav button").forEach(b => b.addEventListener("click", () => {
