@@ -641,7 +641,8 @@
           <div>🦸 <b id="heroesOwned">0</b>/18</div>
         </div>
         <div id="heroList">
-          <h2>📖 Codex des Héros</h2>
+          <h2>⚗️ Atelier</h2>
+          <p class="hint">Touche un héros pour le fabriquer : invoquer → renforcer → placer.</p>
           <div class="herogrid" id="heroGrid"></div>
         </div>
         <div id="heroFiche" style="display:none">
@@ -681,6 +682,17 @@
         <h2>🎯 Objectifs</h2>
         <p class="hint">Des jalons à débloquer une fois. Récompenses versées en 💎 gemmes.</p>
         <div class="objlist" id="objList"></div>
+      </div>
+
+      <!-- 📦 Inventaire : possession (héros possédés, copies, niveau, placement) -->
+      <div id="inventaireScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="invBackBtn">← Retour</button>
+          <div>📦 <b id="invOwned">0</b>/18</div>
+        </div>
+        <h2>📦 Inventaire</h2>
+        <p class="hint">Tes héros possédés. Touche-en un pour ouvrir sa fiche dans l'Atelier (renforcer / placer).</p>
+        <div class="collection" id="invGrid"></div>
       </div>
 
       <div id="margincallScreen" style="display:none">
@@ -1404,6 +1416,22 @@
   }
   function openObjectives() { navKey = "objectives"; showScreen("objectives"); render(); }
 
+  // --- 📦 Inventaire (possession) ---------------------------------------
+  function openInventaire() { navKey = "inventaire"; showScreen("inventaire"); render(); }
+  function renderInventaire() {
+    const owned = HDATA.filter(h => ownsHero(h.id)).sort((a, b) => a.rarity - b.rarity);
+    document.getElementById("invOwned").textContent = owned.length;
+    const g = document.getElementById("invGrid");
+    g.innerHTML = owned.length ? owned.map(h => {
+      const id = h.id, lvl = bufferLvl(id), oc = copiesOwned(id), fr = copiesFree(id), placed = copiesUsed(id);
+      return `<div class="col-cell r${h.rarity}" data-inv="${id}" style="cursor:pointer">`
+        + `<div class="cemoji">${h.emoji}</div>`
+        + `<div class="cname">${heroName(id)}</div>`
+        + `<div class="ccopies">niv ${lvl} · ${oc} copie(s)</div>`
+        + `<div class="ccopies" style="color:var(--muted)">${placed} placé(s) · ${fr} libre(s)</div></div>`;
+    }).join("") : `<p class="hint">Aucun héros encore. Va dans l'⚗️ Atelier pour en invoquer.</p>`;
+  }
+
   // --- 🎰 Margin Call (UI) ----------------------------------------------
   function openMarginCall() { navKey = "lobby"; showScreen("margincall"); render(); }
   function utcHM(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()); }
@@ -2011,6 +2039,7 @@
     document.getElementById("moduleScreen").style.display = name === "module" ? "block" : "none";
     document.getElementById("heroesScreen").style.display = name === "heroes" ? "block" : "none";
     document.getElementById("objectivesScreen").style.display = name === "objectives" ? "block" : "none";
+    document.getElementById("inventaireScreen").style.display = name === "inventaire" ? "block" : "none";
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
     setActiveNav();
   }
@@ -2154,6 +2183,7 @@
     else if (screen === "heroes") renderHeroesScreen();
     else if (screen === "objectives") renderObjectives();
     else if (screen === "margincall") renderMarginCall();
+    else if (screen === "inventaire") renderInventaire();
     else if (screen === "overview") renderOverview();
     // (lobby : pas de dispatch dédié)
     const gr = document.getElementById("gearReadout");
@@ -2333,13 +2363,20 @@
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
   document.getElementById("heroesBackBtn").addEventListener("click", openLobby);
   document.getElementById("objBackBtn").addEventListener("click", openLobby);
+  document.getElementById("invBackBtn").addEventListener("click", openLobby);
+  // Inventaire : toucher un héros → ouvre sa fiche dans l'Atelier (fabrication)
+  document.getElementById("invGrid").addEventListener("click", (e) => {
+    const c = e.target.closest("[data-inv]"); if (!c) return;
+    navKey = "atelier"; openFiche(c.getAttribute("data-inv"));
+  });
   // Nav du bas : 5 destinations (Inventaire & Atelier → Codex pour l'instant ; split = slice suivante)
   document.querySelectorAll(".bottomnav button").forEach(b => b.addEventListener("click", () => {
     const nav = b.dataset.nav;
     navKey = nav;
     if (nav === "lobby") openLobby();
     else if (nav === "objectives") openObjectives();
-    else if (nav === "inventaire" || nav === "atelier") openHeroes();
+    else if (nav === "inventaire") openInventaire();
+    else if (nav === "atelier") openHeroes();   // Atelier = fabrication (grille → fiche → workshop)
     else backToOverview();   // overview (Cash Flow)
   }));
 
