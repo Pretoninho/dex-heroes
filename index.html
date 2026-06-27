@@ -757,6 +757,7 @@
         <div class="gemhint" id="gemHint"></div>
       </div>
       <div class="stat" style="margin:0 0 12px">Actifs connectés : <b id="connCount">0</b> / <span id="connTotal">0</span></div>
+      <div class="stat" style="margin:0 0 12px">🛠️ Équipement (passif) : <b id="gearReadout">+0 % prod</b> <span class="hint" id="gearReadoutSub"></span></div>
       <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="autoBuyBtn" title="Améliore automatiquement le module le moins cher">🤖 Auto : OFF</button>
         <button class="btn" id="saveBtn">💾 Sauver</button>
@@ -1036,7 +1037,20 @@
   // Fusion cumulée base 3 (3^L pour ÊTRE niv L) ; un module gearé à fond (9 slots) ≈ 59 k frags ≈ 31 j.
   function gearSlots(id) { if (!state.gearLvl) state.gearLvl = {}; if (!Array.isArray(state.gearLvl[id])) state.gearLvl[id] = [0, 0, 0]; return state.gearLvl[id]; }
   function gearSlotCost(L) { return Math.pow(3, L + 1) - Math.pow(3, L); }   // palier base 3
-  function gearBonus(id) { const s = (state.gearLvl && state.gearLvl[id]) || [0, 0, 0]; return ((s[0] || 0) + (s[1] || 0) + (s[2] || 0)) * 0.01 / GEAR_MAX_LVL; }
+  function gearBonus(id) { return 0; }   // GEAR APLATI (2026-06-27) : ancien bonus par slots neutralisé
+  // === 🛠️ ÉQUIPEMENT (aplati) : bonus de prod PASSIF, sans slots ni choix ======================
+  // Le faucet gearFrags (80/h, online + hors-ligne) s'investit AUTOMATIQUEMENT en paliers →
+  // +1 %/palier de prod GLOBALE. Zéro micro-gestion (slots + pool qualitatif retirés du jeu).
+  const GEAR_STEP = 0.01;                                                 // +1 % prod / palier — TUNABLE
+  function gearTierCost(t) { return Math.ceil(40 * Math.pow(1.5, t)); }   // coût croissant — TUNABLE
+  function gearTier() { return state.gearTier || 0; }
+  function gearMult() { return 1 + gearTier() * GEAR_STEP; }
+  function gearAutoLevel() {   // convertit les fragments accumulés en paliers (auto, passif)
+    let c, guard = 0;
+    while ((state.gearFrags || 0) >= (c = gearTierCost(state.gearTier || 0)) && guard++ < 100000) {
+      state.gearFrags -= c; state.gearTier = (state.gearTier || 0) + 1;
+    }
+  }
   function upgradeGearSlot(id, i) {
     const s = gearSlots(id), L = s[i] || 0;
     if (L >= GEAR_MAX_LVL) { toast("Slot d'équipement au max"); return; }
@@ -1058,18 +1072,7 @@
   const GEAR_FX_BY_KEY = Object.fromEntries(GEAR_FX.map(f => [f.key, f]));
   function gearFxOf(id) { if (!state.gearFx) state.gearFx = {}; if (!Array.isArray(state.gearFx[id])) state.gearFx[id] = ["", "", ""]; return state.gearFx[id]; }
   // Totaux globaux cappés de chaque effet qualitatif (magnitude par slot = niveau/8 × perSlot).
-  function gearQual() {
-    const t = { cost: 0, offmult: 0, offcap: 0, frag: 0, gem: 0 };
-    if (state.gearFx) Object.keys(state.gearFx).forEach(id => {
-      const lv = (state.gearLvl && state.gearLvl[id]) || [0, 0, 0], fx = state.gearFx[id] || [];
-      for (let i = 0; i < 3; i++) {
-        const k = fx[i]; if (!k || !(k in t)) continue;
-        t[k] += (lv[i] || 0) / GEAR_MAX_LVL * GEAR_FX_BY_KEY[k].perSlot;
-      }
-    });
-    Object.keys(t).forEach(k => { t[k] = Math.min(t[k], GEAR_FX_BY_KEY[k].cap); });
-    return t;
-  }
+  function gearQual() { return { cost: 0, offmult: 0, offcap: 0, frag: 0, gem: 0 }; }   // GEAR APLATI : pool qualitatif retiré
   function assignGearFx(id, i, k) {
     const fx = gearFxOf(id);
     fx[i] = (k && GEAR_FX_BY_KEY[k]) ? k : "";
@@ -1157,6 +1160,7 @@
       // --- Méta V2 (refonte héros/gear/fragments) : stocks posés au bloc 1, gameplay aux blocs suivants ---
       heroFrags: {},               // { heroId: fragments ciblés en stock } — robinet gemmes/cash
       gearFrags: 0,                // fragments gear en stock — robinet passif/temps (80/h, offline capé)
+      gearTier: 0,                 // 🛠️ palier d'équipement (aplati) : +1 %/palier de prod globale (auto)
       gearLvl: {},                 // { heroId: [slot0, slot1, slot2] } — niveaux des 3 slots de gear (0→8)
       gearFx: {},                  // { heroId: [fx0, fx1, fx2] } — effet qualitatif choisi par slot (clé GEAR_FX ou "")
       bufferLvl: {},               // { heroId: niveau de buffeur 0→10 (+1 %/niv prod du module où placé) }
@@ -1190,6 +1194,7 @@
     // Méta V2 : normalisation des stocks + migrations one-shot étagées (après finalisation des Éclats).
     if (!state.heroFrags || typeof state.heroFrags !== "object") state.heroFrags = {};
     if (typeof state.gearFrags !== "number") state.gearFrags = 0;
+    if (typeof state.gearTier !== "number" || state.gearTier < 0) state.gearTier = 0;
     if (!state.gearLvl || typeof state.gearLvl !== "object") state.gearLvl = {};
     if (!state.gearFx || typeof state.gearFx !== "object") state.gearFx = {};
     if (!state.bufferLvl || typeof state.bufferLvl !== "object") state.bufferLvl = {};
@@ -1487,17 +1492,8 @@
       + `<div class="atl-choice"><div class="atl-card"><div class="ct">Plus FORT — buffeur</div><div class="cv" id="atlFortVal"></div><div class="ct" id="atlFortFrags" style="margin-bottom:8px"></div><button class="btn" id="atlFuse" data-atl="fuse"></button></div>`
       + `<div class="atl-card"><div class="ct">Plus LARGE — copies</div><div class="cv" id="atlLargeVal"></div><div class="ct" id="atlLargeFrags" style="margin-bottom:8px"></div><button class="btn" id="atlMint" data-atl="mint"></button></div></div></div>`
       + `<div class="atl-step"><h3>3️⃣ 📍 Placer</h3><div class="sub">Occupe un slot buffeur d'un module de même rareté (1 copie libre par slot).</div>${rows}`
-      + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`
-      + `<div class="atl-step"><h3>4️⃣ 🛠️ Équiper <span style="color:var(--muted);font-weight:400;font-size:12px">(gear · garniture)</span></h3>`
-      + `<div class="sub">Faucet <b>passif</b> (80 frags/h, online + hors-ligne). 3 slots, +1 % de prod / slot à niv 8 — appliqué partout où le héros est placé.</div>`
-      + `<div class="atl-stat" id="atlGearInfo"></div>`
-      + [0, 1, 2].map(i =>
-          `<div class="atl-modrow"><span class="atl-modname">Slot ${i + 1} <span class="mr" id="atlgearlvl-${i}"></span></span><button class="btn" id="atlgear-${i}" data-atl="gear" data-slot="${i}"></button></div>`
-          + `<div style="margin:2px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">`
-          + `<select class="atl-select" id="atlgearfx-${i}" data-gfx="${i}"><option value="">— choisir un effet —</option>${GEAR_FX.map(f => `<option value="${f.key}">${f.label}</option>`).join("")}</select>`
-          + `<span class="ct" id="atlgearfxval-${i}"></span></div>`
-        ).join("")
-      + `<div class="sub" id="atlGearQual" style="margin-top:4px"></div></div>`;
+      + `<div class="sub" id="atlPlaceHint" style="margin-top:6px;color:var(--accent-2);display:none">💡 Forge une copie (étape 2) pour pouvoir la placer.</div></div>`;
+    // (Étape « Équiper » retirée : l'équipement est désormais un bonus de prod PASSIF auto, voir ⚙️ Réglages.)
   }
   function updateAtelierWorkshop(id) {
     const R = rarityOf(id);
@@ -1507,7 +1503,7 @@
     const owned = copiesOwned(id), free = copiesFree(id), cc = copyCost(id);
     const set = (elId, html) => { const e = document.getElementById(elId); if (e) e.innerHTML = html; };
     const able = (elId, can) => { const e = document.getElementById(elId); if (e) { e.disabled = !can; e.classList.toggle("can", can); } };
-    set("atlStat", `💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · 🛠️ <b>${Math.floor(state.gearFrags || 0)}</b> gear · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)`);
+    set("atlStat", `💵 <b>$${fmt(state.cash)}</b> · 💎 <b>${gems}</b> · 🧬 <b>${frags}</b> frags · buffeur <b>niv ${L}/${BUFFER_MAX_LVL}</b> (+${L}%) · <b>${owned}</b> copie(s) · <b>${free}</b> libre(s)`);
     set("atlBuy1", `Acheter 200💎 · ≈$${fmt(buy1)}`); able("atlBuy1", state.cash >= buy1);
     set("atlBuy10", `2000💎 · ≈$${fmt(buy10)}`); able("atlBuy10", state.cash >= buy10);
     able("atlPull1", gems >= PULL_COST);
@@ -1529,22 +1525,7 @@
       if (b) { b.textContent = on ? "Retirer" : "Placer"; b.disabled = dis; b.classList.toggle("can", on); }
     });
     const ph = document.getElementById("atlPlaceHint"); if (ph) ph.style.display = free <= 0 ? "block" : "none";
-    // Gear (4b) : faucet passif partagé, 3 slots leveled avec gearFrags
-    const gf = Math.floor(state.gearFrags || 0), gsl = gearSlots(id);
-    set("atlGearInfo", `🛠️ <b>${gf}</b> fragments d'équipement · bonus prod total <b>+${(gearBonus(id) * 100).toFixed(2)} %</b>`);
-    const gfx = gearFxOf(id);
-    [0, 1, 2].forEach(i => {
-      const sl = gsl[i] || 0, gmax = sl >= GEAR_MAX_LVL, gcost = gearSlotCost(sl);
-      set("atlgearlvl-" + i, `· niv ${sl}/${GEAR_MAX_LVL} (+${(sl / GEAR_MAX_LVL).toFixed(2)} % prod)`);
-      const gb = document.getElementById("atlgear-" + i);
-      if (gb) { gb.textContent = gmax ? "Max" : `Améliorer · ${gcost} 🛠️`; gb.disabled = gmax || gf < gcost; gb.classList.toggle("can", !gmax && gf >= gcost); }
-      const selEl = document.getElementById("atlgearfx-" + i); if (selEl && selEl.value !== (gfx[i] || "")) selEl.value = gfx[i] || "";
-      const def = gfx[i] && GEAR_FX_BY_KEY[gfx[i]];
-      set("atlgearfxval-" + i, def ? `<span style="color:var(--accent)">${def.fmt(sl / GEAR_MAX_LVL * def.perSlot)}</span>` : '<span style="color:var(--muted)">aucun effet — choisis-en un</span>');
-    });
-    const gq = gearQual();
-    const actifs = GEAR_FX.map(f => gq[f.key] > 0 ? f.fmt(gq[f.key]) : null).filter(Boolean);
-    set("atlGearQual", actifs.length ? `<b>Pool qualitatif (global, cappé)</b> : ${actifs.join(" · ")}` : `<span style="color:var(--muted)">Choisis un effet par slot — caps globaux + diversification = le portefeuille à composer.</span>`);
+    // (Gear retiré du workshop : équipement = bonus passif auto, affiché dans ⚙️ Réglages.)
   }
 
   function perSecond(noBuffs) {
@@ -1557,7 +1538,7 @@
     });
     // × Valorisation, puis × Pump (multiplicateur vivant / ×10 verrouillé) — SAUF en mode noBuffs
     // (le prix des gemmes lit perSecond(true) : le Pump ne doit pas gonfler l'indice).
-    return total * valoMult() * (noBuffs ? 1 : pumpMult());
+    return total * valoMult() * gearMult() * (noBuffs ? 1 : pumpMult());
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -1780,10 +1761,7 @@
       if (ownsHero(id) && bufferLvl(id) < BUFFER_MAX_LVL && heroFragsOf(id) >= bufferStepCost(id)) return true;
       if (ownsHero(id) && copiesFree(id) > 0 &&
           ASSETS.some(m => rarityOf(m.id) === rarityOf(id) && (2 - slotsOf(m.id).length) > 0 && !isPlacedOn(id, m.id))) return true;
-      if (ownsHero(id)) {
-        const gl = (state.gearLvl && state.gearLvl[id]) || [0, 0, 0];
-        for (let i = 0; i < 3; i++) if ((gl[i] || 0) < GEAR_MAX_LVL && state.gearFrags >= gearSlotCost(gl[i] || 0)) return true;
-      }
+      // (gear retiré : équipement passif, plus une action de l'atelier)
     }
     return false;
   }
@@ -1873,6 +1851,7 @@
         const cap = (OFFLINE_CAP_H + gq.offcap) * 3600 * fx.offlineCapMult;   // plafond 4 h + gear (offcap), × héros
         const eff = Math.min(elapsed, cap);                      // durée créditée, plafonnée
         state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * eff;   // faucet gear passif (même plafond hors-ligne)
+        gearAutoLevel();   // 🛠️ investit les fragments hors-ligne en paliers d'équipement
         const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult * (1 + gq.offmult);   // 50 % × héros offlineMult × gear
         if (gained > 0) {
           state.cash += gained;
@@ -2177,6 +2156,10 @@
     else if (screen === "margincall") renderMarginCall();
     else if (screen === "overview") renderOverview();
     // (lobby : pas de dispatch dédié)
+    const gr = document.getElementById("gearReadout");
+    if (gr) gr.textContent = "+" + (gearTier() * GEAR_STEP * 100).toFixed(0) + " % prod";
+    const grs = document.getElementById("gearReadoutSub");
+    if (grs) grs.textContent = "(niv " + gearTier() + " · prochain " + gearTierCost(gearTier()) + " 🛠️ · " + Math.floor(state.gearFrags || 0) + " en stock)";
     renderLobby();
     updateDots();
   }
@@ -2321,6 +2304,7 @@
     state.cash += (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
+    gearAutoLevel();   // 🛠️ investit auto les fragments en paliers (bonus prod passif)
     if (mcRunning()) {   // 🎰 Margin Call : avance la session active (inerte si OFF)
       mcAdvance(now);
       if (!mcRunning()) { save(); toast(mcPending() ? "💥 Margin Call ! Carburant épuisé." : "🎰 Session clôturée (gemmes collectées)."); }
