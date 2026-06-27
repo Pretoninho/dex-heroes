@@ -153,15 +153,12 @@
       + ".cloud-close{margin-top:12px;width:100%;opacity:.8}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
-    // Re-logé dans le nouvel en-tête (la barre d'onglets .navtabs a été retirée à la refonte UI).
-    var tabs = document.querySelector(".ah-res") || document.querySelector(".navtabs");
+    // Logé DANS la modale ⚙️ Réglages (#cloudSlot). Repli sur l'en-tête / l'ancienne barre.
+    var tabs = document.getElementById("cloudSlot") || document.querySelector(".ah-res") || document.querySelector(".navtabs");
     var tab = document.createElement("button");
-    tab.className = "cloudtab"; tab.id = "cloudTab"; tab.textContent = "☁️";
+    tab.className = "cloudtab"; tab.id = "cloudTab"; tab.textContent = "☁️ Compte";
     tab.title = "Compte / sauvegarde cloud";
-    if (tabs) {
-      var gear = document.getElementById("settingsBtn");
-      if (gear && tabs.contains(gear)) tabs.insertBefore(tab, gear); else tabs.appendChild(tab);
-    }
+    if (tabs) tabs.appendChild(tab);
 
     var ov = document.createElement("div"); ov.className = "cloud-ov"; ov.id = "cloudOv";
     ov.innerHTML = '<div class="cloud-card" id="cloudCard"></div>';
