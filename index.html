@@ -727,10 +727,10 @@
       <div class="lobby-wrap">
         <div class="pump-gauge" id="pumpGauge">
           <div class="pump-tube"><div class="pump-fill" id="pumpFill"></div></div>
-          <div class="pump-mark" style="bottom:100%">×10</div>
-          <div class="pump-mark" style="bottom:75%">×5</div>
-          <div class="pump-mark" style="bottom:50%">×3</div>
-          <div class="pump-mark" style="bottom:25%">×2</div>
+          <div class="pump-mark" style="bottom:100%">×5</div>
+          <div class="pump-mark" style="bottom:75%">×3</div>
+          <div class="pump-mark" style="bottom:50%">×2</div>
+          <div class="pump-mark" style="bottom:25%">×1.5</div>
         </div>
         <div class="pump-controls">
           <div class="pump-label">PUMP IT</div>
@@ -1658,7 +1658,7 @@
   // kind "base" = différentiel sur une stat monotone (cur - baseline figé au reset) ;
   // kind "counter" = compteur incrémenté pendant la journée (prog[key]).
   const DAILY_POOL = [
-    { key: "earn",  icon: "🏭", idle: true,  kind: "counter", label: "Produire du cash",        rw: 200, target: ps => Math.max(1000, Math.round(ps * 1800)), fmt: v => "$" + fmt(v) },
+    { key: "earn",  icon: "🏭", idle: true,  kind: "counter", label: "Produire du cash",        rw: 200, target: ps => Math.max(5000, Math.round(ps * 7200)), fmt: v => "$" + fmt(v) },
     { key: "upg",   icon: "🔗", kind: "base", cur: () => totalLevels(),        label: "Acheter des améliorations", rw: 150, target: () => 15, fmt: v => fmt(Math.floor(v)) },
     { key: "buff",  icon: "🦸", kind: "base", cur: () => totalBufferLevels(),  label: "Fusionner des buffeurs",    rw: 250, target: () => 5,  fmt: v => fmt(Math.floor(v)) },
     { key: "maxp",  icon: "💥", kind: "base", cur: () => state.pumpMaxCount || 0, label: "Atteindre le MAX du Pump", rw: 200, target: () => 2, fmt: v => fmt(Math.floor(v)) },
@@ -2118,7 +2118,7 @@
   const MC_BURN_BASE = 0.8;
   // Rendement gemmes : généreux BULL/HYPE, maigre BEAR/CRASH. Calibré NET-POSITIF en moyenne
   // (~×1,16 de gemmes vs achat direct, par cash réellement consommé). À affiner au checkpoint.
-  const MC_YIELD = { BULL: 1.9, HYPE: 2.25, CRABE: 1.25, BEAR: 0.88, CRASH: 0.63 };
+  const MC_YIELD = { BULL: 2.2, HYPE: 2.6, CRABE: 1.45, BEAR: 1.0, CRASH: 0.72 };   // +15 % (calage : EV ×0,97→×1,12 à rép 0, ~×1,16 visé)
 
   function mcState() { return state.mc || (state.mc = { rep: 0, session: null, lastResult: null }); }
   function mcRep() { return mcState().rep || 0; }
@@ -2323,20 +2323,21 @@
 
   // === 🏠 LOBBY : Pump + compétences groupées (refonte 2026-06-27) ======================
   // PUMP : taper le billet remplit une jauge ; le palier atteint donne un MULTIPLICATEUR
-  // VIVANT sur la prod (×2/×3/×5). Au sommet → CRASH : ×10 verrouillé 30 s, jauge inactive
+  // VIVANT sur la prod (×1,5/×2/×3). Au sommet → MAX : ×5 verrouillé 30 s, jauge inactive
   // pendant ce temps, puis réarmement. La jauge redescend si on arrête de taper. 100 % OPTIONNEL
   // (ne jamais pomper ne pénalise rien). PROVISOIRE : à équilibrer.
   const PUMP_PER_TAP = 0.13;     // ~8 taps pour remplir (0→1)
   const PUMP_DECAY   = 0.34;     // /s : la jauge se vide en ~3 s sans taper
-  const PUMP_LOCK_MS = 30000;    // durée du ×10 verrouillé
-  const PUMP_PALIERS = [ { at: 0.25, m: 2 }, { at: 0.50, m: 3 }, { at: 0.75, m: 5 } ];  // sommet (1.0) = ×10
+  const PUMP_LOCK_MS = 30000;    // durée du ×5 verrouillé
+  const PUMP_MAX_MULT = 5;       // multiplicateur au sommet (1.0) — TUNABLE (baissé de 10→5 : écart actif/idle plus sain)
+  const PUMP_PALIERS = [ { at: 0.25, m: 1.5 }, { at: 0.50, m: 2 }, { at: 0.75, m: 3 } ];  // sommet (1.0) = ×5
   let pumpGauge = 0;             // 0..1 (éphémère, non sauvegardé)
   let pumpLockUntil = 0;         // fin du ×10 verrouillé
   let lastPumpTap = 0;
   let prodHist = [], lastProdSample = 0;   // 📊 historique roulant de la prod/s (éphémère, non sauvegardé)
   function pumpLocked() { return Date.now() < pumpLockUntil; }
   function pumpMult() {
-    if (pumpLocked()) return 10;
+    if (pumpLocked()) return PUMP_MAX_MULT;
     let m = 1;
     for (const p of PUMP_PALIERS) if (pumpGauge >= p.at) m = p.m;
     return m;
@@ -2345,12 +2346,12 @@
     if (pumpLocked()) return;
     pumpGauge = Math.min(1, pumpGauge + PUMP_PER_TAP);
     lastPumpTap = Date.now();
-    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; state.pumpMaxCount = (state.pumpMaxCount || 0) + 1; crashEffect(); toast("💥 MAX ! Production ×10 pendant 30 s"); }
+    if (pumpGauge >= 1) { pumpLockUntil = Date.now() + PUMP_LOCK_MS; pumpGauge = 0; state.pumpMaxCount = (state.pumpMaxCount || 0) + 1; crashEffect(); toast("💥 MAX ! Production ×" + PUMP_MAX_MULT + " pendant 30 s"); }
   }
-  // 💥 Effet spectaculaire au sommet (MAX → ×10 verrouillé) : flash + secousse + gros texte.
+  // 💥 Effet spectaculaire au sommet (MAX → ×5 verrouillé) : flash + secousse + gros texte.
   function crashEffect() {
     const fx = document.getElementById("crashFx"); if (!fx) return;
-    fx.innerHTML = '<div class="crash-text">💥 MAX !<span>PRODUCTION ×10</span></div>';
+    fx.innerHTML = '<div class="crash-text">💥 MAX !<span>PRODUCTION ×' + PUMP_MAX_MULT + '</span></div>';
     fx.classList.remove("go"); void fx.offsetWidth; fx.classList.add("go");
     const main = document.querySelector(".appmain");
     if (main) { main.classList.remove("shake"); void main.offsetWidth; main.classList.add("shake"); }
@@ -2393,7 +2394,7 @@
     if (gauge) gauge.classList.toggle("locked", pumpLocked());
     const ps = document.getElementById("pumpState");
     if (ps) {
-      if (pumpLocked()) ps.textContent = "🚀 Production ×10 — " + Math.ceil((pumpLockUntil - Date.now()) / 1000) + " s";
+      if (pumpLocked()) ps.textContent = "🚀 Production ×" + PUMP_MAX_MULT + " — " + Math.ceil((pumpLockUntil - Date.now()) / 1000) + " s";
       else { const m = pumpMult(); ps.textContent = m > 1 ? ("Production ×" + m + " — continue à pomper !") : "Tape le billet pour pomper ↑"; }
     }
     const sub = document.getElementById("skillsSub");

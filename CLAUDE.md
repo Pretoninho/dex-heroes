@@ -428,15 +428,17 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   (régime déterministe). `mcLaunch`/`mcCollect`/`mcProject`. Margin call = carburant épuisé → pause ;
   fin de durée → clôture auto (rend le carburant non brûlé). On ne perd **que le carburant misé**, jamais
   sous la base. Caps alloc/durée **indexés prod + repoussés par la réputation** (+50 %/palier) ; réputation
-  = gemmes gagnées (cumul, **interne**, pas un mult global). Éco **PROVISOIRE** calibrée net-positive
-  (`MC_BURN`/`MC_YIELD`/`MC_BURN_BASE`=0,8 → ~×1,16 vs achat direct sur cash consommé, ~28 % de margin call
-  aux réglages max).
+  = gemmes gagnées (cumul, **interne**, pas un mult global). Éco **recalibrée (tuning 2026-06-27)** : `MC_YIELD` monté
+  **+15 %** (`{BULL:2.2,HYPE:2.6,CRABE:1.45,BEAR:1.0,CRASH:0.72}`) car l'audit montrait EV **×0,97 à rép 0** (= perdant
+  vs achat direct !) → désormais **EV ×1,12 à rép 0**, ~×1,23 à rép 2, **margin call 24–36 %** selon la durée (le
+  rendement n'affecte pas la combustion). `MC_BURN`/`MC_BURN_BASE`=0,8 inchangés.
 - **Phase 2b — UI (FAIT)** : onglet 🎰 + écran `#margincallScreen` (météo, sliders alloc×durée, **projection
   live**, panneau session actif/blown, collecte). Listeners attachés une fois ; `renderMarginCall` met à jour
   les valeurs seulement (sliders non clobberés par le game loop 10×/s).
-- **RESTE** : **checkpoint de tuning** (4 leviers feel — vitesse du cycle/poids régimes, courbe entretien/régime,
-  conversion alloc→gemmes/net-positif, caps réputation) à valider **avec le joueur** ; polish réputation
-  (afficher le palier) + UX.
+- **TUNING — ✅ 1er passage FAIT (2026-06-27)** via audit chiffré (`scratchpad/audit.js`) : régimes sains (distrib =
+  poids, 68 min/régime, 33 % en BEAR+CRASH) ; **Margin Call EV recalibré** (yield +15 %, EV ×0,97→×1,12) ; **Pump
+  plafonné ×10→×5** ; **quête « produire » bumpée** (30 min→2 h de prod). **RESTE** : polish réputation (afficher le
+  palier), playtest des nouveaux réglages, éventuel ajustement burn/régime.
 
 ### 🎨 REFONTE UI (« app mobile ») + PUMP + simplification — **EN COURS (2026-06-27, même branche), poussé sur `main` au fil de l'eau**
 Bascule d'une longue colonne vers une **app à nav du bas + page d'accueil (Lobby) = hub d'action**. Tout poussé
@@ -455,11 +457,12 @@ Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`clo
   + `.appmain { flex:1 1 auto }` → l'écran remplit la hauteur, boutons poussés en bas (`margin-top:auto`) **quand ça
   tient**, et le **document scrolle nativement quand ça dépasse** (cf. correctif scroll ci-dessous).
 - **PUMP (`pumpGauge`/`pumpMult`/`pumpTap`/`pumpDecay`)** : taper le billet remplit la jauge (~8 taps,
-  redescend sinon) ; **multiplicateur VIVANT sur la prod** selon le palier (×2/×3/×5), **sommet → ×10 verrouillé
-  30 s** (`pumpLockUntil`) puis réarmement. `perSecond ×= pumpMult()` (hors indice base du prix gemme). 100 %
-  optionnel. **Effet « MAX ! »** spectaculaire au sommet (`crashEffect`) : **flash plein écran** `#crashFx` +
-  **secousse** `.appmain.shake` + **gros texte « 💥 MAX ! PRODUCTION ×10 »** (anim ~2,3 s). Constantes
-  `PUMP_PER_TAP`/`PUMP_DECAY`/`PUMP_LOCK_MS`/`PUMP_PALIERS` **PROVISOIRES**. (Audio à ajouter plus tard.)
+  redescend sinon) ; **multiplicateur VIVANT sur la prod** selon le palier (×1,5/×2/×3), **sommet → ×5 verrouillé
+  30 s** (`pumpLockUntil`, `PUMP_MAX_MULT`) puis réarmement. `perSecond ×= pumpMult()` (hors indice base du prix gemme).
+  100 % optionnel. **Effet « MAX ! »** spectaculaire au sommet (`crashEffect`) : **flash plein écran** `#crashFx` +
+  **secousse** `.appmain.shake` + **gros texte « 💥 MAX ! PRODUCTION ×5 »** (anim ~2,3 s). ⚠️ **Tuning 2026-06-27** :
+  plafond **baissé ×10→×5** (l'audit montrait ~91 % d'uptime du ×10 en tapant = écart actif/idle de ×10, trop dominant
+  pour un idle). Constantes `PUMP_MAX_MULT`/`PUMP_PER_TAP`/`PUMP_DECAY`/`PUMP_LOCK_MS`/`PUMP_PALIERS` **TUNABLE**. (Audio plus tard.)
 - **⚡ Compétences groupées** : **un seul bouton** (Lobby) déclenche toutes les signatures prêtes des héros
   déployés (`fireAllSkills`) ; ancienne barre d'abilities retirée. **Pastilles rouges = action POSSIBLE,
   ÉTEINTES par défaut** (`updateDots`/`setDot`), calculées à la volée (jamais décoratives).
