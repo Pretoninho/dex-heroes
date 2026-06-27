@@ -94,6 +94,23 @@
     .clock { order: 3; flex-basis: 100%; text-align: center; }  /* sa propre ligne */
   }
 
+  /* 🌍 Bandeau météo de marché mondiale (partagé par tous les joueurs) */
+  .worldbar {
+    width: 100%; max-width: 900px; margin: -8px auto 18px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-radius: 12px;
+    background: rgba(13, 31, 23, .6); border: 1px solid #1d3d2c;
+    font-size: 13px; color: var(--muted); transition: border-color .4s;
+  }
+  .worldbar b { color: var(--text); }
+  .worldbar .wb-emoji { font-size: 18px; line-height: 1; }
+  .worldbar .wb-until { color: var(--muted); }
+  .worldbar .wb-next { margin-left: auto; font-size: 12px; opacity: .85; white-space: nowrap; }
+  @media (max-width: 560px) {
+    .worldbar { flex-wrap: wrap; font-size: 12px; }
+    .worldbar .wb-next { margin-left: 0; flex-basis: 100%; }
+  }
+
   .layout {
     display: grid;
     grid-template-columns: 1fr 1.4fr;
@@ -483,6 +500,13 @@
     </div>
   </nav>
 
+  <!-- 🌍 Météo de marché mondiale : la MÊME pour tous les joueurs (horloge UTC, sans serveur) -->
+  <div class="worldbar" id="worldBar" title="Météo de marché mondiale — identique pour tous les joueurs, calculée sur l'horloge UTC">
+    <span class="wb-emoji" id="wbEmoji">🌍</span>
+    <span>Marché mondial : <b id="wbLabel">—</b> · <span class="wb-until" id="wbUntil">—</span></span>
+    <span class="wb-next" id="wbNext"></span>
+  </div>
+
   <div class="layout">
     <!-- Source / clic -->
     <div class="panel counter">
@@ -695,6 +719,68 @@
   // Coût CUMULÉ (fragments) pour ÊTRE au niveau L : base^L. Niveau 0 = 0 fragment.
   function fragsForLevel(r, L) { return L <= 0 ? 0 : Math.pow(fusionBase(r), L); }
   function rarityOf(id) { const h = HDATA_BY_ID[id]; return h ? h.rarity : ((NODE[id] || {}).tier || 0); }
+
+  // === 🌍 WORLD — cycle de marché déterministe, PARTAGÉ par TOUS les joueurs =============
+  // Fonction PURE de l'horloge UTC : aucun backend, rien à stocker, rien à falsifier.
+  // Tous les clients calculent le MÊME régime au MÊME instant → les joueurs sont synchro
+  // « entre eux » sans qu'aucune donnée ne circule (comme une éclipse : personne ne se
+  // coordonne, tout le monde la voit en même temps). Fondation de MARGIN CALL (le futur
+  // consommateur) et des quêtes à reset UTC. NON-BREAKING : ici on AFFICHE seulement —
+  // le régime n'agit PAS sur la production (l'ancien régime→prod a été retiré, cf. CLAUDE.md).
+  //
+  // ⚠️ Constantes PROVISOIRES — à CALER en phase 2 (Margin Call), une fois qu'une vraie
+  //    session traverse les transitions (« le cycle se règle AVEC Margin Call »).
+  const WORLD_SEED     = 0x5D3C0FFE;        // graine commune à tous les clients
+  const WORLD_CYCLE_MS = 20 * 60 * 1000;    // durée d'un palier (20 min) — TUNABLE
+  const WORLD_STICKY   = 0.62;              // proba de RESTER dans le régime au palier suivant (hystérésis) — TUNABLE
+  const WORLD_LOOKBACK = 12;                // fenêtre Markov BORNÉE (déterministe, pas de récursion infinie)
+  // Régimes (weight = fréquence). CRABE fréquent/atone ; HYPE & CRASH rares/extrêmes — TUNABLE.
+  const REGIMES = [
+    { key: "BULL",  label: "Marché haussier", emoji: "🐂", color: "#34d17a", weight: 24 },
+    { key: "BEAR",  label: "Marché baissier", emoji: "🐻", color: "#e0853a", weight: 22 },
+    { key: "CRABE", label: "Marché atone",    emoji: "🦀", color: "#8fb7a3", weight: 32 },
+    { key: "HYPE",  label: "Euphorie",        emoji: "🚀", color: "#ffd24d", weight: 11 },
+    { key: "CRASH", label: "Krach",           emoji: "💥", color: "#ff5470", weight: 11 },
+  ];
+  const REGIME_TOTAL = REGIMES.reduce((s, r) => s + r.weight, 0);
+  // PRNG déterministe (mulberry32) — PAS de Math.random (non partageable) : seedé par le temps.
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  // Tirage pondéré déterministe d'un régime pour un palier (époque) donné.
+  function regimeDrawAt(epoch) {
+    const r = mulberry32((WORLD_SEED ^ (epoch >>> 0)) >>> 0)() * REGIME_TOTAL;
+    let acc = 0;
+    for (let i = 0; i < REGIMES.length; i++) { acc += REGIMES[i].weight; if (r < acc) return i; }
+    return REGIMES.length - 1;
+  }
+  // Régime à l'époque e AVEC hystérésis (Markov borné, déterministe) : on part d'un ancrage
+  // WORLD_LOOKBACK paliers en arrière et on avance ; à chaque palier on RESTE (proba
+  // WORLD_STICKY) ou on re-tire. Fenêtre bornée → coût constant, zéro récursion infinie.
+  function regimeIndexAt(epoch) {
+    let cur = regimeDrawAt(epoch - WORLD_LOOKBACK);
+    for (let k = epoch - WORLD_LOOKBACK + 1; k <= epoch; k++) {
+      const stay = mulberry32(((WORLD_SEED ^ 0x9E3779B9) ^ (k >>> 0)) >>> 0)();
+      if (stay >= WORLD_STICKY) cur = regimeDrawAt(k);
+    }
+    return cur;
+  }
+  // État du monde à l'instant utcMs (défaut : maintenant). since/until par scan borné (24 h).
+  function world(utcMs) {
+    const t = (utcMs == null) ? Date.now() : utcMs;
+    const e = Math.floor(t / WORLD_CYCLE_MS);
+    const idx = regimeIndexAt(e);
+    const span = Math.ceil(24 * 3600000 / WORLD_CYCLE_MS);   // borne de scan : 24 h
+    let startE = e;
+    for (let k = 1; k <= span; k++) { if (regimeIndexAt(e - k) === idx) startE = e - k; else break; }
+    let endE = e;
+    for (let k = 1; k <= span; k++) { if (regimeIndexAt(e + k) === idx) endE = e + k; else break; }
+    const nx = REGIMES[regimeIndexAt(endE + 1)];
+    const r = REGIMES[idx];
+    return {
+      key: r.key, label: r.label, emoji: r.emoji, color: r.color, epoch: e,
+      since: startE * WORLD_CYCLE_MS, until: (endE + 1) * WORLD_CYCLE_MS,
+      next: { key: nx.key, label: nx.label, emoji: nx.emoji, color: nx.color },
+    };
+  }
 
   // Migration one-shot : crédite les stocks V2 depuis l'ancien état. NON-DESTRUCTIF pour
   // le gameplay actuel (heroes/lvl/fusion restent intacts) ; règle = 1 ancienne copie = 1
@@ -1853,7 +1939,20 @@
     const heure = pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()) + ":" + pad2(d.getUTCSeconds());
     el.textContent = jour + " - " + date + " : " + heure + " UTC";
   }
-  updateClock(); setInterval(updateClock, 1000);
+  // 🌍 Bandeau météo mondiale : reflète world() (régime partagé par tous, horloge UTC).
+  function updateWorldBar() {
+    const bar = document.getElementById("worldBar"); if (!bar) return;
+    const w = world();
+    const u = new Date(w.until);
+    bar.style.borderColor = w.color;
+    document.getElementById("wbEmoji").textContent = w.emoji;
+    const lbl = document.getElementById("wbLabel");
+    lbl.textContent = w.label; lbl.style.color = w.color;
+    document.getElementById("wbUntil").textContent = "jusqu'à " + pad2(u.getUTCHours()) + ":" + pad2(u.getUTCMinutes()) + " UTC";
+    document.getElementById("wbNext").textContent = "puis " + w.next.emoji + " " + w.next.label;
+  }
+  updateClock(); updateWorldBar();
+  setInterval(function () { updateClock(); updateWorldBar(); }, 1000);
   document.getElementById("ficheBackBtn").addEventListener("click", backToList);
   // Parcours méta V2 dans la fiche : un seul listener délégué sur le workshop (boutons data-atl).
   document.getElementById("atlWorkshop").addEventListener("click", (ev) => {
@@ -1894,6 +1993,7 @@
   window.DEX = {
     getState: () => state,
     getScore: () => Math.round(perSecond()),   // métrique du classement : production /s
+    world: (t) => world(t),                    // 🌍 météo de marché partagée (fonction pure UTC) — consommée par Margin Call (phase 2)
     addGems: (n) => { state.gems = Math.max(0, (state.gems || 0) + n); render(); save(); },
     addCash: (n) => { state.cash = Math.max(0, (state.cash || 0) + n); render(); save(); },
     applyState: (saved) => { adopt(saved); renderTabs(); render(); toast("☁️ Sauvegarde cloud chargée"); },
