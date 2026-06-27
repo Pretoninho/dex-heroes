@@ -26,9 +26,8 @@
     font-family: "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 50% -10%, #16382a, var(--bg));
     color: var(--text);
-    height: 100vh;
-    height: 100dvh;            /* shell : hauteur fixe → la zone principale défile, header/nav restent en place */
-    overflow: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;        /* scroll NATIF du document (robuste iOS/PWA) ; header sticky + nav fixed restent en place */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -557,12 +556,12 @@
   /* bouton compte ☁️ (injecté par cloud.js) dans la modale ⚙️ Réglages */
   #cloudSlot .cloudtab { width: 100%; justify-content: center; border-radius: 8px; padding: 10px; font-size: 14px; }
 
-  .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+  .appmain { width: 100%; max-width: 900px; margin: 0 auto; flex: 1 1 auto; display: flex; flex-direction: column;
     padding: 0 0 calc(120px + env(safe-area-inset-bottom, 0px)); }
   /* Le Lobby remplit la hauteur dispo → ses boutons d'action sont poussés tout en bas (margin-top:auto). */
   #lobbyScreen { flex: 1; flex-direction: column; }
   /* Cash Flow remplit aussi la hauteur → le bouton Auto se cale dans l'espace restant, au-dessus de la nav. */
-  #screensPanel { flex: 1 0 auto; flex-direction: column; }
+  #screensPanel { flex: 1 1 auto; flex-direction: column; }
   #overviewScreen { flex: 1; flex-direction: column; }
   .cf-auto { display: flex; justify-content: center; margin-top: auto; padding-top: 14px; }
   .cf-auto .btn { min-width: 200px; padding: 12px 18px; font-size: 15px; }
