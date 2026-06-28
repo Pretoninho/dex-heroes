@@ -561,7 +561,8 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   `openLobby`, météo cachée dessus. `renderStats` (**lecture locale**, SVG/flex sans lib) : **en-tête** (prod/s + rang Valo) · **multiplicateurs
   globaux** (chips ×Valo/×Gear/×Pump) · **« d'où vient la prod »** (`prodBreakdown` : contribution par module agrégée tous
   Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **« Par Dex »** (`dexBreakdown` : répartition de la prod par Dex +
-  sous-ligne $/s · connectés X/18 · niveaux · ×rendement du Dex) · **courbe de richesse** (`sparkline` sur `prodHist`,
+  sous-ligne $/s · connectés X/18 · niveaux · ×rendement · 🦸 déployés · 🔗 synergies actives ; + ligne **prochain Dex**
+  coût/×rendement/×coût/**efficience** `rateMult/costMult`, alerte « puits de cash » si <1) · **courbe de richesse** (`sparkline` sur `prodHist`,
   historique roulant ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s
   = temps de retour, trié, top 6). `.wb-card` rendu **défilable** (`max-height:88vh; overflow-y:auto`). **TUNABLE/PROVISOIRE**.
 - **📊 RÉCAP HORS-LIGNE (mini-graphe) — ✅ FAIT (2026-06-27)** : dans la modale « Bon retour », `renderWelcomeGraph(info)`

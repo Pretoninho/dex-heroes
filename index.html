@@ -2415,8 +2415,9 @@
     const rows = state.dexes.map((d, di) => {
       let base = 0, conn = 0, lvls = 0;
       ASSETS.forEach(n => { const lvl = d.levels[n.id] || 0; if (lvl) { conn++; lvls += lvl; base += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d); } });
+      const deployed = d.placed ? Object.keys(d.placed).filter(k => d.placed[k]).length : 0;
       sumBase += base;
-      return { name: DEX_DEFS[di].name, base, conn, lvls, rateMult: DEX_DEFS[di].rateMult };
+      return { name: DEX_DEFS[di].name, base, conn, lvls, rateMult: DEX_DEFS[di].rateMult, syn: activeSynergies(d).length, deployed };
     });
     const gf = sumBase > 0 ? total / sumBase : 0;
     rows.forEach(r => { r.prod = r.base * gf; r.pct = sumBase > 0 ? r.base / sumBase * 100 : 0; });
@@ -2464,8 +2465,13 @@
         html += `<div class="stat-row"><span class="stat-lbl">${r.name}</span>`
           + `<div class="qrow-bar" style="flex:1;margin:0 8px"><div class="qrow-fill" style="width:${r.pct}%"></div></div>`
           + `<span class="stat-val">${r.pct.toFixed(0)} %</span></div>`
-          + `<div class="stat-dexsub">$${fmt(r.prod)}/s · ${r.conn}/18 connectés · ${fmt(r.lvls)} niv · ×${r.rateMult} rendement</div>`;
+          + `<div class="stat-dexsub">$${fmt(r.prod)}/s · ${r.conn}/18 connectés · ${fmt(r.lvls)} niv · ×${r.rateMult} rendement · 🦸 ${r.deployed} · 🔗 ${r.syn} syn</div>`;
       });
+      // Pertinence du prochain Dex (coût + rendement vs coût = efficience)
+      if (canBuyDex()) {
+        const ni = nextDexIndex(), nd = DEX_DEFS[ni], eff = nd.rateMult / nd.costMult, can = state.cash >= nd.buyCost;
+        html += `<div class="stat-dexsub" style="margin-top:6px;color:${can ? "var(--accent)" : "var(--muted)"}">➕ Prochain : <b>${nd.name}</b> · $${fmt(nd.buyCost)} · ×${nd.rateMult} rendement / ×${nd.costMult} coût (efficience ×${eff.toFixed(2)}${eff < 1 ? " — puits de cash" : ""})</div>`;
+      }
       html += `</div>`;
     }
     html += `<div class="stat-sec"><div class="stat-t">📈 Production (récent)</div>${sparkline(prodHist)}</div>`;
