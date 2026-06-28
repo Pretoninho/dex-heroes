@@ -526,6 +526,9 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   (`cur()-baseline` figé au reset ; ex. `totalLevels`/`totalBufferLevels`/`pumpMaxCount`) · **`counter`** = compteur
   incrémenté en jeu via `dailyAdd(key,amt)` (hooks : `loop` & `load`→`earn`, `pullFrags`→`spend`+`frags`, `mcLaunch`→`mc`).
   Cibles **figées au reset** (les prod-indexées via `perSecond()` au moment du reset → pas de goalpost mobile).
+  ⚠️ **Fix (2026-06-27)** : `dailyValue` (kind `base`) **auto-corrige** sa baseline si la stat a **chuté** sous la base
+  figée (cas du **prestige** qui reset `totalLevels` → quête « upg » bloquée à 0) → on rabaisse `base` au courant et la
+  progression reprend. Tourne à chaque tick (`updateDots`→`anyDailyClaimable`), persisté au prochain `save`.
 - **Récompense** : 💎 par quête + **coffre bonus 3/3** (`DAILY_BONUS`=400 💎). Amorçage **silencieux** des vieilles saves
   (`rollDaily` pose baselines/compteurs à 0 → rien crédité d'office). `state.daily = {day,keys,tgt,base,prog,claimed,bonus}`.
 - **UI** : petit bouton **📜** flotté en haut-droite du Lobby (`.daily-btn`, sous la météo, proche du bord, `#dotDaily`

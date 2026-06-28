@@ -1796,7 +1796,15 @@
     state.daily = { day, keys, tgt, base, prog, claimed, bonus: false };
   }
   function dailyAdd(k, amt) { if (state.daily && state.daily.keys && state.daily.keys.indexOf(k) >= 0) state.daily.prog[k] = (state.daily.prog[k] || 0) + amt; }
-  function dailyValue(k) { const q = DAILY_BY_KEY[k]; if (!state.daily) return 0; return q.kind === "base" ? Math.max(0, q.cur() - (state.daily.base[k] || 0)) : (state.daily.prog[k] || 0); }
+  function dailyValue(k) {
+    const q = DAILY_BY_KEY[k]; if (!state.daily) return 0;
+    if (q.kind !== "base") return state.daily.prog[k] || 0;
+    const cur = q.cur();
+    // Auto-correction : si la stat a CHUTÉ sous la base figée (prestige/reset), on rabaisse la base
+    // au niveau courant → la quête reprend depuis ici au lieu de rester bloquée à 0.
+    if ((state.daily.base[k] || 0) > cur) state.daily.base[k] = cur;
+    return Math.max(0, cur - (state.daily.base[k] || 0));
+  }
   function dailyDone(k) { return state.daily && dailyValue(k) >= state.daily.tgt[k]; }
   function dailyClaimable(k) { return dailyDone(k) && !state.daily.claimed[k]; }
   function dailyAllClaimed() { return state.daily && state.daily.keys.every(k => state.daily.claimed[k]); }
