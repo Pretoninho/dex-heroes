@@ -645,6 +645,7 @@
   .stat-val { width: 58px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
   .stat-chip { display: inline-block; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 999px; padding: 4px 11px; margin: 3px 5px 0 0; font-size: 13px; }
   .stat-chip b { color: var(--accent-2); }
+  .stat-dexsub { font-size: 11px; color: var(--muted); margin: -2px 0 8px 2px; }
   .daily-reset { text-align: center; color: var(--muted); font-size: 12px; margin: -2px 0 10px; }
   .daily-bonus { margin-top: 10px; padding: 11px 13px; border: 1px dashed #2a4d3a; border-radius: 12px; background: var(--panel-2); text-align: center; font-size: 13px; }
   .daily-bonus.can { border-style: solid; border-color: var(--accent); box-shadow: 0 0 10px rgba(52,209,122,.25); }
@@ -2407,6 +2408,20 @@
       + `<polyline points="${pl}" fill="none" stroke="#34d17a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
       + `<div class="frieze-foot">de $${fmt(mn)}/s à $${fmt(mx)}/s sur ~${Math.round((n - 1) * 5 / 60)} min</div>`;
   }
+  // Répartition de la prod PAR DEX + mini-tableau (connectés / niveaux / ×rendement).
+  function dexBreakdown() {
+    const total = perSecond();
+    let sumBase = 0;
+    const rows = state.dexes.map((d, di) => {
+      let base = 0, conn = 0, lvls = 0;
+      ASSETS.forEach(n => { const lvl = d.levels[n.id] || 0; if (lvl) { conn++; lvls += lvl; base += lvl * n.rate * DEX_DEFS[di].rateMult * moduleMult(n, d); } });
+      sumBase += base;
+      return { name: DEX_DEFS[di].name, base, conn, lvls, rateMult: DEX_DEFS[di].rateMult };
+    });
+    const gf = sumBase > 0 ? total / sumBase : 0;
+    rows.forEach(r => { r.prod = r.base * gf; r.pct = sumBase > 0 ? r.base / sumBase * 100 : 0; });
+    return rows;
+  }
   // ROI : pour chaque module débloqué, retour = coût du prochain niveau / gain $/s de ce niveau.
   function roiRows() {
     const d = dex(state.currentDex), rm = DEX_DEFS[state.currentDex].rateMult, gmul = valoMult() * gearMult() * pumpMult();
@@ -2441,6 +2456,18 @@
         + `<span class="stat-val">${pct.toFixed(0)} %</span></div>`;
     }); else html += `<div class="frieze-foot">Connecte des modules pour produire.</div>`;
     html += `</div>`;
+    // Par Dex : répartition + mini-tableau
+    const dxs = dexBreakdown();
+    if (dxs.length) {
+      html += `<div class="stat-sec"><div class="stat-t">Par Dex</div>`;
+      dxs.forEach(r => {
+        html += `<div class="stat-row"><span class="stat-lbl">${r.name}</span>`
+          + `<div class="qrow-bar" style="flex:1;margin:0 8px"><div class="qrow-fill" style="width:${r.pct}%"></div></div>`
+          + `<span class="stat-val">${r.pct.toFixed(0)} %</span></div>`
+          + `<div class="stat-dexsub">$${fmt(r.prod)}/s · ${r.conn}/18 connectés · ${fmt(r.lvls)} niv · ×${r.rateMult} rendement</div>`;
+      });
+      html += `</div>`;
+    }
     html += `<div class="stat-sec"><div class="stat-t">📈 Production (récent)</div>${sparkline(prodHist)}</div>`;
     html += `<div class="stat-sec"><div class="stat-t">🎯 Meilleurs achats (temps de retour)</div>${roiRows()}</div>`;
     el.innerHTML = html;

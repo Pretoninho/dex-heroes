@@ -560,9 +560,10 @@ paliers d'**état** permanents recyclables). Décisions verrouillées avec le jo
   `#statsScreen` (révisé : pas une modale — la modale serrait trop) via `openStats`/`showScreen("stats")`, ← Retour →
   `openLobby`, météo cachée dessus. `renderStats` (**lecture locale**, SVG/flex sans lib) : **en-tête** (prod/s + rang Valo) · **multiplicateurs
   globaux** (chips ×Valo/×Gear/×Pump) · **« d'où vient la prod »** (`prodBreakdown` : contribution par module agrégée tous
-  Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **courbe de richesse** (`sparkline` sur `prodHist`, historique roulant
-  ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s = temps de retour,
-  trié, top 6). `.wb-card` rendu **défilable** (`max-height:88vh; overflow-y:auto`). **TUNABLE/PROVISOIRE**.
+  Dex, barres `.qrow-bar`/`.qrow-fill` triées) · **« Par Dex »** (`dexBreakdown` : répartition de la prod par Dex +
+  sous-ligne $/s · connectés X/18 · niveaux · ×rendement du Dex) · **courbe de richesse** (`sparkline` sur `prodHist`,
+  historique roulant ~5 min échantillonné dans `loop`, éphémère) · **ROI** (`roiRows` : coût prochain niveau / gain $/s
+  = temps de retour, trié, top 6). `.wb-card` rendu **défilable** (`max-height:88vh; overflow-y:auto`). **TUNABLE/PROVISOIRE**.
 - **📊 RÉCAP HORS-LIGNE (mini-graphe) — ✅ FAIT (2026-06-27)** : dans la modale « Bon retour », `renderWelcomeGraph(info)`
   trace le **cash cumulé sur l'absence** (SVG, `#wbGraph`) : **rampe verte jusqu'au plafond** puis **plat pointillé gris +
   marqueur jaune** = potentiel perdu au-delà du cap (4 h × héros `offlineCap`). Pied : « X h créditées · Y h au-delà du
