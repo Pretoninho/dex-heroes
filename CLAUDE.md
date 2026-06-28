@@ -398,10 +398,18 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   seuils croissants** → progression **infinie sans hand-authoring**. Branche le **sink récurrent** (reset
   quotidien UTC, horloge déjà là). Garder le latch one-shot pour les jalons uniques ; les recyclables ont un
   compteur de palier qui monte. **Avantage** : remplace la liste figée par une courbe auto-générée + tunable.
-- **B. Prestige DUR (avec reset)** — *manque vraiment*. Valo = soft-prestige **sans** reset (mid-game). Ajouter
-  un **vrai prestige endgame** : reset (cash/modules/Dex ?) contre une **monnaie de multiplicateur permanente**
-  → boucle idle classique. Valo reste la couche mid-game, le prestige dur la couche endgame. À spécifier (quoi
-  reset, quoi garder — héros/fragments/gear probablement gardés, cash/niveaux modules reset).
+- **B. Prestige DUR (avec reset) — ✅ FAIT (2026-06-27)** : **📈 Parts de fondateur** (« introduire en bourse / revendre
+  l'empire »). Monnaie **permanente inter-parties** : `prestigeGain()=floor(√(runEarned/PRESTIGE_BASE))` (base `1e7`,
+  courbe **racine** = rendement décroissant, pas de farm par resets éclair) ; `state.runEarned` = cash produit dans la
+  partie (cumulé `loop`+offline, reset au prestige). **Effet** : `prestigeMult()=1+parts×PRESTIGE_STEP` (+2 %/Part),
+  **multiplicatif** dans `perSecond` (inclus dans l'indice prix-gemme comme Valo/gear). **Reset** (`doPrestige`) : cash,
+  niveaux de modules, Dex (→1), **rang Valo**, `runEarned`, Pump, session MC. **GARDÉ** : héros (copies/buffeurs),
+  gear, fragments, gemmes, **placement** (`bufSlots`, anti-tedium), **réputation MC** (`mc.rep`), objectifs/quêtes.
+  **Déblocage** : bouton `#prestigeBtn` (Lobby, sous les actions) visible une fois `prestigeGain()≥PRESTIGE_MIN`(=3) ou
+  déjà prestigé → **modale de confirmation** `#prestigeOv` (gain, ×mult avant→après, colonnes gardé/reset). Chip
+  **📈 Prestige ×mult** dans le 📊 tableau de bord. **TUNABLE** : `PRESTIGE_BASE`/`PRESTIGE_STEP`/`PRESTIGE_MIN`.
+  ⚠️ **PROVISOIRE** (à playtester — calage base/step + 1ère revente). Valo reste la couche mid-game, le prestige la
+  couche endgame. *Reste possible plus tard* : menu de dépenses des Parts (skill tree), au lieu du mult auto.
 - **C. Barre de progression / XP = COUCHE D'AFFICHAGE**, pas une nouvelle mécanique. ⚠️ **Anti-doublon** : la
   Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
   atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.

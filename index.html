@@ -608,6 +608,12 @@
   .pump-gauge.locked .pump-tube { border-color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.5); }
   .pump-label { font-weight: 900; font-style: italic; font-size: 18px; color: #ffd24d; letter-spacing: 1px; text-shadow: 1px 1px 0 #b35a00; margin-top: 2px; }
   .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: auto; padding-top: 10px; width: 100%; }
+  /* 📈 Prestige : bouton endgame (apparaît une fois débloqué) */
+  .prestige-btn { width: 100%; margin-top: 10px; border-color: #ffd24d; color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.35); }
+  .prestige-btn small { display: block; font-weight: 400; font-size: 12px; opacity: .85; margin-top: 2px; }
+  .prestige-cols { display: flex; gap: 8px; margin-top: 12px; text-align: left; }
+  .prestige-cols > div { flex: 1; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 10px; padding: 9px 10px; font-size: 11px; color: var(--muted); line-height: 1.45; }
+  .prestige-cols .prestige-keep b { color: var(--accent); } .prestige-cols .prestige-reset b { color: #ff8c5a; }
   .lobby-btn { position: relative; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 14px; padding: 10px 14px; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; flex: 1 1 0; min-width: 130px; max-width: 220px; text-align: center; touch-action: manipulation; }
   .lobby-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .lobby-btn.ready { border-color: var(--accent); color: var(--accent); }
@@ -742,6 +748,7 @@
           <button class="lobby-btn" id="skillsBtn">⚡ Compétences<small id="skillsSub">—</small><span class="dot" id="dotSkills"></span></button>
           <button class="lobby-btn" id="lobbyMcBtn">🎰 Margin Call<small>Réputation <b id="mcRepLobby">0</b></small><span class="dot" id="dotMc"></span></button>
         </div>
+        <button class="big-btn prestige-btn" id="prestigeBtn" style="display:none">📈 Introduire en bourse<small id="prestigeSub">—</small></button>
       </div>
     </div>
 
@@ -956,6 +963,22 @@
       <div id="dailyList"></div>
       <div class="daily-bonus" id="dailyBonus"></div>
       <button class="big-btn can" id="dailyClose" style="margin-top:14px">Fermer</button>
+    </div>
+  </div>
+
+  <!-- 📈 Prestige dur : confirmation (action lourde = reset) -->
+  <div class="wb-overlay" id="prestigeOv" style="display:none">
+    <div class="wb-card" style="max-width:380px">
+      <div class="wb-emoji">📈</div>
+      <h2>Introduire en bourse ?</h2>
+      <div class="wb-gain" id="prestigeGainTxt">+0 Parts</div>
+      <div class="wb-line" id="prestigeMultTxt">Multiplicateur ×1.00 → ×1.00</div>
+      <div class="prestige-cols">
+        <div class="prestige-keep"><b>✅ Conservé</b><br>héros · gear · fragments · gemmes · placement · réputation</div>
+        <div class="prestige-reset"><b>♻️ Remis à zéro</b><br>cash · modules · Dex · rang d'entreprise</div>
+      </div>
+      <button class="big-btn can" id="prestigeConfirm" style="margin-top:14px">Confirmer la revente</button>
+      <button class="big-btn" id="prestigeCancel" style="margin-top:8px">Annuler</button>
     </div>
   </div>
 
@@ -1398,6 +1421,8 @@
       bufSlots: {},                // { moduleId: [heroId, heroId] } — 2 slots buffeurs/module (même rareté)
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       daily: null,                 // 📜 quêtes quotidiennes : { day, keys, tgt, base, prog, claimed, bonus } (régénéré par rollDaily)
+      prestige: 0,                 // 📈 Parts de fondateur (monnaie de prestige dur, permanente inter-parties)
+      runEarned: 0,                // cash total produit dans la partie courante (base du gain de prestige, reset au prestige)
       lastSeen: Date.now()
     };
   }
@@ -1588,6 +1613,34 @@
     state.valoRank = valoRankNum() + 1;
     toast(`📈 Promotion : ${valoName()} · +${Math.round(VALO_STEP * 100)} % prod globale`);
     render(); save();
+  }
+
+  // ===================== 📈 PRESTIGE DUR (endgame, AVEC reset) =====================
+  // Tu « revends l'empire » : reset du cash/modules/Dex/Valo contre des PARTS DE FONDATEUR
+  // (monnaie permanente, inter-parties) → +PRESTIGE_STEP de prod globale par Part. Courbe en
+  // racine carrée (rendement décroissant → pas de farm par resets éclair). Héros/gear/fragments/
+  // gemmes/placement/réputation CONSERVÉS. TUNABLE : PRESTIGE_BASE, PRESTIGE_STEP.
+  const PRESTIGE_BASE = 1e7;     // cash produit pour la 1ère Part (√) — TUNABLE
+  const PRESTIGE_STEP = 0.02;    // +2 % prod globale permanente par Part — TUNABLE
+  const PRESTIGE_MIN  = 3;       // Parts mini pour débloquer le 1er prestige (1ère revente « qui vaut le coup »)
+  function prestigeOwned() { return state.prestige || 0; }
+  function prestigeMult() { return 1 + prestigeOwned() * PRESTIGE_STEP; }
+  function prestigeGain() { return Math.floor(Math.sqrt((state.runEarned || 0) / PRESTIGE_BASE)); }
+  function prestigeUnlocked() { return prestigeOwned() > 0 || prestigeGain() >= PRESTIGE_MIN; }   // visible une fois mérité, puis toujours
+  function doPrestige() {
+    const g = prestigeGain();
+    if (g < 1) return;
+    state.prestige = prestigeOwned() + g;
+    // RESET (la « partie » = l'économie cash) ; on GARDE le patrimoine (méta) + placement + réputation.
+    state.cash = 0;
+    state.runEarned = 0;
+    state.dexes = [{ levels: {}, placed: {} }];
+    state.currentDex = 0;
+    state.valoRank = 0;
+    pumpGauge = 0; pumpLockUntil = 0;
+    if (state.mc) state.mc.session = null;   // (réputation mc.rep conservée)
+    toast(`📈 Empire introduit en bourse ! +${g} Parts de fondateur (×${prestigeMult().toFixed(2)} prod permanent)`);
+    renderTabs(); openLobby(); render(); save();
   }
 
   // --- 🎯 Objectifs (jalons one-shot) -----------------------------------
@@ -2039,7 +2092,7 @@
     });
     // × Valorisation, puis × Pump (multiplicateur vivant / ×10 verrouillé) — SAUF en mode noBuffs
     // (le prix des gemmes lit perSecond(true) : le Pump ne doit pas gonfler l'indice).
-    return total * valoMult() * gearMult() * (noBuffs ? 1 : pumpMult());
+    return total * valoMult() * gearMult() * prestigeMult() * (noBuffs ? 1 : pumpMult());
   }
   function connectedCount() { return ASSETS.filter(n => isConnected(n)).length; }
   // « Actionnable » = débloqué et finançable (connexion ou amélioration possible).
@@ -2308,7 +2361,9 @@
     html += `<div class="stat-sec"><div class="stat-t">Multiplicateurs globaux</div>`
       + `<span class="stat-chip">🏛️ Valo <b>×${bd.valo.toFixed(2)}</b></span>`
       + `<span class="stat-chip">🛠️ Gear <b>×${bd.gear.toFixed(2)}</b></span>`
-      + `<span class="stat-chip">💵 Pump <b>×${bd.pump}</b></span></div>`;
+      + `<span class="stat-chip">💵 Pump <b>×${bd.pump}</b></span>`
+      + (prestigeOwned() > 0 ? `<span class="stat-chip">📈 Prestige <b>×${prestigeMult().toFixed(2)}</b></span>` : "")
+      + `</div>`;
     html += `<div class="stat-sec"><div class="stat-t">D'où vient la production</div>`;
     if (bd.mods.length) bd.mods.slice(0, 8).forEach(m => {
       const pct = bd.sum > 0 ? m.c / bd.sum * 100 : 0;
@@ -2404,6 +2459,15 @@
     if (sub) sub.textContent = l.length ? (ready + "/" + l.length + " prêtes") : "aucun héros déployé";
     document.getElementById("skillsBtn").classList.toggle("ready", skillsAllReady());
     document.getElementById("mcRepLobby").textContent = fmt(mcRep());
+    const pb = document.getElementById("prestigeBtn");
+    if (pb) {
+      if (prestigeUnlocked()) {
+        pb.style.display = "";
+        const g = prestigeGain();
+        document.getElementById("prestigeSub").textContent = `+${g} Parts · ×${prestigeMult().toFixed(2)} actuel`;
+        pb.classList.toggle("can", g >= 1);
+      } else pb.style.display = "none";
+    }
     if (screen === "lobby") renderForecast(document.getElementById("lobbyForecast"), 8);   // 📊 frise prévision (8 h)
   }
 
@@ -2504,6 +2568,7 @@
         const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult * (1 + gq.offmult);   // 50 % × héros offlineMult × gear
         if (gained > 0) {
           state.cash += gained;
+          state.runEarned = (state.runEarned || 0) + gained;   // 📈 les gains hors-ligne comptent pour le prestige
           dailyAdd("earn", gained);   // 📜 les gains hors-ligne comptent pour la quête « produire »
           // Modale seulement pour une vraie absence (>= 60 s) ; sinon on crédite en silence
           if (elapsed >= 60) pendingWelcome = { elapsed: elapsed, eff: eff, cap: cap, gained: gained, capped: elapsed > cap };
@@ -2971,6 +3036,7 @@
     const fx = globalHeroFx();
     const tickGain = (perSecond() + fx.autoClick * state.clickPower * fx.clickMult) * dt;
     state.cash += tickGain;
+    state.runEarned = (state.runEarned || 0) + tickGain;   // 📈 base du gain de prestige
     dailyAdd("earn", tickGain);   // 📜 quête « produire du cash » (chemin idle garanti)
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
     state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
@@ -3067,6 +3133,17 @@
   // 🏠 Lobby : compétences groupées + accès Margin Call
   document.getElementById("skillsBtn").addEventListener("click", fireAllSkills);
   document.getElementById("lobbyMcBtn").addEventListener("click", openMarginCall);
+
+  // 📈 Prestige dur : ouvre la confirmation, puis revend (reset) sur confirmation
+  document.getElementById("prestigeBtn").addEventListener("click", () => {
+    const g = prestigeGain(); if (g < 1) { toast("Produis davantage avant de revendre"); return; }
+    document.getElementById("prestigeGainTxt").textContent = "+" + g + " Parts de fondateur";
+    document.getElementById("prestigeMultTxt").innerHTML = `Multiplicateur ×${prestigeMult().toFixed(2)} → <b>×${(1 + (prestigeOwned() + g) * PRESTIGE_STEP).toFixed(2)}</b>`;
+    document.getElementById("prestigeOv").style.display = "flex";
+  });
+  document.getElementById("prestigeConfirm").addEventListener("click", () => { document.getElementById("prestigeOv").style.display = "none"; doPrestige(); });
+  document.getElementById("prestigeCancel").addEventListener("click", () => { document.getElementById("prestigeOv").style.display = "none"; });
+  document.getElementById("prestigeOv").addEventListener("click", (e) => { if (e.target.id === "prestigeOv") e.currentTarget.style.display = "none"; });
 
   // 🎰 Margin Call : listeners (attachés une fois ; renderMarginCall ne met à jour que les valeurs)
   document.getElementById("mcBackBtn").addEventListener("click", openLobby);
