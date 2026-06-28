@@ -401,16 +401,21 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
 - **B. Prestige DUR (avec reset) — ✅ FAIT (2026-06-27)** : **📈 Parts de fondateur** (« introduire en bourse / revendre
   l'empire »). Monnaie **permanente inter-parties** : `prestigeGain()=floor(√(runEarned/PRESTIGE_BASE))` (base `1e7`,
   courbe **racine** = rendement décroissant, pas de farm par resets éclair) ; `state.runEarned` = cash produit dans la
-  partie (cumulé `loop`+offline, reset au prestige). **Effet** : `prestigeMult()=1+parts×PRESTIGE_STEP` (+2 %/Part),
-  **multiplicatif** dans `perSecond` (inclus dans l'indice prix-gemme comme Valo/gear). **Reset** (`doPrestige`) : cash,
-  niveaux de modules, Dex (→1), **rang Valo**, `runEarned`, Pump, session MC. **GARDÉ** : héros (copies/buffeurs),
-  gear, fragments, gemmes, **placement** (`bufSlots`, anti-tedium), **réputation MC** (`mc.rep`), objectifs/quêtes.
+  partie (cumulé `loop`+offline, reset au prestige). **Reset** (`doPrestige`) : cash, niveaux de modules, Dex (→1),
+  **rang Valo**, `runEarned`, Pump, session MC. **GARDÉ** : héros (copies/buffeurs), gear, fragments, gemmes,
+  **placement** (`bufSlots`, anti-tedium), **réputation MC** (`mc.rep`), objectifs/quêtes.
   **Déblocage** : icône `#prestigeBtn` **dans le rail du Lobby** (📜 📊 **📈**, `#dotPrestige` rouge si revente ≥1 Part)
-  visible une fois `prestigeGain()≥PRESTIGE_MIN`(=3) ou déjà prestigé → **modale de confirmation** `#prestigeOv`
-  (gain, ×mult avant→après, colonnes gardé/reset). Chip
-  **📈 Prestige ×mult** dans le 📊 tableau de bord. **TUNABLE** : `PRESTIGE_BASE`/`PRESTIGE_STEP`/`PRESTIGE_MIN`.
-  ⚠️ **PROVISOIRE** (à playtester — calage base/step + 1ère revente). Valo reste la couche mid-game, le prestige la
-  couche endgame. *Reste possible plus tard* : menu de dépenses des Parts (skill tree), au lieu du mult auto.
+  visible une fois `prestigeGain()≥PRESTIGE_MIN`(=3) ou déjà prestigé. **TUNABLE** : `PRESTIGE_BASE`/`PRESTIGE_MIN`.
+- **🌳 ARBRE DE PRESTIGE — ✅ FAIT (2026-06-27)** : les Parts se **DÉPENSENT** dans un arbre de perks (plus de mult auto).
+  📈 ouvre un **écran plein** `#prestigeScreen` (`renderPtree`, build-once+update) : en-tête (Parts dispo/total · prod
+  ×mult), bouton **Revente** → modale de confirmation `#prestigeOv`, **grille de perks** `#ptreeList`, bouton **respec**
+  (`respecPtree`, gratuit). `state.ptree={perk:niv}` · dispo = `prestige − ptreeSpent()` · coût niv L→L+1 =
+  `ceil(base×growth^L)` · **paliers** : tier 1 verrouillé tant que `ptreeSpent()<PTREE_TIER_REQ[1]`(=10). **Perks**
+  (`PTREE`, TUNABLE) : 🏭 Rendement (`prestigeMult=1+lvl×PTREE_PROD_STEP`=5 %/niv, **porte le mult de prod**) · 🔻 coût
+  modules (`ptreeCostReduce`, cap 80 % de `costOf`) · 🌙 hors-ligne (taux+plafond, `load`) · 💎 prix gemmes (`gemPrice`) ·
+  🚀 capital de départ (cash post-revente = `runEarned×0,002×lvl` dans `doPrestige`) · 🎰 Margin Call (yield+caps,
+  `mcRepYield`/`mcMaxAlloc`/`mcMaxDurationH`) · 🛠️ débit gear (`ptreeGearRate`, loop+load). Chip **📈 Prestige ×mult**
+  dans le 📊. ⚠️ **PROVISOIRE** (calage coûts/effets au playtest). Valo = couche mid-game, prestige = endgame.
 - **C. Barre de progression / XP = COUCHE D'AFFICHAGE**, pas une nouvelle mécanique. ⚠️ **Anti-doublon** : la
   Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
   atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.

@@ -608,7 +608,15 @@
   .pump-gauge.locked .pump-tube { border-color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.5); }
   .pump-label { font-weight: 900; font-style: italic; font-size: 18px; color: #ffd24d; letter-spacing: 1px; text-shadow: 1px 1px 0 #b35a00; margin-top: 2px; }
   .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: auto; padding-top: 10px; width: 100%; }
-  /* 📈 Prestige : icône dans le rail (📜📊📈) ; détail dans la modale de confirmation */
+  /* 📈 Prestige : icône dans le rail (📜📊📈) ; écran arbre + modale de confirmation */
+  .pt-head { text-align: center; font-size: 14px; margin: 4px 0 10px; } .pt-head b { color: var(--accent); }
+  .pt-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .pt-card { background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 12px; padding: 10px 12px; }
+  .pt-card.locked { opacity: .55; }
+  .pt-top { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .pt-ic { font-size: 18px; } .pt-name { flex: 1; } .pt-lvl { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .pt-fx { font-size: 11.5px; color: var(--muted); margin: 5px 0 9px; line-height: 1.4; }
+  .pt-buy { width: 100%; } .pt-buy[disabled] { opacity: .5; cursor: default; }
   .prestige-cols { display: flex; gap: 8px; margin-top: 12px; text-align: left; }
   .prestige-cols > div { flex: 1; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 10px; padding: 9px 10px; font-size: 11px; color: var(--muted); line-height: 1.45; }
   .prestige-cols .prestige-keep b { color: var(--accent); } .prestige-cols .prestige-reset b { color: #ff8c5a; }
@@ -909,6 +917,18 @@
           <div>📊 Tableau de bord</div>
         </div>
         <div id="statsBody"></div>
+      </div>
+
+      <!-- 📈 Prestige : revente + arbre de perks -->
+      <div id="prestigeScreen" style="display:none">
+        <div class="mnav">
+          <button class="btn" id="prestigeBackBtn">← Retour</button>
+          <div>📈 Prestige</div>
+        </div>
+        <div class="pt-head" id="ptreeHead">—</div>
+        <button class="big-btn" id="ptreeReventeBtn" style="border-color:#ffd24d;color:#ffd24d;box-shadow:0 0 14px rgba(255,210,77,.3)">📈 Introduire en bourse<small id="ptreeReventeSub" style="display:block;font-weight:400;font-size:12px;opacity:.85"></small></button>
+        <div class="pt-grid" id="ptreeList"></div>
+        <button class="btn" id="ptreeRespec" style="width:100%;margin-top:10px">♻️ Réinitialiser l'arbre</button>
       </div>
 
     </div>
@@ -1419,7 +1439,8 @@
       bufSlots: {},                // { moduleId: [heroId, heroId] } — 2 slots buffeurs/module (même rareté)
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       daily: null,                 // 📜 quêtes quotidiennes : { day, keys, tgt, base, prog, claimed, bonus } (régénéré par rollDaily)
-      prestige: 0,                 // 📈 Parts de fondateur (monnaie de prestige dur, permanente inter-parties)
+      prestige: 0,                 // 📈 Parts de fondateur GAGNÉES au total (monnaie de prestige dur, permanente)
+      ptree: {},                   // 🌳 arbre de prestige : { perkKey: niveau } — Parts dépensées
       runEarned: 0,                // cash total produit dans la partie courante (base du gain de prestige, reset au prestige)
       lastSeen: Date.now()
     };
@@ -1493,7 +1514,7 @@
   const GEM_BASE = 1, GEM_T = 0.10;
   // Prix des gemmes : indexé sur la prod de BASE (perSecond(true) = hors buffs de compétences
   // temporaires) → activer une compétence ne fait plus grimper le prix des gemmes.
-  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond(true) * GEM_T * globalHeroFx().gemPriceMult * (1 - gearQual().gem))); }
+  function gemPrice() { return Math.max(GEM_BASE, Math.ceil(perSecond(true) * GEM_T * globalHeroFx().gemPriceMult * Math.max(0.1, 1 - gearQual().gem - ptreeGemReduce()))); }
   // Achat de gems : prix indexé sur la production (formule idle pure).
   function buyGems(qty) {
     const cost = qty * gemPrice();
@@ -1520,7 +1541,7 @@
       const e = h.passive.effect || {};
       if (e.type === "costReduce" && (e.scope === "global" || (e.scope === "arm" && src.arm === node.arm))) reduce += scaleVal("costReduce", e.value, 1);   // effet FIXE (méta V2 : plus de scaling par niveau)
     });
-    reduce += gearQual().cost;   // gear (pool qualitatif 4c) : verse dans le même cap 80 %
+    reduce += gearQual().cost + ptreeCostReduce();   // gear (pool 4c) + perk 🔻 — même cap 80 %
     return Math.ceil(c * (1 - Math.min(reduce, 0.8)));
   }
   // --- Effets des héros déployés (passifs) ------------------------------
@@ -1615,31 +1636,68 @@
 
   // ===================== 📈 PRESTIGE DUR (endgame, AVEC reset) =====================
   // Tu « revends l'empire » : reset du cash/modules/Dex/Valo contre des PARTS DE FONDATEUR
-  // (monnaie permanente, inter-parties) → +PRESTIGE_STEP de prod globale par Part. Courbe en
-  // racine carrée (rendement décroissant → pas de farm par resets éclair). Héros/gear/fragments/
-  // gemmes/placement/réputation CONSERVÉS. TUNABLE : PRESTIGE_BASE, PRESTIGE_STEP.
+  // (monnaie permanente). Les Parts se DÉPENSENT dans un ARBRE de perks (PTREE) — plus de mult
+  // auto. Gain en racine carrée (rendement décroissant). Héros/gear/fragments/gemmes/placement/
+  // réputation CONSERVÉS. TUNABLE : PRESTIGE_BASE, PTREE_PROD_STEP, coûts des perks.
   const PRESTIGE_BASE = 1e7;     // cash produit pour la 1ère Part (√) — TUNABLE
-  const PRESTIGE_STEP = 0.02;    // +2 % prod globale permanente par Part — TUNABLE
   const PRESTIGE_MIN  = 3;       // Parts mini pour débloquer le 1er prestige (1ère revente « qui vaut le coup »)
+  const PTREE_PROD_STEP = 0.05;  // perk 🏭 Rendement : +5 % prod globale / niveau — TUNABLE
   function prestigeOwned() { return state.prestige || 0; }
-  function prestigeMult() { return 1 + prestigeOwned() * PRESTIGE_STEP; }
+  function prestigeMult() { return 1 + ptreeLvl("prod") * PTREE_PROD_STEP; }   // mult de prod = perk 🏭 Rendement (l'arbre remplace le mult auto)
   function prestigeGain() { return Math.floor(Math.sqrt((state.runEarned || 0) / PRESTIGE_BASE)); }
   function prestigeUnlocked() { return prestigeOwned() > 0 || prestigeGain() >= PRESTIGE_MIN; }   // visible une fois mérité, puis toujours
   function doPrestige() {
     const g = prestigeGain();
     if (g < 1) return;
     state.prestige = prestigeOwned() + g;
+    const earned = state.runEarned || 0;   // pour le perk 🚀 Capital de départ (avant reset)
     // RESET (la « partie » = l'économie cash) ; on GARDE le patrimoine (méta) + placement + réputation.
-    state.cash = 0;
+    state.cash = Math.floor(earned * 0.002 * ptreeLvl("start"));   // 🚀 Capital de départ : +0,2 %/niv du cash produit
     state.runEarned = 0;
     state.dexes = [{ levels: {}, placed: {} }];
     state.currentDex = 0;
     state.valoRank = 0;
     pumpGauge = 0; pumpLockUntil = 0;
     if (state.mc) state.mc.session = null;   // (réputation mc.rep conservée)
-    toast(`📈 Empire introduit en bourse ! +${g} Parts de fondateur (×${prestigeMult().toFixed(2)} prod permanent)`);
+    toast(`📈 Empire introduit en bourse ! +${g} Parts de fondateur à dépenser dans l'arbre`);
     renderTabs(); openLobby(); render(); save();
   }
+  // ----- 🌳 Arbre de prestige : perks permanents achetés avec les Parts -----
+  const PTREE = [
+    { key: "prod",    icon: "🏭", label: "Rendement",          tier: 0, base: 1, growth: 1.5, max: 50, fx: l => `+${l * 5}% prod globale` },
+    { key: "cost",    icon: "🔻", label: "Économies d'échelle", tier: 0, base: 2, growth: 1.6, max: 15, fx: l => `−${l * 3}% coût des modules` },
+    { key: "offline", icon: "🌙", label: "Revenus passifs",     tier: 0, base: 2, growth: 1.7, max: 10, fx: l => `+${l}h plafond · +${l * 10}% taux hors-ligne` },
+    { key: "gem",     icon: "💎", label: "Liquidité",           tier: 1, base: 3, growth: 1.7, max: 10, fx: l => `−${l * 3}% prix des gemmes` },
+    { key: "start",   icon: "🚀", label: "Capital de départ",   tier: 1, base: 3, growth: 1.8, max: 10, fx: l => `revente : +${(l * 0.2).toFixed(1)}% du cash produit en cash de départ` },
+    { key: "mc",      icon: "🎰", label: "Salle des marchés",   tier: 1, base: 3, growth: 1.7, max: 10, fx: l => `+${l * 5}% rendement & +${l * 10}% plafonds Margin Call` },
+    { key: "gear",    icon: "🛠️", label: "Logistique",          tier: 1, base: 3, growth: 1.7, max: 10, fx: l => `+${l * 15}% débit de fragments gear` },
+  ];
+  const PTREE_BY_KEY = Object.fromEntries(PTREE.map(p => [p.key, p]));
+  const PTREE_TIER_REQ = [0, 10];   // Parts DÉPENSÉES pour débloquer chaque tier — TUNABLE
+  function ptreeLvl(k) { return (state.ptree && state.ptree[k]) || 0; }
+  function pCost(p, level) { return Math.ceil(p.base * Math.pow(p.growth, level)); }   // coût niv L → L+1
+  function ptreeSpent() { let s = 0; PTREE.forEach(p => { const L = ptreeLvl(p.key); for (let i = 0; i < L; i++) s += pCost(p, i); }); return s; }
+  function prestigeAvail() { return prestigeOwned() - ptreeSpent(); }
+  function tierUnlocked(tier) { return ptreeSpent() >= (PTREE_TIER_REQ[tier] || 0); }
+  function buyPerk(key) {
+    const p = PTREE_BY_KEY[key]; if (!p) return;
+    const L = ptreeLvl(key);
+    if (L >= p.max) { toast("Niveau max"); return; }
+    if (!tierUnlocked(p.tier)) { toast(`Débloque en dépensant ${PTREE_TIER_REQ[p.tier]} Parts`); return; }
+    const c = pCost(p, L);
+    if (prestigeAvail() < c) { toast("Pas assez de Parts"); return; }
+    if (!state.ptree) state.ptree = {};
+    state.ptree[key] = L + 1;
+    toast(`📈 ${p.label} · niv.${L + 1}`);
+    render(); save();
+  }
+  function respecPtree() { state.ptree = {}; toast("♻️ Arbre réinitialisé — Parts réallouables"); render(); save(); }
+  // accesseurs d'effets branchés ailleurs
+  function ptreeCostReduce() { return ptreeLvl("cost") * 0.03; }
+  function ptreeGemReduce() { return ptreeLvl("gem") * 0.03; }
+  function ptreeGearRate() { return 1 + ptreeLvl("gear") * 0.15; }
+  function ptreeMcYield() { return ptreeLvl("mc") * 0.05; }
+  function ptreeMcCap() { return 1 + ptreeLvl("mc") * 0.10; }
 
   // --- 🎯 Objectifs (jalons one-shot) -----------------------------------
   // Conditions dérivées de l'état COURANT (monotones) → pas de compteur cumulatif.
@@ -1919,6 +1977,7 @@
   // --- 🎰 Margin Call (UI) ----------------------------------------------
   function openMarginCall() { navKey = "lobby"; showScreen("margincall"); render(); }
   function openStats() { navKey = "lobby"; showScreen("stats"); render(); }
+  function openPrestige() { navKey = "lobby"; showScreen("prestige"); render(); }
   function utcHM(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()); }
   // Lit les sliders → allocation (cash) + durée, bornées par les caps et le cash dispo.
   function mcLaunchInputs() {
@@ -2175,9 +2234,9 @@
   function mcState() { return state.mc || (state.mc = { rep: 0, session: null, lastResult: null }); }
   function mcRep() { return mcState().rep || 0; }
   function mcRepTier() { return Math.floor(Math.log2(1 + mcRep() / MC_REP_BASE)); }   // 0 tant que rep < base
-  function mcMaxDurationH() { return MC_BASE_MAX_DUR_H * (1 + 0.5 * mcRepTier()); }    // +50 %/palier
-  function mcMaxAlloc() { return Math.ceil(perSecond(true) * MC_ALLOC_SECONDS * (1 + 0.5 * mcRepTier())); }  // indexé prod + rép
-  function mcRepYield() { return 0.05 * mcRepTier(); }                                 // +5 %/palier de rendement
+  function mcMaxDurationH() { return MC_BASE_MAX_DUR_H * (1 + 0.5 * mcRepTier()) * ptreeMcCap(); }    // +50 %/palier · perk 🎰
+  function mcMaxAlloc() { return Math.ceil(perSecond(true) * MC_ALLOC_SECONDS * (1 + 0.5 * mcRepTier()) * ptreeMcCap()); }  // indexé prod + rép + perk
+  function mcRepYield() { return 0.05 * mcRepTier() + ptreeMcYield(); }                // +5 %/palier + perk 🎰
   function mcSession() { return mcState().session; }
   function mcRunning() { const s = mcSession(); return !!(s && !s.blown); }            // session en cours (non blown)
   function mcPending() { const s = mcSession(); return !!(s && s.blown); }             // margin call → gemmes à collecter
@@ -2375,6 +2434,37 @@
     el.innerHTML = html;
   }
 
+  // === 🌳 Arbre de prestige (écran) : build-once + update-in-place (clics fiables sous le loop) ===
+  let ptreeBuilt = false;
+  function buildPtree() {
+    const list = document.getElementById("ptreeList"); if (!list) return;
+    list.innerHTML = PTREE.map(p =>
+      `<div class="pt-card" id="pc-${p.key}">`
+      + `<div class="pt-top"><span class="pt-ic">${p.icon}</span><span class="pt-name">${p.label}</span><span class="pt-lvl" id="pcl-${p.key}"></span></div>`
+      + `<div class="pt-fx" id="pcf-${p.key}"></div>`
+      + `<button class="btn pt-buy" data-perk="${p.key}" id="pcb-${p.key}"></button>`
+      + `</div>`
+    ).join("");
+    ptreeBuilt = true;
+  }
+  function renderPtree() {
+    if (!ptreeBuilt) buildPtree();
+    const head = document.getElementById("ptreeHead");
+    if (head) head.innerHTML = `Parts : <b>${prestigeAvail()}</b> dispo · ${prestigeOwned()} au total · prod ×<b>${prestigeMult().toFixed(2)}</b>`;
+    const g = prestigeGain();
+    const rb = document.getElementById("ptreeReventeBtn"), rs = document.getElementById("ptreeReventeSub");
+    if (rb) rb.classList.toggle("can", g >= 1);
+    if (rs) rs.textContent = g >= 1 ? `+${g} Parts · reset cash / modules / Dex / Valo` : "produis davantage pour gagner des Parts";
+    PTREE.forEach(p => {
+      const L = ptreeLvl(p.key), unlocked = tierUnlocked(p.tier), maxed = L >= p.max, c = pCost(p, L), can = unlocked && !maxed && prestigeAvail() >= c;
+      const lvlEl = document.getElementById("pcl-" + p.key); if (lvlEl) lvlEl.textContent = `${L}/${p.max}`;
+      const fxEl = document.getElementById("pcf-" + p.key); if (fxEl) fxEl.textContent = p.fx(L) + (maxed ? "" : `  →  ${p.fx(L + 1)}`);
+      const b = document.getElementById("pcb-" + p.key);
+      if (b) { b.classList.toggle("can", can); b.disabled = !can; b.textContent = !unlocked ? `🔒 ${PTREE_TIER_REQ[p.tier]} Parts dépensées` : maxed ? "Max ✓" : `Acheter · ${c} 📈`; }
+      const card = document.getElementById("pc-" + p.key); if (card) card.classList.toggle("locked", !unlocked);
+    });
+  }
+
   // === 🏠 LOBBY : Pump + compétences groupées (refonte 2026-06-27) ======================
   // PUMP : taper le billet remplit une jauge ; le palier atteint donne un MULTIPLICATEUR
   // VIVANT sur la prod (×1,5/×2/×3). Au sommet → MAX : ×5 verrouillé 30 s, jauge inactive
@@ -2553,11 +2643,11 @@
       if (elapsed > 1) {
         const fx = globalHeroFx();
         const gq = gearQual();                                   // pool qualitatif gear (4c)
-        const cap = (OFFLINE_CAP_H + gq.offcap) * 3600 * fx.offlineCapMult;   // plafond 4 h + gear (offcap), × héros
+        const cap = (OFFLINE_CAP_H + gq.offcap + ptreeLvl("offline")) * 3600 * fx.offlineCapMult;   // 4 h + gear + perk 🌙, × héros
         const eff = Math.min(elapsed, cap);                      // durée créditée, plafonnée
-        state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * eff;   // faucet gear passif (même plafond hors-ligne)
+        state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE * ptreeGearRate() / 3600) * eff;   // faucet gear (perk 🛠️), même plafond
         gearAutoLevel();   // 🛠️ investit les fragments hors-ligne en paliers d'équipement
-        const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult * (1 + gq.offmult);   // 50 % × héros offlineMult × gear
+        const gained = perSecond() * eff * OFFLINE_RATE * fx.offlineMult * (1 + gq.offmult) * (1 + ptreeLvl("offline") * 0.1);   // × perk 🌙
         if (gained > 0) {
           state.cash += gained;
           state.runEarned = (state.runEarned || 0) + gained;   // 📈 les gains hors-ligne comptent pour le prestige
@@ -2721,6 +2811,7 @@
     document.getElementById("inventaireScreen").style.display = name === "inventaire" ? "block" : "none";
     document.getElementById("margincallScreen").style.display = name === "margincall" ? "block" : "none";
     document.getElementById("statsScreen").style.display = name === "stats" ? "block" : "none";
+    document.getElementById("prestigeScreen").style.display = name === "prestige" ? "block" : "none";
     // 🌍 Météo NON persistante : visible uniquement sur le Lobby et Margin Call.
     document.getElementById("worldBar").style.display = (name === "lobby" || name === "margincall") ? "" : "none";
     setActiveNav();
@@ -2876,6 +2967,7 @@
     else if (screen === "objectives") renderObjectives();
     else if (screen === "margincall") renderMarginCall();
     else if (screen === "stats") renderStats();
+    else if (screen === "prestige") renderPtree();
     else if (screen === "inventaire") renderInventaire();
     else if (screen === "overview") renderOverview();
     // (lobby : pas de dispatch dédié)
@@ -3031,7 +3123,7 @@
     state.runEarned = (state.runEarned || 0) + tickGain;   // 📈 base du gain de prestige
     dailyAdd("earn", tickGain);   // 📜 quête « produire du cash » (chemin idle garanti)
     if (fx.gemPerSec) state.gems = (state.gems || 0) + fx.gemPerSec * dt;
-    state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE / 3600) * dt;   // faucet gear passif (80/h)
+    state.gearFrags = (state.gearFrags || 0) + (GEAR_RATE * ptreeGearRate() / 3600) * dt;   // faucet gear passif (80/h × perk 🛠️)
     gearAutoLevel();   // 🛠️ investit auto les fragments en paliers (bonus prod passif)
     if (now - lastProdSample > 5000) { lastProdSample = now; prodHist.push({ v: perSecond() }); if (prodHist.length > 60) prodHist.shift(); }   // 📊 historique prod/s (~5 min)
     if (mcRunning()) {   // 🎰 Margin Call : avance la session active (inerte si OFF)
@@ -3126,16 +3218,22 @@
   document.getElementById("skillsBtn").addEventListener("click", fireAllSkills);
   document.getElementById("lobbyMcBtn").addEventListener("click", openMarginCall);
 
-  // 📈 Prestige dur : ouvre la confirmation, puis revend (reset) sur confirmation
-  document.getElementById("prestigeBtn").addEventListener("click", () => {
+  // 📈 Prestige : l'icône du rail ouvre l'ÉCRAN (revente + arbre)
+  document.getElementById("prestigeBtn").addEventListener("click", openPrestige);
+  document.getElementById("prestigeBackBtn").addEventListener("click", openLobby);
+  // Revente → modale de confirmation
+  document.getElementById("ptreeReventeBtn").addEventListener("click", () => {
     const g = prestigeGain(); if (g < 1) { toast("Produis davantage avant de revendre"); return; }
     document.getElementById("prestigeGainTxt").textContent = "+" + g + " Parts de fondateur";
-    document.getElementById("prestigeMultTxt").innerHTML = `Multiplicateur ×${prestigeMult().toFixed(2)} → <b>×${(1 + (prestigeOwned() + g) * PRESTIGE_STEP).toFixed(2)}</b>`;
+    document.getElementById("prestigeMultTxt").textContent = "À dépenser dans l'arbre de prestige.";
     document.getElementById("prestigeOv").style.display = "flex";
   });
   document.getElementById("prestigeConfirm").addEventListener("click", () => { document.getElementById("prestigeOv").style.display = "none"; doPrestige(); });
   document.getElementById("prestigeCancel").addEventListener("click", () => { document.getElementById("prestigeOv").style.display = "none"; });
   document.getElementById("prestigeOv").addEventListener("click", (e) => { if (e.target.id === "prestigeOv") e.currentTarget.style.display = "none"; });
+  // Arbre : achat délégué + respec
+  document.getElementById("ptreeList").addEventListener("click", (e) => { const b = e.target.closest("[data-perk]"); if (b) buyPerk(b.getAttribute("data-perk")); });
+  document.getElementById("ptreeRespec").addEventListener("click", respecPtree);
 
   // 🎰 Margin Call : listeners (attachés une fois ; renderMarginCall ne met à jour que les valeurs)
   document.getElementById("mcBackBtn").addEventListener("click", openLobby);
