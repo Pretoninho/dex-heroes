@@ -413,9 +413,11 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   `ceil(base×growth^L)` · **paliers** : tier 1 verrouillé tant que `ptreeSpent()<PTREE_TIER_REQ[1]`(=10). **Perks**
   (`PTREE`, TUNABLE) : 🏭 Rendement (`prestigeMult=1+lvl×PTREE_PROD_STEP`=5 %/niv, **porte le mult de prod**) · 🔻 coût
   modules (`ptreeCostReduce`, cap 80 % de `costOf`) · 🌙 hors-ligne (taux+plafond, `load`) · 💎 prix gemmes (`gemPrice`) ·
-  🚀 capital de départ (cash post-revente = `runEarned×0,002×lvl` dans `doPrestige`) · 🎰 Margin Call (yield+caps,
+  🚀 capital de départ (cash post-revente = `runEarned×0,01×lvl` dans `doPrestige`, +1 %/niv max +10 %) · 🎰 Margin Call (yield+caps,
   `mcRepYield`/`mcMaxAlloc`/`mcMaxDurationH`) · 🛠️ débit gear (`ptreeGearRate`, loop+load). Chip **📈 Prestige ×mult**
-  dans le 📊. ⚠️ **PROVISOIRE** (calage coûts/effets au playtest). Valo = couche mid-game, prestige = endgame.
+  dans le 📊. ⚠️ **Tuning sim (2026-06-28, `scratchpad/balance.js`)** : 🏭 prod `growth 1,5→1,4`, `max 50→30` (la traîne
+  reste pertinente jusqu'à ~niv20, MAX = 60,5k Parts au lieu de 1,28 Md absurde = vrai puits endgame) ; 🚀 capital de
+  départ `0,2 %→1 %/niv`. ⚠️ Reste **PROVISOIRE** ; à surveiller : perk 🎰 fort (EV MC ×1,68 au max). Valo = mid-game, prestige = endgame.
 - **C. Barre de progression / XP = COUCHE D'AFFICHAGE**, pas une nouvelle mécanique. ⚠️ **Anti-doublon** : la
   Valorisation EST déjà le « niveau joueur ». Une barre XP doit **visualiser** l'existant (rang Valo + objectifs
   atteints + prod), donner du *juice*/feedback — **sans** créer une 2ᵉ piste mécanique redondante.
