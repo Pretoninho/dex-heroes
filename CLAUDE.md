@@ -405,8 +405,9 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
   **multiplicatif** dans `perSecond` (inclus dans l'indice prix-gemme comme Valo/gear). **Reset** (`doPrestige`) : cash,
   niveaux de modules, Dex (→1), **rang Valo**, `runEarned`, Pump, session MC. **GARDÉ** : héros (copies/buffeurs),
   gear, fragments, gemmes, **placement** (`bufSlots`, anti-tedium), **réputation MC** (`mc.rep`), objectifs/quêtes.
-  **Déblocage** : bouton `#prestigeBtn` (Lobby, sous les actions) visible une fois `prestigeGain()≥PRESTIGE_MIN`(=3) ou
-  déjà prestigé → **modale de confirmation** `#prestigeOv` (gain, ×mult avant→après, colonnes gardé/reset). Chip
+  **Déblocage** : icône `#prestigeBtn` **dans le rail du Lobby** (📜 📊 **📈**, `#dotPrestige` rouge si revente ≥1 Part)
+  visible une fois `prestigeGain()≥PRESTIGE_MIN`(=3) ou déjà prestigé → **modale de confirmation** `#prestigeOv`
+  (gain, ×mult avant→après, colonnes gardé/reset). Chip
   **📈 Prestige ×mult** dans le 📊 tableau de bord. **TUNABLE** : `PRESTIGE_BASE`/`PRESTIGE_STEP`/`PRESTIGE_MIN`.
   ⚠️ **PROVISOIRE** (à playtester — calage base/step + 1ère revente). Valo reste la couche mid-game, le prestige la
   couche endgame. *Reste possible plus tard* : menu de dépenses des Parts (skill tree), au lieu du mult auto.

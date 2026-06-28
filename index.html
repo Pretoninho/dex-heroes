@@ -608,9 +608,7 @@
   .pump-gauge.locked .pump-tube { border-color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.5); }
   .pump-label { font-weight: 900; font-style: italic; font-size: 18px; color: #ffd24d; letter-spacing: 1px; text-shadow: 1px 1px 0 #b35a00; margin-top: 2px; }
   .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: auto; padding-top: 10px; width: 100%; }
-  /* 📈 Prestige : bouton endgame (apparaît une fois débloqué) */
-  .prestige-btn { width: 100%; margin-top: 10px; border-color: #ffd24d; color: #ffd24d; box-shadow: 0 0 14px rgba(255,210,77,.35); }
-  .prestige-btn small { display: block; font-weight: 400; font-size: 12px; opacity: .85; margin-top: 2px; }
+  /* 📈 Prestige : icône dans le rail (📜📊📈) ; détail dans la modale de confirmation */
   .prestige-cols { display: flex; gap: 8px; margin-top: 12px; text-align: left; }
   .prestige-cols > div { flex: 1; background: var(--panel-2); border: 1px solid #2a4d3a; border-radius: 10px; padding: 9px 10px; font-size: 11px; color: var(--muted); line-height: 1.45; }
   .prestige-cols .prestige-keep b { color: var(--accent); } .prestige-cols .prestige-reset b { color: #ff8c5a; }
@@ -729,6 +727,7 @@
       <div class="lobby-rail">
         <button class="daily-btn" id="dailyBtn" aria-label="Quêtes quotidiennes">📜<span class="dot" id="dotDaily"></span></button>
         <button class="daily-btn" id="statsBtn" aria-label="Tableau de bord">📊</button>
+        <button class="daily-btn" id="prestigeBtn" style="display:none" aria-label="Introduire en bourse">📈<span class="dot" id="dotPrestige"></span></button>
       </div>
       <div class="lobby-wrap">
         <div class="pump-gauge" id="pumpGauge">
@@ -748,7 +747,6 @@
           <button class="lobby-btn" id="skillsBtn">⚡ Compétences<small id="skillsSub">—</small><span class="dot" id="dotSkills"></span></button>
           <button class="lobby-btn" id="lobbyMcBtn">🎰 Margin Call<small>Réputation <b id="mcRepLobby">0</b></small><span class="dot" id="dotMc"></span></button>
         </div>
-        <button class="big-btn prestige-btn" id="prestigeBtn" style="display:none">📈 Introduire en bourse<small id="prestigeSub">—</small></button>
       </div>
     </div>
 
@@ -2460,14 +2458,7 @@
     document.getElementById("skillsBtn").classList.toggle("ready", skillsAllReady());
     document.getElementById("mcRepLobby").textContent = fmt(mcRep());
     const pb = document.getElementById("prestigeBtn");
-    if (pb) {
-      if (prestigeUnlocked()) {
-        pb.style.display = "";
-        const g = prestigeGain();
-        document.getElementById("prestigeSub").textContent = `+${g} Parts · ×${prestigeMult().toFixed(2)} actuel`;
-        pb.classList.toggle("can", g >= 1);
-      } else pb.style.display = "none";
-    }
+    if (pb) pb.style.display = prestigeUnlocked() ? "" : "none";   // icône du rail ; détail dans la modale
     if (screen === "lobby") renderForecast(document.getElementById("lobbyForecast"), 8);   // 📊 frise prévision (8 h)
   }
 
@@ -2478,6 +2469,7 @@
     setDot("dotOverview", ASSETS.some(n => actionable(n)));
     setDot("dotObjectives", anyQuestClaimable());
     setDot("dotDaily", anyDailyClaimable());
+    setDot("dotPrestige", prestigeUnlocked() && prestigeGain() >= 1);
     setDot("dotAtelier", atelierActionable());
     setDot("dotInventaire", false);     // slice 1 : rien de « réclamable » côté inventaire
     setDot("dotSkills", skillsAllReady());
