@@ -327,6 +327,9 @@
     margin-top: 14px; padding: 18px; border-radius: 12px; text-align: center;
     border: 2px dashed #3d3058; color: var(--muted); font-size: 14px;
   }
+  .mp-fiches { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .mp-fiche { width: 100%; }
+  .mp-fiche .mpf-role { color: var(--muted); font-weight: 400; font-size: 12px; }
 
   /* Gacha */
   .droprates { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
@@ -793,6 +796,7 @@
         <div class="hero-slot">
           <div id="mpHeroInfo">🦸 Slot héros</div>
           <button class="btn" id="mpHeroBtn" style="display:none; margin-top:10px">Déployer</button>
+          <div id="mpFiches" class="mp-fiches"></div>
         </div>
       </div>
 
@@ -3090,6 +3094,13 @@
       hbtn.textContent = deployed ? "Retirer le héros" : "Déployer (signature)";
       hbtn.className = "btn" + (deployed ? "" : " can");
     }
+    // ⚗️ Accès rapide aux fiches Atelier : héros-maison + buffeurs placés sur ce module
+    const fiches = [n.id];
+    slotsOf(currentModule).forEach(id => { if (fiches.indexOf(id) < 0) fiches.push(id); });
+    document.getElementById("mpFiches").innerHTML = fiches.map(id => {
+      const role = id === n.id ? "maison" : "buffeur";
+      return `<button class="btn mp-fiche" data-fiche="${id}">⚗️ ${heroName(id)} <span class="mpf-role">${role}</span> →</button>`;
+    }).join("");
   }
 
 
@@ -3316,6 +3327,12 @@
   document.getElementById("nextBtn").addEventListener("click", () => gotoSibling(1));
   document.getElementById("mpAction").addEventListener("click", () => { if (currentModule) interact(NODE[currentModule]); });
   document.getElementById("mpHeroBtn").addEventListener("click", () => { if (currentModule) toggleDeploy(NODE[currentModule]); });
+  // ⚗️ Page module → fiche du héros dans l'Atelier, ouverte côté BUFFEUR par défaut
+  document.getElementById("mpFiches").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-fiche]"); if (!b) return;
+    atlMode = "buff";
+    openFiche(b.getAttribute("data-fiche"), "atelier");
+  });
   // Pont cloud (Phase A) — sauvegarde multi-appareils si Supabase est configuré (voir cloud.js)
   window.DEX = {
     getState: () => state,
