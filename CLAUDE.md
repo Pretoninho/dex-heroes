@@ -516,6 +516,25 @@ Bloc de **correctifs mobiles/PWA** débogués avec le joueur (captures iPhone à
   toggle en `margin-top` normal). **Header `sticky` + nav `fixed`** restent en place. **Leçon retenue (consigne joueur)** :
   quand une modif ne règle pas le souci, **remonter au commit responsable / revert** plutôt qu'empiler des correctifs.
 
+#### 🔔 NOTIFICATIONS PUSH — EN ATTENTE (conçu 2026-06-28, reporté par le joueur — « on fera ça plus tard »)
+Idée du joueur : **hard-coder les notifs d'événements DÉTERMINISTES** (météo `world()`) — comme c'est **pareil pour
+tous** et calculable d'avance, ça ramène le joueur **sans logique par utilisateur**. Plan **validé, à coder plus tard** :
+- **Réalité technique** : sur **iOS**, app **fermée** ⇒ seul le **Web Push** marche, et un push doit être **émis** par
+  un tiers (pas d'auto-scheduler local en arrière-plan ; `TimestampTrigger` existe mais **pas sur iOS**). Donc même si
+  le contenu est déterministe, il faut un **émetteur**. Le déterminisme réduit ça à un **broadcast pré-programmé**
+  (calendrier fixe, 1 message identique à tous), pas de stockage d'état de partie.
+- **Voie retenue : OneSignal** (free tier). Le joueur doit créer l'app **Web Push** (scope **`/dex-heroes/`** — sous-chemin
+  GitHub Pages !), me donner l'**App ID** (public → client) ; la **REST API Key** reste **SECRÈTE** (jamais dans le repo,
+  uniquement env du script de calendrier).
+- **2 points délicats** : (1) **conflit de SW** → **importer** le SDK OneSignal **dans notre `sw.js`** (`importScripts(".../OneSignalSDK.sw.js")`)
+  + pointer la config sur notre worker, pour **ne pas casser l'auto-update PWA** ; (2) **scope `/dex-heroes/`** obligatoire.
+- **À coder (quand repris)** : (a) client = init SDK + toggle opt-in dans ⚙️ « 🔔 Alertes météo », permission **au clic**
+  (jamais au load), iOS = **PWA installée** requise ; (b) `scripts/schedule-weather-push.js` (Node, lit `ONESIGNAL_APP_ID`/
+  `ONESIGNAL_REST_KEY` en env) qui rejoue `world()` sur ~2 semaines → débuts de **Krach 💥 / Euphorie 🚀**, garde-fous
+  **max ~2/jour**, crée les notifs `send_after` via l'API REST, **idempotent** (fenêtre glissante), relancé ~hebdo.
+- **Garde-fous verrouillés** : events notables **only** (Krach/Euphorie, pas les ~68 min de cycle) · UTC (pas de fuseau) ·
+  vie privée (OneSignal reçoit des *endpoints de push*, aucune donnée de jeu) · permission opt-in.
+
 #### 📜 QUÊTES QUOTIDIENNES — ✅ FAIT (2026-06-27)
 Branche le **sink récurrent / boucle de retour quotidienne**, **complémentaire** des Objectifs 🎯 (qui restent des
 paliers d'**état** permanents recyclables). Décisions verrouillées avec le joueur :
