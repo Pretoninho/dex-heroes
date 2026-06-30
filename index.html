@@ -972,6 +972,7 @@
       <div class="gembuy" style="display:flex;gap:8px;justify-content:center;margin:10px 0">
         <button class="btn" id="buyGem100">+100 💎 · <span id="gemPrice100">$100</span></button>
         <button class="btn" id="buyGem1000">+1000 💎 · <span id="gemPrice1000">$1k</span></button>
+        <button class="btn" id="buyGem10000">+10000 💎 · <span id="gemPrice10000">$10k</span></button>
       </div>
       <div class="gemhint" id="gemHint" style="text-align:center"></div>
       <button class="big-btn can" id="gemsClose" style="margin-top:14px">Fermer</button>
@@ -2090,7 +2091,7 @@
     document.getElementById("atlWorkshop").innerHTML =
       // Invoquer (compact, toujours visible — alimente la fusion)
       `<div class="atl-invoke"><div class="atl-frag">🧬 <b id="atlFrags">0</b> fragments</div>`
-      + `<div class="atl-btnrow"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button></div>`
+      + `<div class="atl-btnrow"><button class="btn" id="atlPull1" data-atl="pull1">Invoquer ×1 · 200💎</button><button class="btn" id="atlPull10" data-atl="pull10">×10 · 2000💎</button><button class="btn" id="atlPull100" data-atl="pull100">×100 · 20000💎</button></div>`
       + `<div class="atl-btnrow"><button class="btn" id="atlBuy1" data-atl="buy200"></button><button class="btn" id="atlBuy10" data-atl="buy2000"></button></div>`
       + `<div class="sub" id="atlHint" style="display:none;color:var(--accent-2)">💡 Pas assez de gemmes — achète-en pour invoquer.</div></div>`
       // Zone de fusion (dépend du mode)
@@ -2118,7 +2119,7 @@
     set("atlFrags", fmt(frags));
     set("atlBuy1", `Acheter 200💎 · ≈$${fmt(buy1)}`); able("atlBuy1", state.cash >= buy1);
     set("atlBuy10", `2000💎 · ≈$${fmt(buy10)}`); able("atlBuy10", state.cash >= buy10);
-    able("atlPull1", gems >= PULL_COST); able("atlPull10", gems >= PULL_COST * 10);
+    able("atlPull1", gems >= PULL_COST); able("atlPull10", gems >= PULL_COST * 10); able("atlPull100", gems >= PULL_COST * 100);
     const hint = document.getElementById("atlHint"); if (hint) hint.style.display = gems < PULL_COST ? "block" : "none";
     // bascule
     document.getElementById("atlModeBuff").classList.toggle("can", atlMode === "buff");
@@ -2993,8 +2994,10 @@
     const gp = gemPrice();
     document.getElementById("gemPrice100").textContent = "≈$" + fmt(gp * 100);
     document.getElementById("gemPrice1000").textContent = "≈$" + fmt(gp * 1000);
+    document.getElementById("gemPrice10000").textContent = "≈$" + fmt(gp * 10000);
     document.getElementById("buyGem100").classList.toggle("can", state.cash >= gp * 100);
     document.getElementById("buyGem1000").classList.toggle("can", state.cash >= gp * 1000);
+    document.getElementById("buyGem10000").classList.toggle("can", state.cash >= gp * 10000);
     const gh = document.getElementById("gemHint");
     if (gh) gh.textContent = "Prix des gemmes indexé sur ta production. Invoque tes héros dans le 📖 Codex.";
 
@@ -3204,6 +3207,7 @@
   document.getElementById("valoBtn").addEventListener("click", buyValo);
   document.getElementById("buyGem100").addEventListener("click", () => buyGems(100));
   document.getElementById("buyGem1000").addEventListener("click", () => buyGems(1000));
+  document.getElementById("buyGem10000").addEventListener("click", () => buyGems(10000));
   document.getElementById("heroesBackBtn").addEventListener("click", openLobby);
   document.getElementById("objBackBtn").addEventListener("click", openLobby);
   document.getElementById("invBackBtn").addEventListener("click", openLobby);
@@ -3339,6 +3343,7 @@
     else if (act === "buy2000") buyGems(PULL_COST * 10);
     else if (act === "pull1") pullFrags(atelierHero, 1);
     else if (act === "pull10") pullFrags(atelierHero, 10);
+    else if (act === "pull100") pullFrags(atelierHero, 100);
     else if (act === "fusebtn") { if (atlMode === "buff") fuseBuffer(atelierHero); else mintCopy(atelierHero); }
     else if (act === "place") toggleBuffer(atelierHero, btn.getAttribute("data-mod"));
   });

@@ -332,7 +332,7 @@ purement de la mise en forme.
 
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
-du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments) · **2️⃣ Renforcer** (Fusionner = +1 %/niv
+du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments — `pullFrags` ×1/×10/**×100**) · **2️⃣ Renforcer** (Fusionner = +1 %/niv
 *ou* Forger une copie, avec progression « X / Y · manque Z » sous chaque bouton) · **3️⃣ Placer** (modules de même
 rareté, 2 slots). Fonctions `renderAtelier`/`buildAtelierWorkshop`/`updateAtelierWorkshop` ; un seul listener
 délégué sur `#atlWorkshop` (boutons `data-atl`). Structure **construite une fois par héros** (anti-reconstruction
@@ -463,7 +463,7 @@ Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`clo
 
 - **Shell** : **en-tête permanent 2 rangées** (`.appheader` flex column) — R1 avatar + pseudo + (rang Valo
   `×mult` · prod/s) + **☁️ compte** (injecté par `cloud.js` dans `#cloudSlot`, **logé dans la modale ⚙️**) + **⚙️
-  Réglages** ; R2 chips **💵 cash** · **💎 gemmes (bouton → modale d'achat `#gemsOv`)** · **📈 Promotion** (Valo,
+  Réglages** ; R2 chips **💵 cash** · **💎 gemmes (bouton → modale d'achat `#gemsOv` : +100/+1000/+10000 via `buyGems`)** · **📈 Promotion** (Valo,
   sortie des réglages, pastille « abordable »). **Nav du bas flottante** `.bottomnav` (5 dest. : Cash Flow ·
   Objectifs · **Lobby 🏠** · Inventaire · Atelier ; remontée ~22px du bas). **⚙️ Réglages** = Sauver / Réinitialiser
   + **🔄 Mettre à jour** + compte. `showScreen` gère `lobby/overview/module/heroes/objectives/inventaire/margincall`
