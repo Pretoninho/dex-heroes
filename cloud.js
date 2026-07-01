@@ -53,15 +53,30 @@
       lastPush = Date.now();
       sb.from("saves").upsert({ user_id: user.id, state: st, updated_at: new Date().toISOString() })
         .then(function (r) { if (r.error) console.warn("[Cloud] push:", r.error.message); });
-      // Phase B : on pousse aussi le score (production /s) pour le classement
-      var score = bridge && bridge.getScore ? bridge.getScore() : 0;
-      sb.from("scores").upsert({ user_id: user.id, display_name: getName(), net_worth: score, updated_at: new Date().toISOString() })
+      // Phase B : on pousse aussi le score (production /s) + prestige pour le classement
+      sb.from("scores").upsert(scoreRow())
         .then(function (r) { if (r.error) console.warn("[Cloud] score:", r.error.message); });
     }, delay);
   };
   Cloud.topScores = function () {
-    return sb.from("scores").select("display_name,net_worth").order("net_worth", { ascending: false }).limit(20);
+    return sb.from("scores").select("display_name,net_worth,ipo,parts").order("net_worth", { ascending: false }).limit(20);
   };
+  // Ligne de score poussée au classement (score + prestige : IPO + Parts pour la plaque).
+  function scoreRow() {
+    return {
+      user_id: user.id, display_name: getName(),
+      net_worth: bridge && bridge.getScore ? bridge.getScore() : 0,
+      ipo: bridge && bridge.getIpo ? bridge.getIpo() : 0,
+      parts: bridge && bridge.getParts ? bridge.getParts() : 0,
+      updated_at: new Date().toISOString()
+    };
+  }
+  // 🏅 Palier de plaque selon le nb d'IPO (miroir de PRESTIGE_TIERS d'index.html).
+  function tierFor(ipo) {
+    var T = [[0, "Fer", "#8a949e"], [1, "Bronze", "#cd7f32"], [3, "Argent", "#cbd2da"], [6, "Or", "#ffd24d"], [10, "Platine", "#5fe6cf"], [20, "Diamant", "#7ab8ff"], [40, "Maître", "#c07cff"]];
+    var t = T[0]; for (var i = 0; i < T.length; i++) if ((ipo || 0) >= T[i][0]) t = T[i];
+    return { name: t[1], color: t[2] };
+  }
 
   // Pseudo affiché au classement (modifiable ; défaut = préfixe email)
   function getName() { return localStorage.getItem("dexCloudName") || (user && user.email ? user.email.split("@")[0] : "Joueur"); }
@@ -69,8 +84,7 @@
   // Pousse le pseudo vers le cloud (table scores) pour qu'il suive le compte.
   function pushName() {
     if (!user) return;
-    var score = bridge && bridge.getScore ? bridge.getScore() : 0;
-    sb.from("scores").upsert({ user_id: user.id, display_name: getName(), net_worth: score, updated_at: new Date().toISOString() })
+    sb.from("scores").upsert(scoreRow())
       .then(function (r) { if (r.error) console.warn("[Cloud] name:", r.error.message); });
   }
   // Charge le pseudo du compte depuis le cloud à la connexion (suit le compte, multi-appareils).
@@ -149,7 +163,9 @@
       + ".cloud-card .row{display:flex;gap:8px;margin-top:8px}.cloud-card button{flex:1;padding:10px;border-radius:8px;border:1px solid #2a4d3a;background:#18342695;color:#eafff4;cursor:pointer}"
       + ".cloud-card button.primary{border-color:#ffd24d;color:#ffd24d}.cloud-msg{font-size:12px;color:#ffd24d;margin-top:10px;min-height:16px}"
       + ".cloud-board{margin-top:10px;max-height:220px;overflow:auto}"
-      + ".cb-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 2px;border-bottom:1px solid #1d3d2c}"
+      + ".cb-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;padding:6px 6px 6px 8px;border-bottom:1px solid #1d3d2c;border-radius:4px}"
+      + ".cb-who{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden}"
+      + ".cb-tier{font-size:9.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:1px 6px;border-radius:999px;border:1px solid;white-space:nowrap;flex:0 0 auto}"
       + ".cloud-close{margin-top:12px;width:100%;opacity:.8}";
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
@@ -196,7 +212,13 @@
           say("");
           var rows = r.data || [], el = card.querySelector("#cBoardList");
           el.innerHTML = rows.length
-            ? rows.map(function (x, i) { return '<div class="cb-row"><span>' + (i + 1) + ". " + esc(x.display_name || "—") + '</span><span>' + fmtN(x.net_worth) + ' /s</span></div>'; }).join("")
+            ? rows.map(function (x, i) {
+                var ipo = x.ipo || 0, tr = tierFor(ipo);
+                var badge = '<span class="cb-tier" style="color:' + tr.color + ';border-color:' + tr.color + '">' + tr.name + (ipo > 0 ? ' · ' + ipo + ' IPO' : '') + '</span>';
+                return '<div class="cb-row" style="border-left:3px solid ' + tr.color + '">'
+                  + '<span class="cb-who">' + (i + 1) + ". " + esc(x.display_name || "—") + badge + '</span>'
+                  + '<span>' + fmtN(x.net_worth) + ' /s</span></div>';
+              }).join("")
             : '<div class="cb-row"><span>Aucun score encore</span></div>';
         });
       };

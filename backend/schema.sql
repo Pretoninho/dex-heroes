@@ -34,8 +34,13 @@ create table if not exists public.scores (
   user_id      uuid primary key references auth.users (id) on delete cascade,
   display_name text,
   net_worth    numeric not null default 0,
+  ipo          int     not null default 0,   -- 📈 nb d'IPO (prestiges) → palier de plaque au classement
+  parts        numeric not null default 0,   -- 📈 Parts de fondateur accumulées au total
   updated_at   timestamptz not null default now()
 );
+-- ⚠️ Table déjà créée ? Passer une fois dans Supabase → SQL Editor :
+--   alter table public.scores add column if not exists ipo int not null default 0;
+--   alter table public.scores add column if not exists parts numeric not null default 0;
 
 alter table public.scores enable row level security;
 

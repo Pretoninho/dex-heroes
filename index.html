@@ -557,8 +557,16 @@
     display: flex; flex-direction: column; gap: 7px; padding: 8px 12px;
     background: rgba(13,31,23,.92); backdrop-filter: blur(8px); border: 1px solid #1d3d2c; border-top: none; border-radius: 0 0 14px 14px; }
   .ah-top { display: flex; align-items: center; gap: 10px; }
+  /* 🏅 Plaque de profil teintée selon le palier d'IPO (var --tier posée par JS) */
+  .ah-plaque { --tier: #8a949e; padding: 7px 9px; border-radius: 12px;
+    background: linear-gradient(100deg, color-mix(in srgb, var(--tier) 22%, transparent), color-mix(in srgb, var(--tier) 6%, transparent));
+    border: 1px solid color-mix(in srgb, var(--tier) 55%, #2a4d3a); box-shadow: inset 0 0 14px color-mix(in srgb, var(--tier) 12%, transparent); }
   .ah-idtext { flex: 1 1 auto; min-width: 0; }
-  .ah-avatar { width: 38px; height: 38px; border-radius: 11px; background: var(--panel-2); border: 1px solid #2a4d3a; display: flex; align-items: center; justify-content: center; font-size: 20px; flex: 0 0 auto; }
+  .ah-avatar { width: 38px; height: 38px; border-radius: 11px; background: var(--panel-2); border: 1px solid color-mix(in srgb, var(--tier, #2a4d3a) 55%, #2a4d3a); display: flex; align-items: center; justify-content: center; font-size: 20px; flex: 0 0 auto; }
+  .ah-pseudo-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .ah-tier { font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; flex: 0 0 auto;
+    color: var(--tier); background: color-mix(in srgb, var(--tier) 16%, transparent); border: 1px solid color-mix(in srgb, var(--tier) 60%, transparent); }
+  .ah-prestige { color: var(--tier); opacity: .95; }
   .ah-pseudo { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ah-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ah-res { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
@@ -706,11 +714,12 @@
 <body>
   <!-- En-tête permanent : identité + ressources + réglages -->
   <header class="appheader">
-    <div class="ah-top">
+    <div class="ah-top ah-plaque" id="ahPlaque">
       <div class="ah-avatar" id="ahAvatar">💼</div>
       <div class="ah-idtext">
-        <div class="ah-pseudo" id="ahPseudo">Joueur</div>
+        <div class="ah-pseudo-row"><span class="ah-pseudo" id="ahPseudo">Joueur</span><span class="ah-tier" id="ahTier">Fer</span></div>
         <div class="ah-sub"><span id="valoRank">Stagiaire</span> <span id="valoMult">×1.00</span> · <span id="perSec">$0/s</span></div>
+        <div class="ah-sub ah-prestige" id="ahPrestige">📈 0 IPO · 0 Parts</div>
       </div>
       <div class="ah-res">
         <button class="ah-gear" id="settingsBtn" title="Réglages">⚙️<span class="dot" id="dotSettings"></span></button>
@@ -1027,7 +1036,7 @@
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=25"></script>
+<script src="cloud.js?v=26"></script>
 <script src="heroes.data.js?v=9"></script>
 <script>
 (() => {
@@ -1458,6 +1467,7 @@
       metaV2: 0,                   // version de migration méta atteinte (0 = pas encore migré)
       daily: null,                 // 📜 quêtes quotidiennes : { day, keys, tgt, base, prog, claimed, bonus } (régénéré par rollDaily)
       prestige: 0,                 // 📈 Parts de fondateur GAGNÉES au total (monnaie de prestige dur, permanente)
+      prestigeCount: 0,            // 📈 nombre d'IPO (reventes d'empire) effectuées → palier de plaque de profil
       ptree: {},                   // 🌳 arbre de prestige : { perkKey: niveau } — Parts dépensées
       runEarned: 0,                // cash total produit dans la partie courante (base du gain de prestige, reset au prestige)
       lastSeen: Date.now()
@@ -1664,10 +1674,22 @@
   function prestigeMult() { return 1 + ptreeLvl("prod") * PTREE_PROD_STEP; }   // mult de prod = perk 🏭 Rendement (l'arbre remplace le mult auto)
   function prestigeGain() { return Math.floor(Math.sqrt((state.runEarned || 0) / PRESTIGE_BASE)); }
   function prestigeUnlocked() { return prestigeOwned() > 0 || prestigeGain() >= PRESTIGE_MIN; }   // visible une fois mérité, puis toujours
+  // 🏅 Palier de plaque de profil selon le nombre d'IPO (classement classique fer→maître). TUNABLE.
+  const PRESTIGE_TIERS = [
+    { min: 0,  name: "Fer",     color: "#8a949e" },
+    { min: 1,  name: "Bronze",  color: "#cd7f32" },
+    { min: 3,  name: "Argent",  color: "#cbd2da" },
+    { min: 6,  name: "Or",      color: "#ffd24d" },
+    { min: 10, name: "Platine", color: "#5fe6cf" },
+    { min: 20, name: "Diamant", color: "#7ab8ff" },
+    { min: 40, name: "Maître",  color: "#c07cff" },
+  ];
+  function prestigeTier(ipo) { let t = PRESTIGE_TIERS[0]; for (const x of PRESTIGE_TIERS) if ((ipo || 0) >= x.min) t = x; return t; }
   function doPrestige() {
     const g = prestigeGain();
     if (g < 1) return;
     state.prestige = prestigeOwned() + g;
+    state.prestigeCount = (state.prestigeCount || 0) + 1;   // 📈 +1 IPO (palier de plaque)
     const earned = state.runEarned || 0;   // pour le perk 🚀 Capital de départ (avant reset)
     // RESET (la « partie » = l'économie cash) ; on GARDE le patrimoine (méta) + placement + réputation.
     state.cash = Math.floor(earned * 0.01 * ptreeLvl("start"));   // 🚀 Capital de départ : +1 %/niv du cash produit
@@ -2599,6 +2621,11 @@
   function openLobby() { navKey = "lobby"; showScreen("lobby"); render(); }
   function renderLobby() {
     document.getElementById("ahPseudo").textContent = (localStorage.getItem("dexCloudName") || "Joueur");
+    // 🏅 Plaque de profil : palier selon le nombre d'IPO + infos prestige
+    const ipo = state.prestigeCount || 0, tier = prestigeTier(ipo);
+    const plaque = document.getElementById("ahPlaque"); if (plaque) plaque.style.setProperty("--tier", tier.color);
+    const tEl = document.getElementById("ahTier"); if (tEl) tEl.textContent = tier.name;
+    const pEl = document.getElementById("ahPrestige"); if (pEl) pEl.textContent = `📈 ${ipo} IPO · ${fmt(prestigeOwned())} Parts`;
     const fill = document.getElementById("pumpFill");
     const gauge = document.getElementById("pumpGauge");
     if (fill) fill.style.height = (pumpLocked() ? 100 : pumpGauge * 100) + "%";
@@ -3402,6 +3429,8 @@
   window.DEX = {
     getState: () => state,
     getScore: () => Math.round(perSecond()),   // métrique du classement : production /s
+    getIpo: () => state.prestigeCount || 0,     // 📈 nb d'IPO (palier de plaque, classement)
+    getParts: () => state.prestige || 0,        // 📈 Parts de fondateur accumulées au total
     world: (t) => world(t),                    // 🌍 météo de marché partagée (fonction pure UTC) — consommée par Margin Call (phase 2)
     addGems: (n) => { state.gems = Math.max(0, (state.gems || 0) + n); render(); save(); },
     addCash: (n) => { state.cash = Math.max(0, (state.cash || 0) + n); render(); save(); },

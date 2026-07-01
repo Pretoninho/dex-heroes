@@ -58,7 +58,7 @@ suppression délibérée, à confirmer avant chaque purge) :
 
 - **Cache-busting** : `cloud.js` est chargé avec `?v=N` dans `index.html`.
   **Bumper N à chaque modif de `cloud.js`** (sinon le navigateur sert l'ancien).
-  Version actuelle : **v=25** (refonte UI : compte cloud re-logé dans la modale ⚙️ Réglages).
+  Version actuelle : **v=26** (classement enrichi : plaque de profil à paliers d'IPO — voir « PLAQUE DE PROFIL »).
 - **Workflow git** : l'utilisateur push directement sur `main` ; **le jeu se déploie depuis `main`**.
 - **Déploiement (GitHub Pages via Actions `.github/workflows/pages.yml`)** : `build_type: workflow`, gardé par
   l'**environnement `github-pages`** dont la *deployment-branch-policy* liste les branches autorisées.
@@ -461,7 +461,19 @@ Direction validée en discussion (mode critique). Trois chantiers, tous **idle-n
 ### 🎨 REFONTE UI (« app mobile ») + PUMP + simplification — **EN COURS (2026-06-27, même branche), poussé sur `main` au fil de l'eau**
 Bascule d'une longue colonne vers une **app à nav du bas + page d'accueil (Lobby) = hub d'action**. Tout poussé
 live sur `main` (le joueur teste en PWA « écran d'accueil »).
-Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`cloud.js?v=25`**.
+Tout testé navigateur (Playwright, viewport ~402×874) + `node --check`. **`cloud.js?v=26`**.
+
+#### 🏅 PLAQUE DE PROFIL À PALIERS D'IPO — ✅ FAIT (2026-06-28)
+En-tête + classement affichent le **prestige** du joueur via une **plaque colorée** dont le palier dépend du **nombre
+d'IPO** (reventes) — classement classique **Fer → Bronze → Argent → Or → Platine → Diamant → Maître** (`PRESTIGE_TIERS`,
+seuils 0/1/3/6/10/20/40, TUNABLE). `state.prestigeCount` (nb d'IPO, +1 dans `doPrestige`) · `state.prestige` = Parts
+accumulées au total. `prestigeTier(ipo)→{name,color}`.
+- **En-tête** (`index.html`) : `.ah-top` devient `.ah-plaque` teintée via `--tier` (posé par `renderLobby`, `color-mix`),
+  chip `#ahTier` (nom du palier) à côté du pseudo + ligne `#ahPrestige` « 📈 N IPO · P Parts ». Bridge : `getIpo`/`getParts`.
+- **Classement** (`cloud.js`, **v=26**) : `scores` porte désormais `ipo` + `parts` (poussés par `scoreRow()`), rangs avec
+  **bord + chip de palier** coloré et « N IPO » (`tierFor` = miroir de `PRESTIGE_TIERS`). ⚠️ **Migration Supabase requise**
+  (sinon le push score échoue) : `alter table public.scores add column if not exists ipo int not null default 0;` +
+  `... parts numeric not null default 0;` (aussi dans `backend/schema.sql`).
 
 - **Shell** : **en-tête permanent 2 rangées** (`.appheader` flex column) — R1 avatar + pseudo + (rang Valo
   `×mult` · prod/s) + **☁️ compte** (injecté par `cloud.js` dans `#cloudSlot`, **logé dans la modale ⚙️**) + **⚙️
