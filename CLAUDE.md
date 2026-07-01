@@ -333,7 +333,9 @@ purement de la mise en forme.
 ### Parcours de création de héros — DANS LA FICHE CODEX (2026-06-26)
 Le parcours simplifié (ex-« Atelier ») vit maintenant **dans la fiche du Codex** (`#atlWorkshop`, sous le lore
 du héros) : **1️⃣ Invoquer** (acheter gemmes au cash + invoquer fragments — `pullFrags` ×1/×10/**×100**) · **2️⃣ Renforcer** (Fusionner = +1 %/niv
-*ou* Forger une copie, avec progression « X / Y · manque Z » sous chaque bouton) · **3️⃣ Placer** (modules de même
+*ou* Forger une copie, avec progression « X / Y · manque Z » sous chaque bouton ; **♻️ Défragmenter** (`defragCopy` :
+dissout une copie LIBRE en trop → rend le coût marginal `base^owned` en fragments, plein/réversible, garde ≥1, ne
+touche pas aux copies placées ; bouton visible en mode Copies si `free>0 && owned>1`)) · **3️⃣ Placer** (modules de même
 rareté, 2 slots). Fonctions `renderAtelier`/`buildAtelierWorkshop`/`updateAtelierWorkshop` ; un seul listener
 délégué sur `#atlWorkshop` (boutons `data-atl`). Structure **construite une fois par héros** (anti-reconstruction
 du game loop 10×/s → clics fiables), valeurs mises à jour ensuite.

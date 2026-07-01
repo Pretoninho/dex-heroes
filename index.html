@@ -1291,6 +1291,17 @@
     toast(`🧬 +1 copie · ${heroName(id)}`);
     render(); save();
   }
+  // ♻️ Défragmenter : dissout une copie LIBRE en trop → rend le coût marginal en fragments (remboursement plein,
+  // réversible, pas d'exploit). Garde toujours ≥1 copie et ne touche jamais aux copies placées.
+  function defragCopy(id) {
+    const owned = copiesOwned(id), free = copiesFree(id);
+    if (owned <= 1 || free <= 0) { toast("Aucune copie libre en trop à défragmenter"); return; }
+    const refund = Math.pow(fusionBase(rarityOf(id)), owned);   // = coût de la copie du dessus (base^owned)
+    state.heroes[id] = owned - 1;
+    state.heroFrags[id] = (state.heroFrags[id] || 0) + refund;
+    toast(`♻️ Copie défragmentée · +${fmt(refund)} fragments`);
+    render(); save();
+  }
   function toggleBuffer(id, moduleId) {
     const node = NODE[moduleId]; if (!node) return;
     if (rarityOf(id) !== node.tier) { toast("Rareté incompatible"); return; }
@@ -2100,6 +2111,7 @@
       + `<div class="fus-slots" id="atlSlots"></div>`
       + `<div class="fus-count" id="atlCount"></div>`
       + `<button class="big-btn fus-btn" id="atlFuseBtn" data-atl="fusebtn">FUSIONNER</button>`
+      + `<button class="btn" id="atlDefragBtn" data-atl="defrag" style="display:none;margin-top:8px;width:100%">Défragmenter</button>`
       + `</div>`
       // Placement (mode Copies)
       + `<div class="atl-place" id="atlPlaceWrap"><div class="sub">Placer une copie sur un module de même rareté :</div>${placeRows}`
@@ -2141,6 +2153,13 @@
     const fb = document.getElementById("atlFuseBtn");
     fb.textContent = buff ? (atMax ? "Niveau max" : `FUSIONNER  ·  ${fmt(step)} 🧬`) : `FORGER  ·  ${fmt(cc)} 🧬`;
     fb.classList.toggle("ready", ready); fb.disabled = !ready;
+    // ♻️ Défragmenter : rend les fragments d'une copie LIBRE en trop (mode Copies, garde ≥1)
+    const defBtn = document.getElementById("atlDefragBtn");
+    if (defBtn) {
+      const canDef = !buff && owned > 1 && free > 0;
+      defBtn.style.display = canDef ? "" : "none";
+      if (canDef) defBtn.textContent = `♻️ Défragmenter 1 copie · +${fmt(Math.pow(fusionBase(R), owned))} 🧬`;
+    }
     // placement (mode copies)
     if (atlMode === "copies") {
       ASSETS.filter(x => x.tier === R).forEach(x => {
@@ -3345,6 +3364,7 @@
     else if (act === "pull10") pullFrags(atelierHero, 10);
     else if (act === "pull100") pullFrags(atelierHero, 100);
     else if (act === "fusebtn") { if (atlMode === "buff") fuseBuffer(atelierHero); else mintCopy(atelierHero); }
+    else if (act === "defrag") defragCopy(atelierHero);
     else if (act === "place") toggleBuffer(atelierHero, btn.getAttribute("data-mod"));
   });
   document.getElementById("ficheGotoModule").addEventListener("click", () => { if (ficheId) openModule(ficheId); });
